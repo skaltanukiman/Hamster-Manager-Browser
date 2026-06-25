@@ -1,0 +1,80 @@
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+export function parseDateInput(value: string) {
+  if (!DATE_INPUT_PATTERN.test(value)) {
+    throw new Error(`Invalid date input: ${value}`);
+  }
+
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+export function toDateInputValue(date: Date) {
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+export function formatDateJp(date: Date | null | undefined) {
+  if (!date) {
+    return "未記録";
+  }
+
+  return toDateInputValue(date).split("-").join("/");
+}
+
+export function todayInputJst() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}`;
+}
+
+export function currentMonthInputJst() {
+  return todayInputJst().slice(0, 7);
+}
+
+export function normalizeYearMonth(value: string | undefined | null) {
+  return value && YEAR_MONTH_PATTERN.test(value) ? value : currentMonthInputJst();
+}
+
+export function getDaysInMonth(yearMonth: string) {
+  if (!YEAR_MONTH_PATTERN.test(yearMonth)) {
+    throw new Error(`Invalid month input: ${yearMonth}`);
+  }
+
+  const [year, month] = yearMonth.split("-").map(Number);
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  return Array.from({ length: days }, (_, index) => {
+    const day = index + 1;
+    const date = `${yearMonth}-${pad(day)}`;
+    const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+
+    return { date, day, weekday };
+  });
+}
+
+export function monthDateRange(yearMonth: string) {
+  if (!YEAR_MONTH_PATTERN.test(yearMonth)) {
+    throw new Error(`Invalid month input: ${yearMonth}`);
+  }
+
+  const [year, month] = yearMonth.split("-").map(Number);
+
+  return {
+    start: parseDateInput(`${yearMonth}-01`),
+    end: new Date(Date.UTC(year, month, 1))
+  };
+}
+
+export function daysSinceDate(date: Date) {
+  const today = parseDateInput(todayInputJst());
+  const target = parseDateInput(toDateInputValue(date));
+  const diff = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+
+  return Math.max(diff, 0);
+}
+
