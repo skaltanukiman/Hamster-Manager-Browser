@@ -9,6 +9,7 @@ datasource db {
 
 model Hamster {
   id              String           @id @default(cuid())
+  // 画面上ではハムスター名を識別子として扱うため、同名登録を避ける。
   name            String           @unique
   memo            String?
   createdAt       DateTime         @default(now())
@@ -33,6 +34,7 @@ model CleaningRecord {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  // 衛生管理表はハムスターごとに1日1行として保存する。
   @@unique([hamsterId, recordDate])
   @@index([recordDate])
   @@map("cleaning_records")
@@ -47,6 +49,7 @@ model WeightRecord {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // 体重履歴はハムスターごとに1日1件として保存する。
   @@unique([hamsterId, recordDate])
   @@index([recordDate])
   @@map("weight_records")

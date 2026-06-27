@@ -5,6 +5,7 @@ export function toCsv(rows: Array<Array<string | number | null | undefined>>) {
 function escapeCsvCell(value: string | number | null | undefined) {
   const text = value == null ? "" : String(value);
 
+  // カンマ・改行・ダブルクォートを含むセルだけをCSV仕様に合わせてクォートする。
   if (/[",\r\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }

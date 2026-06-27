@@ -26,6 +26,7 @@ export async function saveCleaningMonth(formData: FormData) {
   const { hamsterId, yearMonth } = result.data;
   const days = getDaysInMonth(yearMonth);
 
+  // 画面上は未来日を無効化しているが、直接送信された場合も保存しないようサーバー側で確認する。
   const hasFutureInput = days.some((day) => {
     if (!isFutureDateInput(day.date)) {
       return false;
@@ -45,6 +46,7 @@ export async function saveCleaningMonth(formData: FormData) {
     redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=future`);
   }
 
+  // 未来日を含む月でも、当日以前の行だけを保存対象にする。
   const editableDays = days.filter((day) => !isFutureDateInput(day.date));
 
   if (editableDays.length === 0) {
@@ -73,6 +75,7 @@ export async function saveCleaningMonth(formData: FormData) {
     const recordDate = parseDateInput(day.date);
 
     if (!hasRecord) {
+      // チェックもメモも空になった日は、空レコードを残さず未記録として扱う。
       return prisma.cleaningRecord.deleteMany({
         where: {
           hamsterId,
@@ -81,6 +84,7 @@ export async function saveCleaningMonth(formData: FormData) {
       });
     }
 
+    // ハムスターごとに1日1レコードへ集約するため、同じ日の入力は作成または更新で保存する。
     return prisma.cleaningRecord.upsert({
       where: {
         hamsterId_recordDate: {
@@ -97,6 +101,7 @@ export async function saveCleaningMonth(formData: FormData) {
     });
   });
 
+  // 月の表全体を一括保存するため、日別の作成・更新・削除を同一トランザクションで確定する。
   await prisma.$transaction(operations);
 
   revalidatePath("/");

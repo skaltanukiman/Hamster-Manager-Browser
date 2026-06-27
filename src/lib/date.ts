@@ -11,6 +11,7 @@ export function parseDateInput(value: string) {
     throw new Error(`Invalid date input: ${value}`);
   }
 
+  // DBは日付のみを扱うため、ブラウザやサーバーのローカルタイムゾーンで日付がずれないようUTC 00:00で固定する。
   return new Date(`${value}T00:00:00.000Z`);
 }
 
@@ -28,6 +29,7 @@ export function formatDateJp(date: Date | null | undefined) {
 
 export function todayInputJst() {
   const now = new Date();
+  // 入力上限や経過日数は日本での運用を前提に、JSTの日付境界で判定する。
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}`;
 }
@@ -70,6 +72,7 @@ export function monthDateRange(yearMonth: string) {
 
   return {
     start: parseDateInput(`${yearMonth}-01`),
+    // 終端は翌月1日の排他的境界にし、月末日の時刻差を気にせず検索できるようにする。
     end: new Date(Date.UTC(year, month, 1))
   };
 }
@@ -79,5 +82,6 @@ export function daysSinceDate(date: Date) {
   const target = parseDateInput(toDateInputValue(date));
   const diff = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
 
+  // 未来日入力は別途ブロックするが、既存データや時計差で負数表示にならないよう0で丸める。
   return Math.max(diff, 0);
 }

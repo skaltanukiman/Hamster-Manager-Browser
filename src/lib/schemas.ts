@@ -5,6 +5,7 @@ export const idSchema = z.string().min(1);
 export const dateInputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const yearMonthSchema = z.string().regex(/^\d{4}-\d{2}$/);
 
+// 空文字のメモはDBへ空文字ではなくnullで保存し、未入力として扱いを統一する。
 const nullableMemoSchema = z.preprocess((value) => {
   if (typeof value !== "string") {
     return null;

@@ -79,6 +79,7 @@ export default async function CleaningPage({
                 <tbody>
                   {days.map((day) => {
                     const record = recordsByDate.get(day.date);
+                    // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
                     const isFuture = isFutureDateInput(day.date);
 
                     return (

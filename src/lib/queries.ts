@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
+// ダッシュボードの最終掃除日は、何かしらの掃除項目がチェックされた日だけを対象にする。
 const cleaningDoneWhere: Prisma.CleaningRecordWhereInput = {
   OR: [
     { toiletCleaned: true },
@@ -14,6 +15,7 @@ const cleaningDoneWhere: Prisma.CleaningRecordWhereInput = {
 };
 
 export async function getDashboardData() {
+  // 一覧カードで使う最新体重・最新掃除だけを取得し、不要な履歴全体は読み込まない。
   return prisma.hamster.findMany({
     orderBy: { createdAt: "asc" },
     include: {
@@ -52,6 +54,7 @@ export async function getHamsterOptions() {
 
 export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string) {
   const hamsters = await getHamsterOptions();
+  // URLのhamsterIdが未指定または削除済みの場合でも、画面を開けるよう先頭のハムスターを選択する。
   const selectedHamster = hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters[0] ?? null;
 
   if (!selectedHamster) {
@@ -73,12 +76,14 @@ export async function getCleaningPageData(selectedHamsterId: string | undefined,
   return {
     hamsters,
     selectedHamster,
+    // 表形式では日付文字列から即座にレコードを引けるよう、DB結果をMapへ変換しておく。
     recordsByDate: new Map(records.map((record) => [toDateInputValue(record.recordDate), record]))
   };
 }
 
 export async function getWeightPageData(selectedHamsterId: string | undefined) {
   const hamsters = await getHamsterOptions();
+  // URLのhamsterIdが未指定または削除済みの場合でも、画面を開けるよう先頭のハムスターを選択する。
   const selectedHamster = hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters[0] ?? null;
 
   if (!selectedHamster) {
@@ -94,6 +99,7 @@ export async function getWeightPageData(selectedHamsterId: string | undefined) {
     hamsters,
     selectedHamster,
     records,
+    // 履歴一覧は新しい順、グラフは時系列順で扱うため、同じ取得結果から表示用途ごとに並びを分ける。
     chartRecords: [...records].reverse()
   };
 }
