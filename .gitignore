@@ -1,4 +1,6 @@
 .env
+.env.development
+.env.production
 .env*.local
 node_modules
 .next
@@ -11,4 +13,3 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 .reference-HamsterManagerTable
-
