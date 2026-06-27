@@ -1,89 +1,145 @@
 # Hamster Manager Browser
 
-Googleスプレッドシート/GAS版の「ハムスターごとの衛生管理・体重管理」を、VPS上で運用しやすいWebアプリとして作り直したMVPです。
+Google スプレッドシートと GAS で管理していたハムスターの衛生管理・体重管理を、VPS 上で運用しやすい Web アプリとして作り直したものです。
+
+Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VPS ホスト側の Nginx から Next.js コンテナへリバースプロキシする想定です。既存の PM2 管理アプリとは別管理にします。
 
 ## 主な機能
 
-- ダッシュボード: 登録済みハムスター、最新体重、最終掃除日、掃除からの経過日数を表示
-- ハムスター管理: 登録、名前編集、メモ編集、削除
-- 衛生管理: ハムスターと年月を選び、日別にトイレ掃除、砂場掃除、床材一部交換、床材全交換、ハウス掃除、メモを保存
-- 体重管理: 体重登録、履歴編集、削除、ハムスターごとの折れ線グラフ表示
-- CSV出力: 体重記録をハムスター、年月で絞り込んでCSVダウンロード
+- ダッシュボード
+  - 登録済みハムスターの一覧
+  - 最新体重
+  - 最終掃除日
+  - 掃除からの経過日数
+- ハムスター管理
+  - 登録
+  - 名前とメモの編集
+  - 削除
+  - 同名登録時の専用エラーメッセージ
+- 衛生管理
+  - ハムスターと年月を選択して月別の掃除記録を入力
+  - ハムスターまたは年月を変更すると即時切り替え
+  - トイレ掃除、砂場掃除、床材一部交換、床材全交換、ハウス掃除、メモを日別に保存
+  - 未来日は入力不可
+- 体重管理
+  - ハムスター別の体重登録
+  - 履歴の編集・削除
+  - 折れ線グラフ表示
+  - 未来日は入力不可
+- CSV 出力
+  - 体重記録を CSV 出力
+  - ハムスター指定、年月指定で絞り込み
 
-## 技術構成
+## 技術スタック
 
-- Next.js / TypeScript
-- Prisma / PostgreSQL
+- Next.js
+- TypeScript
+- Prisma
+- PostgreSQL
 - Tailwind CSS
 - Recharts
-- Docker / Docker Compose
+- Zod
+- Docker
+- Docker Compose
 
-DBは最初からPostgreSQL前提です。SQLiteは使用していません。
+## 画面構成
 
-## DB設計
+- `/`
+  - ダッシュボード
+- `/hamsters`
+  - ハムスター管理
+- `/cleaning`
+  - 衛生管理
+- `/weights`
+  - 体重管理
+- `/export`
+  - CSV 出力
 
-- `hamsters`
-  - `id`, `name`, `memo`, `createdAt`, `updatedAt`
-- `cleaning_records`
-  - `id`, `hamsterId`, `recordDate`, `toiletCleaned`, `bathCleaned`, `flooringPartCleaned`, `flooringAllCleaned`, `houseCleaned`, `memo`, `createdAt`, `updatedAt`
-- `weight_records`
-  - `id`, `hamsterId`, `recordDate`, `weightG`, `createdAt`, `updatedAt`
+## DB 設計
 
-`cleaning_records` と `weight_records` は、同じハムスター・同じ日付につき1件になるようにユニーク制約を設定しています。
+### `hamsters`
 
-## 環境変数
+- `id`
+- `name`
+- `memo`
+- `createdAt`
+- `updatedAt`
 
-実際に使うenvファイルはGit管理しません。用途別のexampleをコピーして作成してください。
+`name` はユニークです。同じ名前のハムスターは登録できません。
+
+### `cleaning_records`
+
+- `id`
+- `hamsterId`
+- `recordDate`
+- `toiletCleaned`
+- `bathCleaned`
+- `flooringPartCleaned`
+- `flooringAllCleaned`
+- `houseCleaned`
+- `memo`
+- `createdAt`
+- `updatedAt`
+
+`hamsterId` と `recordDate` の組み合わせはユニークです。衛生管理表は、ハムスターごとに 1 日 1 行として保存します。
+
+### `weight_records`
+
+- `id`
+- `hamsterId`
+- `recordDate`
+- `weightG`
+- `createdAt`
+- `updatedAt`
+
+`hamsterId` と `recordDate` の組み合わせはユニークです。体重履歴は、ハムスターごとに 1 日 1 件として保存します。
+
+## 環境変数ファイル
+
+実際に使う `.env` 系ファイルは Git 管理しません。用途に応じて example ファイルをコピーして作成します。
 
 ```text
-.env.example                汎用サンプル
-.env.development.example    開発用サンプル
-.env.production.example     本番用サンプル
+.env.example
+.env.development.example
+.env.production.example
 ```
 
-Docker Composeは `ENV_FILE` で読み込むenvファイルを切り替えられます。指定しない場合は `.env` を読みます。
+Docker Compose は `ENV_FILE` で読み込む env ファイルを切り替えられます。指定しない場合は `.env` を読み込みます。
 
 ```bash
 ENV_FILE=.env.development docker compose up -d
 ENV_FILE=.env.production docker compose up -d
 ```
 
-PowerShellでは次のように指定します。
+PowerShell の場合:
 
 ```powershell
-$env:ENV_FILE=".env.development"; docker compose up -d
+$env:ENV_FILE=".env.development"
+docker compose up -d
 ```
 
-## envファイルの作成
+`$env:ENV_FILE` は PowerShell の現在のセッションだけに効きます。毎回指定したくない場合は、開発 PC では `.env.development.example` を `.env` にコピーして使うのが簡単です。
 
-開発用:
-
-```bash
-cp .env.development.example .env.development
+```powershell
+Copy-Item .env.development.example .env
 ```
 
-本番用:
-
-```bash
-cp .env.production.example .env.production
-```
-
-VPSで本番だけを運用する場合は、本番用を `.env` として置く運用でもかまいません。
+VPS 本番では `.env.production.example` を `.env` にコピーして、本番用の強いパスワードへ変更する運用でも構いません。
 
 ```bash
 cp .env.production.example .env
 ```
 
-`.env.production` または `.env` の `POSTGRES_PASSWORD` は必ず強い値に変更してください。
+## env の値の考え方
 
-`DATABASE_URL` と `POSTGRES_*` は同じ値に揃えます。
+Docker Compose 内で Next.js コンテナから PostgreSQL コンテナへ接続する場合、`DATABASE_URL` のホスト名は `db` です。
 
 ```env
-DATABASE_URL="postgresql://hamster_user:change_me_to_a_strong_password@db:5432/hamster_manager?schema=public"
+DATABASE_URL="postgresql://hamster_user:dev_password@db:5432/hamster_manager_dev?schema=public"
 
-POSTGRES_DB="hamster_manager"
+POSTGRES_DB="hamster_manager_dev"
 POSTGRES_USER="hamster_user"
-POSTGRES_PASSWORD="change_me_to_a_strong_password"
+POSTGRES_PASSWORD="dev_password"
 ```
 
 対応関係:
@@ -96,139 +152,246 @@ DATABASE_URL のホスト     = db
 DATABASE_URL のポート     = 5432
 ```
 
-Docker Compose上では、Next.jsコンテナからPostgreSQLコンテナへ `db:5432` で接続します。
-
-## ローカル開発
-
-DBもアプリもDocker Composeで動かす場合:
-
-```bash
-npm install
-cp .env.development.example .env.development
-ENV_FILE=.env.development docker compose up -d
-ENV_FILE=.env.development docker compose exec app npx prisma migrate deploy
-```
-
-アプリは `http://localhost:3001` で開きます。
-
-DBだけDockerで動かし、Next.jsをホスト側で `npm run dev` する場合は、ローカル用のenvを別途 `.env` として作成し、`DATABASE_URL` のホストを `localhost:5433` にします。
+ホスト PC 上で `npm run dev` を実行し、DB だけ Docker Compose で動かす場合は、`DATABASE_URL` のホストを `localhost`、ポートを `5433` にします。`docker-compose.yml` では PostgreSQL を `127.0.0.1:5433` に公開しています。
 
 ```env
 DATABASE_URL="postgresql://hamster_user:dev_password@localhost:5433/hamster_manager_dev?schema=public"
+
 POSTGRES_DB="hamster_manager_dev"
 POSTGRES_USER="hamster_user"
 POSTGRES_PASSWORD="dev_password"
 ```
 
-その場合の起動例:
+## ローカル開発
 
-```bash
+Windows の PowerShell 例です。
+
+### 1. 依存関係をインストール
+
+```powershell
+npm install
+```
+
+### 2. 開発用 `.env` を作成
+
+ホスト PC で `npm run dev` する場合:
+
+```powershell
+Copy-Item .env.development.example .env
+```
+
+その後、`.env` の `DATABASE_URL` を `localhost:5433` に変更します。
+
+```env
+DATABASE_URL="postgresql://hamster_user:dev_password@localhost:5433/hamster_manager_dev?schema=public"
+```
+
+### 3. PostgreSQL コンテナだけ起動
+
+```powershell
 docker compose up -d db
+```
+
+### 4. Prisma migrate を実行
+
+開発中は `migrate dev` を使います。
+
+```powershell
 npx prisma migrate dev
+```
+
+サンプルデータを入れる場合:
+
+```powershell
 npx prisma db seed
+```
+
+### 5. Next.js を起動
+
+```powershell
 npm run dev
 ```
 
-ブラウザで `http://localhost:3000` を開きます。
+ブラウザで開きます。
 
-## Docker Composeで起動
-
-本番用envを明示して起動する例:
-
-```bash
-cp .env.production.example .env.production
-ENV_FILE=.env.production docker compose build
-ENV_FILE=.env.production docker compose up -d
-ENV_FILE=.env.production docker compose exec app npx prisma migrate deploy
-ENV_FILE=.env.production docker compose logs -f app
+```text
+http://localhost:3000
 ```
 
-`.env` を使う場合は `ENV_FILE` を省略できます。
+## Docker Compose で app と db をまとめて起動
 
-```bash
-cp .env.production.example .env
+Docker コンテナだけで動作確認したい場合の手順です。この場合、`DATABASE_URL` のホストは `db:5432` のままで使います。
+
+```powershell
+Copy-Item .env.development.example .env
 docker compose build
 docker compose up -d
 docker compose exec app npx prisma migrate deploy
+docker compose exec app npx prisma db seed
 docker compose logs -f app
 ```
 
-アプリはホスト側 `3001`、コンテナ内 `3000` で公開されます。
+ブラウザで開きます。
 
 ```text
 http://localhost:3001
 ```
 
-PostgreSQLデータは `hamster_manager_pgdata` volume に永続化されます。
+ポートは次の対応です。
 
-## Prismaコマンド
+```text
+ホスト側: 3001
+コンテナ側: 3000
+```
+
+PostgreSQL は Docker volume に永続化されます。
+
+```text
+hamster_manager_pgdata
+```
+
+通常の停止では DB データは消えません。
+
+```powershell
+docker compose down
+```
+
+DB データも削除したい場合だけ `-v` を付けます。開発DBを初期化したい時以外は使わないでください。
+
+```powershell
+docker compose down -v
+```
+
+## Prisma コマンド
+
+`package.json` には次のスクリプトがあります。
 
 ```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
 npm run prisma:migrate
 npm run prisma:deploy
 npm run prisma:generate
 npm run prisma:seed
 ```
 
-Docker Compose上で実行する場合:
+使い分け:
+
+```text
+開発中のスキーマ変更: npm run prisma:migrate
+本番反映:             npm run prisma:deploy
+Prisma Client生成:    npm run prisma:generate
+seed投入:             npm run prisma:seed
+```
+
+Docker Compose 上で実行する例:
 
 ```bash
 docker compose exec app npx prisma migrate deploy
 docker compose exec app npx prisma db seed
 ```
 
-`ENV_FILE` を使っている場合:
+開発中に DB コンテナだけ起動してホスト側から実行する場合:
 
 ```bash
-ENV_FILE=.env.production docker compose exec app npx prisma migrate deploy
+npx prisma migrate dev
+npx prisma db seed
 ```
 
-## VPSデプロイ手順
+## VPS デプロイ手順
 
-Ubuntu上でDocker / Docker Composeを使う前提です。既存のNode.js / PM2アプリとは分離し、このアプリはPM2では管理しません。
+前提:
+
+- Ubuntu
+- Docker
+- Docker Compose
+- Nginx は VPS ホスト側に配置
+- このアプリは PM2 では管理しない
+- 既存の Node.js / PM2 アプリとはポートとプロセス管理を分ける
+
+### 1. リポジトリを clone
 
 ```bash
+mkdir -p ~/apps
 cd ~/apps
 git clone https://github.com/skaltanukiman/Hamster-Manager-Browser.git hamster-manager-browser
 cd hamster-manager-browser
-cp .env.production.example .env.production
-nano .env.production
 ```
 
-`.env.production` のパスワードは本番用に必ず変更してください。Docker Compose内のアプリからDBへ接続するため、`DATABASE_URL` は `db:5432` のままにします。
+### 2. 本番用 `.env` を作成
 
 ```bash
-ENV_FILE=.env.production docker compose build
-ENV_FILE=.env.production docker compose up -d
-ENV_FILE=.env.production docker compose exec app npx prisma migrate deploy
-ENV_FILE=.env.production docker compose logs -f app
+cp .env.production.example .env
+nano .env
 ```
 
-コンテナ再起動:
+`POSTGRES_PASSWORD` は必ず強い値に変更します。`DATABASE_URL` 側のパスワードも同じ値に合わせます。
 
-```bash
-ENV_FILE=.env.production docker compose restart app
+```env
+DATABASE_URL="postgresql://hamster_user:change_me_to_a_strong_password@db:5432/hamster_manager?schema=public"
+
+POSTGRES_DB="hamster_manager"
+POSTGRES_USER="hamster_user"
+POSTGRES_PASSWORD="change_me_to_a_strong_password"
 ```
 
-停止:
+Docker Compose 内では app から db へ接続するため、VPS 本番でも `DATABASE_URL` のホストは `db` のままです。
+
+### 3. ビルドと起動
 
 ```bash
-ENV_FILE=.env.production docker compose down
+docker compose build
+docker compose up -d
 ```
 
-アプリ更新:
+### 4. Prisma migrate を反映
+
+本番では `migrate deploy` を使います。
 
 ```bash
+docker compose exec app npx prisma migrate deploy
+```
+
+必要なら seed を投入します。
+
+```bash
+docker compose exec app npx prisma db seed
+```
+
+### 5. ログ確認
+
+```bash
+docker compose logs -f app
+docker compose logs -f db
+```
+
+### 6. 再起動・停止
+
+```bash
+docker compose restart app
+docker compose down
+```
+
+`docker compose down` では PostgreSQL の volume は残ります。`docker compose down -v` は DB データを削除するため、本番では使わないでください。
+
+## アプリ更新手順
+
+VPS 上で更新する例です。
+
+```bash
+cd ~/apps/hamster-manager-browser
 git pull
-ENV_FILE=.env.production docker compose build
-ENV_FILE=.env.production docker compose up -d
-ENV_FILE=.env.production docker compose exec app npx prisma migrate deploy
-ENV_FILE=.env.production docker compose logs -f app
+docker compose build
+docker compose up -d
+docker compose exec app npx prisma migrate deploy
+docker compose logs -f app
 ```
 
-## Nginxリバースプロキシ例
+## Nginx リバースプロキシ設定例
 
-NginxはVPSホスト側に置き、Docker上のNext.jsアプリへ転送します。
+Nginx は VPS ホスト側に置き、Docker 上で動く Next.js アプリへ転送します。
 
 ```nginx
 server {
@@ -252,30 +415,33 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-HTTPS化する場合は、Certbotなどで証明書を発行してください。
+HTTPS 化する場合は Certbot などで証明書を発行します。
 
-## 既存PM2アプリと同居する場合の注意
+## 既存アプリとの同居時の注意
 
-- このアプリは `docker compose` で管理し、PM2には登録しません。
-- ホスト側公開ポートは `3001` です。既存アプリが使っているポートと重なる場合は `docker-compose.yml` の `3001:3000` を変更してください。
-- DBコンテナ名は `hamster-manager-db`、アプリコンテナ名は `hamster-manager-web` です。
-- PostgreSQLのDB名、ユーザー名、パスワードはこのアプリ専用にしてください。
-- Dockerコンテナ内のNode.jsを使うため、VPSホスト側のNode.jsバージョンには依存しません。
-- PostgreSQLはDocker volumeに保存されます。`docker compose down -v` はDBデータを削除するため、本番では使わないでください。
+- このアプリは Docker Compose で管理し、PM2 には登録しません。
+- App コンテナ名は `hamster-manager-web` です。
+- DB コンテナ名は `hamster-manager-db` です。
+- ホスト側公開ポートは `3001` です。既存アプリと衝突する場合は `docker-compose.yml` の `3001:3000` を変更してください。
+- PostgreSQL の DB 名、ユーザー名、パスワードはこのアプリ専用にします。
+- `.env` はこのアプリ専用にします。
+- Docker コンテナ内の Node.js を使うため、VPS ホスト側の Node.js バージョンには依存しません。
 
-## DBバックアップ
+## DB バックアップ
 
-例:
+PostgreSQL のデータは Docker volume `hamster_manager_pgdata` に永続化されます。VPS 本番では、定期バックアップと VPS 外への退避を検討してください。
 
-```bash
-ENV_FILE=.env.production docker compose exec db pg_dump -U hamster_user hamster_manager > backup.sql
-```
-
-復元例:
+バックアップ例:
 
 ```bash
-ENV_FILE=.env.production docker compose exec -T db psql -U hamster_user hamster_manager < backup.sql
+docker compose exec db pg_dump -U hamster_user hamster_manager > backup.sql
 ```
 
-本番では、定期バックアップとVPS外への退避を検討してください。
+リストア例:
+
+```bash
+docker compose exec -T db psql -U hamster_user hamster_manager < backup.sql
+```
+
+`.env` で DB 名やユーザー名を変更している場合は、コマンド内の `hamster_user` と `hamster_manager` も実際の値に合わせてください。
 
