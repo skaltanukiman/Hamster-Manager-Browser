@@ -13,8 +13,9 @@ function getParam(value: string | string[] | undefined) {
 export default async function HamstersPage({
   searchParams
 }: {
-  searchParams: { status?: string | string[] };
+  searchParams: Promise<{ status?: string | string[] }>;
 }) {
+  const params = await searchParams;
   const hamsters = await getHamsterManagementData();
 
   return (
@@ -24,7 +25,7 @@ export default async function HamstersPage({
         <p className="mt-1 text-sm text-slate-600">名前とメモを管理します。</p>
       </div>
 
-      <StatusMessage status={getParam(searchParams.status)} />
+      <StatusMessage status={getParam(params.status)} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
@@ -98,4 +99,3 @@ export default async function HamstersPage({
     </div>
   );
 }
-

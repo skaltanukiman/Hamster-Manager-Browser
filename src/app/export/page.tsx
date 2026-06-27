@@ -14,11 +14,12 @@ function getParam(value: string | string[] | undefined) {
 export default async function ExportPage({
   searchParams
 }: {
-  searchParams: { hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] };
+  searchParams: Promise<{ hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] }>;
 }) {
+  const query = await searchParams;
   const hamsters = await getHamsterOptions();
-  const selectedHamsterId = getParam(searchParams.hamsterId) ?? "";
-  const month = getParam(searchParams.month) ?? "";
+  const selectedHamsterId = getParam(query.hamsterId) ?? "";
+  const month = getParam(query.month) ?? "";
   const normalizedMonth = month ? normalizeYearMonth(month) : "";
   const params = new URLSearchParams();
 
@@ -38,12 +39,12 @@ export default async function ExportPage({
         <p className="mt-1 text-sm text-slate-600">体重記録をCSVでダウンロードします。</p>
       </div>
 
-      <StatusMessage status={getParam(searchParams.status)} />
+      <StatusMessage status={getParam(query.status)} />
 
       <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           ハムスター
-          <select name="hamsterId" defaultValue={selectedHamsterId}>
+          <select key={selectedHamsterId} name="hamsterId" defaultValue={selectedHamsterId}>
             <option value="">すべて</option>
             {hamsters.map((hamster) => (
               <option key={hamster.id} value={hamster.id}>
@@ -77,4 +78,3 @@ export default async function ExportPage({
     </div>
   );
 }
-

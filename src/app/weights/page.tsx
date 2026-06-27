@@ -16,9 +16,10 @@ function getParam(value: string | string[] | undefined) {
 export default async function WeightsPage({
   searchParams
 }: {
-  searchParams: { hamsterId?: string | string[]; status?: string | string[] };
+  searchParams: Promise<{ hamsterId?: string | string[]; status?: string | string[] }>;
 }) {
-  const { hamsters, selectedHamster, records, chartRecords } = await getWeightPageData(getParam(searchParams.hamsterId));
+  const params = await searchParams;
+  const { hamsters, selectedHamster, records, chartRecords } = await getWeightPageData(getParam(params.hamsterId));
 
   const chartData = chartRecords.map((record) => ({
     date: toDateInputValue(record.recordDate),
@@ -32,7 +33,7 @@ export default async function WeightsPage({
         <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
       </div>
 
-      <StatusMessage status={getParam(searchParams.status)} />
+      <StatusMessage status={getParam(params.status)} />
 
       {hamsters.length === 0 || !selectedHamster ? (
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
@@ -41,7 +42,7 @@ export default async function WeightsPage({
           <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto]">
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <select name="hamsterId" defaultValue={selectedHamster.id}>
+              <select key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
                 {hamsters.map((hamster) => (
                   <option key={hamster.id} value={hamster.id}>
                     {hamster.name}
@@ -139,4 +140,3 @@ export default async function WeightsPage({
     </div>
   );
 }
-
