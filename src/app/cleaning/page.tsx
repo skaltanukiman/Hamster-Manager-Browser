@@ -1,6 +1,7 @@
 import { Search, Save } from "lucide-react";
 
 import { saveCleaningMonth } from "@/app/actions/cleaning";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
 import { getDaysInMonth, normalizeYearMonth } from "@/lib/date";
@@ -41,13 +42,13 @@ export default async function CleaningPage({
           <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <select key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
+              <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
                 {hamsters.map((hamster) => (
                   <option key={hamster.id} value={hamster.id}>
                     {hamster.name}
                   </option>
                 ))}
-              </select>
+              </AutoSubmitSelect>
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               年月

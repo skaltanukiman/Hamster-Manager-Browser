@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Download, Search } from "lucide-react";
 
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { StatusMessage } from "@/components/status-message";
 import { normalizeYearMonth } from "@/lib/date";
 import { getHamsterOptions } from "@/lib/queries";
@@ -44,14 +45,14 @@ export default async function ExportPage({
       <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           ハムスター
-          <select key={selectedHamsterId} name="hamsterId" defaultValue={selectedHamsterId}>
+          <AutoSubmitSelect key={selectedHamsterId} name="hamsterId" defaultValue={selectedHamsterId}>
             <option value="">すべて</option>
             {hamsters.map((hamster) => (
               <option key={hamster.id} value={hamster.id}>
                 {hamster.name}
               </option>
             ))}
-          </select>
+          </AutoSubmitSelect>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           年月

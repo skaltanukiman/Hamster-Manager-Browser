@@ -1,6 +1,7 @@
-import { Plus, Save, Search, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
@@ -39,24 +40,17 @@ export default async function WeightsPage({
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
       ) : (
         <>
-          <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto]">
+          <form method="get" className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <select key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
+              <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
                 {hamsters.map((hamster) => (
                   <option key={hamster.id} value={hamster.id}>
                     {hamster.name}
                   </option>
                 ))}
-              </select>
+              </AutoSubmitSelect>
             </label>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
-            >
-              <Search className="h-4 w-4" aria-hidden />
-              表示
-            </button>
           </form>
 
           <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
