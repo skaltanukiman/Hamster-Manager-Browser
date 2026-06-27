@@ -1,6 +1,7 @@
-import { Search, Save } from "lucide-react";
+import { Save } from "lucide-react";
 
 import { saveCleaningMonth } from "@/app/actions/cleaning";
+import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
@@ -40,7 +41,7 @@ export default async function CleaningPage({
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
       ) : (
         <>
-          <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
+          <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px]">
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
               <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
@@ -53,15 +54,8 @@ export default async function CleaningPage({
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               年月
-              <input type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
+              <AutoSubmitInput type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
             </label>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
-            >
-              <Search className="h-4 w-4" aria-hidden />
-              表示
-            </button>
           </form>
 
           <form action={saveCleaningMonth} className="space-y-4">
