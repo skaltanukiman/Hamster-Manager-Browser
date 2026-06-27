@@ -4,7 +4,7 @@ const messages: Record<string, string> = {
   deleted: "削除しました。",
   saved: "保存しました。",
   invalid: "入力内容を確認してください。",
-  duplicate: "同じ名前または同じ日付の記録が既にあります。",
+  duplicate: "同じ日付の記録が既にあります。",
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
   future: "未来日には記録できません。"
 };
