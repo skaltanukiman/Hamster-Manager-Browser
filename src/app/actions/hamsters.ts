@@ -18,7 +18,7 @@ export async function createHamster(formData: FormData) {
   try {
     await prisma.hamster.create({ data: result.data });
   } catch {
-    status = "duplicate";
+    status = "hamsterDuplicate";
   }
 
   revalidatePath("/");
@@ -42,7 +42,7 @@ export async function updateHamster(formData: FormData) {
       data
     });
   } catch {
-    status = "duplicate";
+    status = "hamsterDuplicate";
   }
 
   revalidatePath("/");
@@ -65,4 +65,3 @@ export async function deleteHamster(formData: FormData) {
   revalidatePath("/hamsters");
   redirect("/hamsters?status=deleted");
 }
-

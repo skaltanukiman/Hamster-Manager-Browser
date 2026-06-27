@@ -5,6 +5,7 @@ const messages: Record<string, string> = {
   saved: "保存しました。",
   invalid: "入力内容を確認してください。",
   duplicate: "同じ名前または同じ日付の記録が既にあります。",
+  hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
   future: "未来日には記録できません。"
 };
 
@@ -13,7 +14,7 @@ export function StatusMessage({ status }: { status?: string }) {
     return null;
   }
 
-  const isError = status === "invalid" || status === "duplicate" || status === "future";
+  const isError = status === "invalid" || status === "duplicate" || status === "hamsterDuplicate" || status === "future";
 
   return (
     <p
