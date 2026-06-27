@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getDaysInMonth, parseDateInput } from "@/lib/date";
+import { getDaysInMonth, isFutureDateInput, parseDateInput } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { cleaningMonthSchema } from "@/lib/schemas";
 
@@ -26,7 +26,32 @@ export async function saveCleaningMonth(formData: FormData) {
   const { hamsterId, yearMonth } = result.data;
   const days = getDaysInMonth(yearMonth);
 
-  const operations = days.map((day) => {
+  const hasFutureInput = days.some((day) => {
+    if (!isFutureDateInput(day.date)) {
+      return false;
+    }
+
+    return (
+      getChecked(formData, `toilet_${day.date}`) ||
+      getChecked(formData, `bath_${day.date}`) ||
+      getChecked(formData, `flooring_part_${day.date}`) ||
+      getChecked(formData, `flooring_all_${day.date}`) ||
+      getChecked(formData, `house_${day.date}`) ||
+      Boolean(getText(formData, `memo_${day.date}`))
+    );
+  });
+
+  if (hasFutureInput) {
+    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=future`);
+  }
+
+  const editableDays = days.filter((day) => !isFutureDateInput(day.date));
+
+  if (editableDays.length === 0) {
+    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=future`);
+  }
+
+  const operations = editableDays.map((day) => {
     const memo = getText(formData, `memo_${day.date}`) || null;
     const data = {
       toiletCleaned: getChecked(formData, `toilet_${day.date}`),
@@ -78,4 +103,3 @@ export async function saveCleaningMonth(formData: FormData) {
   revalidatePath("/cleaning");
   redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=saved`);
 }
-

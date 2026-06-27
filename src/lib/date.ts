@@ -36,6 +36,10 @@ export function currentMonthInputJst() {
   return todayInputJst().slice(0, 7);
 }
 
+export function isFutureDateInput(value: string) {
+  return parseDateInput(value).getTime() > parseDateInput(todayInputJst()).getTime();
+}
+
 export function normalizeYearMonth(value: string | undefined | null) {
   return value && YEAR_MONTH_PATTERN.test(value) ? value : currentMonthInputJst();
 }
@@ -77,4 +81,3 @@ export function daysSinceDate(date: Date) {
 
   return Math.max(diff, 0);
 }
-

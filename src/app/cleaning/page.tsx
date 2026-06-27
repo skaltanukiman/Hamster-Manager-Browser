@@ -4,7 +4,7 @@ import { saveCleaningMonth } from "@/app/actions/cleaning";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
-import { getDaysInMonth, normalizeYearMonth } from "@/lib/date";
+import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth } from "@/lib/date";
 import { getCleaningPageData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export default async function CleaningPage({
     yearMonth
   );
   const days = getDaysInMonth(yearMonth);
+  const currentMonth = currentMonthInputJst();
 
   return (
     <div className="space-y-6">
@@ -52,7 +53,7 @@ export default async function CleaningPage({
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               年月
-              <input type="month" name="month" defaultValue={yearMonth} />
+              <input type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
             </label>
             <button
               type="submit"
@@ -84,9 +85,10 @@ export default async function CleaningPage({
                 <tbody>
                   {days.map((day) => {
                     const record = recordsByDate.get(day.date);
+                    const isFuture = isFutureDateInput(day.date);
 
                     return (
-                      <tr key={day.date}>
+                      <tr key={day.date} className={isFuture ? "bg-slate-50 text-slate-400" : undefined}>
                         <td className="font-semibold text-slate-700">{day.day}</td>
                         <td className="text-slate-500">{day.weekday}</td>
                         <td className="checkbox-cell">
@@ -95,6 +97,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`toilet_${day.date}`}
                             defaultChecked={record?.toiletCleaned ?? false}
+                            disabled={isFuture}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -103,6 +106,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`bath_${day.date}`}
                             defaultChecked={record?.bathCleaned ?? false}
+                            disabled={isFuture}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -111,6 +115,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`flooring_part_${day.date}`}
                             defaultChecked={record?.flooringPartCleaned ?? false}
+                            disabled={isFuture}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -119,6 +124,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`flooring_all_${day.date}`}
                             defaultChecked={record?.flooringAllCleaned ?? false}
+                            disabled={isFuture}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -127,10 +133,16 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`house_${day.date}`}
                             defaultChecked={record?.houseCleaned ?? false}
+                            disabled={isFuture}
                           />
                         </td>
                         <td>
-                          <input name={`memo_${day.date}`} defaultValue={record?.memo ?? ""} placeholder="メモ" />
+                          <input
+                            name={`memo_${day.date}`}
+                            defaultValue={record?.memo ?? ""}
+                            placeholder={isFuture ? "未来日は入力できません" : "メモ"}
+                            disabled={isFuture}
+                          />
                         </td>
                       </tr>
                     );

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { parseDateInput } from "@/lib/date";
+import { isFutureDateInput, parseDateInput } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
   createWeightRecordSchema,
@@ -20,6 +20,10 @@ export async function createWeightRecord(formData: FormData) {
 
   if (!result.success) {
     redirect("/weights?status=invalid");
+  }
+
+  if (isFutureDateInput(result.data.recordDate)) {
+    weightRedirect(result.data.hamsterId, "future");
   }
 
   const recordDate = parseDateInput(result.data.recordDate);
@@ -53,13 +57,18 @@ export async function updateWeightRecord(formData: FormData) {
     redirect("/weights?status=invalid");
   }
 
+  if (isFutureDateInput(result.data.recordDate)) {
+    weightRedirect(result.data.hamsterId, "future");
+  }
+
+  const recordDate = parseDateInput(result.data.recordDate);
   let status = "updated";
 
   try {
     await prisma.weightRecord.update({
       where: { id: result.data.id },
       data: {
-        recordDate: parseDateInput(result.data.recordDate),
+        recordDate,
         weightG: result.data.weightG
       }
     });
@@ -87,4 +96,3 @@ export async function deleteWeightRecord(formData: FormData) {
   revalidatePath("/weights");
   weightRedirect(result.data.hamsterId, "deleted");
 }
-

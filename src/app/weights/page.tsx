@@ -26,6 +26,7 @@ export default async function WeightsPage({
     date: toDateInputValue(record.recordDate),
     weightG: record.weightG
   }));
+  const today = todayInputJst();
 
   return (
     <div className="space-y-6">
@@ -60,7 +61,7 @@ export default async function WeightsPage({
               <div className="mt-4 grid gap-4">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   日付
-                  <input type="date" name="recordDate" defaultValue={todayInputJst()} required />
+                  <input type="date" name="recordDate" defaultValue={today} max={today} required />
                 </label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   体重(g)
@@ -98,7 +99,12 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           日付
-                          <input type="date" name="recordDate" defaultValue={toDateInputValue(record.recordDate)} />
+                          <input
+                            type="date"
+                            name="recordDate"
+                            defaultValue={toDateInputValue(record.recordDate)}
+                            max={today}
+                          />
                         </label>
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           体重(g)
