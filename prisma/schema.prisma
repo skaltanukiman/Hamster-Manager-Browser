@@ -57,6 +57,7 @@ model WeightRecord {
 }
 
 model AppSetting {
+  // 認証なしの個人運用アプリなので、設定は固定IDの1レコードに集約する。
   id                  String             @id
   dashboardBoardCount Int                @default(6)
   createdAt           DateTime           @default(now())
@@ -72,6 +73,7 @@ model DashboardHamster {
   setting   AppSetting @relation(fields: [settingId], references: [id], onDelete: Cascade)
   hamsterId String
   hamster   Hamster    @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
+  // 設定画面で選ばれた順序を保持し、ダッシュボード表示の優先順に使う。
   sortOrder Int        @default(0)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt

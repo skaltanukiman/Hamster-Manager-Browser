@@ -28,6 +28,7 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
   const [selectedIds, setSelectedIds] = useState(selectedHamsterIds);
   const hamsterIds = useMemo(() => hamsters.map((hamster) => hamster.id), [hamsters]);
   const needsSelection = hamsters.length > limit;
+  // 登録数が表示数以下なら個別選択は不要なので、全ハムスターを送信対象として扱う。
   const effectiveSelectedIds = needsSelection ? selectedIds : hamsterIds;
   const selectedIdSet = new Set(effectiveSelectedIds);
   const targetCount = Math.min(limit, hamsters.length);
@@ -38,6 +39,7 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
     const nextNeedsSelection = hamsters.length > nextLimit;
     const nextSelectedIds = selectedIds.filter((id) => hamsterIds.includes(id));
 
+    // 表示数を減らした場合は、保存可能な件数に収まるよう現在の選択を先頭から残す。
     setLimit(nextLimit);
     setSelectedIds(
       nextNeedsSelection
@@ -90,6 +92,7 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
         </div>
       </div>
 
+      {/* disabled の checkbox は送信されないため、保存対象IDは hidden input に正規化して渡す。 */}
       {effectiveSelectedIds.map((id) => (
         <input key={id} type="hidden" name="hamsterIds" value={id} />
       ))}
@@ -104,6 +107,7 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
           <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
             {hamsters.map((hamster) => {
               const checked = selectedIdSet.has(hamster.id);
+              // 上限に達した後は未選択の行だけを無効化し、選択済みの解除はできるようにする。
               const disabled = !checked && needsSelection && effectiveSelectedIds.length >= limit;
 
               return (

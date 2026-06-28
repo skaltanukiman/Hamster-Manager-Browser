@@ -15,6 +15,7 @@ const cleaningDoneWhere: Prisma.CleaningRecordWhereInput = {
   ]
 };
 
+// 設定済みの表示対象を優先し、未設定・削除済みIDがある場合は登録順のハムスターで不足分を補う。
 function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
   const hamsterById = new Map(hamsters.map((hamster) => [hamster.id, hamster]));
   const selectedHamsters = selectedIds
@@ -155,6 +156,7 @@ export async function getDashboardSettingsPageData() {
   ]);
   const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
   const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
+  // 設定画面の初期表示でも、ダッシュボードと同じ補完ルールで選択状態を作る。
   const selectedHamsterIds = pickDashboardHamsters(hamsters, boardCount, selectedIds).map((hamster) => hamster.id);
 
   return {

@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { hamsters, boardCount, totalHamsters } = await getDashboardData();
+  // 表示数制限で非表示になったハムスターがいる場合だけ、設定画面への誘導文を出す。
   const hiddenHamsterCount = Math.max(totalHamsters - hamsters.length, 0);
 
   return (
