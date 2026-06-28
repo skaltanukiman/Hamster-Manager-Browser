@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
+
 export const idSchema = z.string().min(1);
 
 export const dateInputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -48,3 +50,7 @@ export const cleaningMonthSchema = z.object({
   yearMonth: yearMonthSchema
 });
 
+export const dashboardSettingsSchema = z.object({
+  dashboardBoardCount: z.coerce.number().int().min(MIN_DASHBOARD_BOARD_COUNT).max(MAX_DASHBOARD_BOARD_COUNT),
+  hamsterIds: z.array(idSchema)
+});

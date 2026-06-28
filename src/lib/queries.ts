@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
+import { APP_SETTING_ID, normalizeDashboardBoardCount } from "@/lib/dashboard-settings";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
@@ -14,22 +15,51 @@ const cleaningDoneWhere: Prisma.CleaningRecordWhereInput = {
   ]
 };
 
+function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
+  const hamsterById = new Map(hamsters.map((hamster) => [hamster.id, hamster]));
+  const selectedHamsters = selectedIds
+    .map((id) => hamsterById.get(id))
+    .filter((hamster): hamster is T => Boolean(hamster));
+  const selectedIdSet = new Set(selectedHamsters.map((hamster) => hamster.id));
+  const fallbackHamsters = hamsters.filter((hamster) => !selectedIdSet.has(hamster.id));
+
+  return [...selectedHamsters, ...fallbackHamsters].slice(0, boardCount);
+}
+
 export async function getDashboardData() {
-  // 一覧カードで使う最新体重・最新掃除だけを取得し、不要な履歴全体は読み込まない。
-  return prisma.hamster.findMany({
-    orderBy: { createdAt: "asc" },
-    include: {
-      weightRecords: {
-        orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
-        take: 1
-      },
-      cleaningRecords: {
-        where: cleaningDoneWhere,
-        orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }],
-        take: 1
+  const [hamsters, setting] = await Promise.all([
+    // 一覧カードで使う最新体重・最新掃除だけを取得し、不要な履歴全体は読み込まない。
+    prisma.hamster.findMany({
+      orderBy: { createdAt: "asc" },
+      include: {
+        weightRecords: {
+          orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
+          take: 1
+        },
+        cleaningRecords: {
+          where: cleaningDoneWhere,
+          orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }],
+          take: 1
+        }
       }
-    }
-  });
+    }),
+    prisma.appSetting.findUnique({
+      where: { id: APP_SETTING_ID },
+      include: {
+        dashboardHamsters: {
+          orderBy: { sortOrder: "asc" }
+        }
+      }
+    })
+  ]);
+  const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
+  const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
+
+  return {
+    hamsters: pickDashboardHamsters(hamsters, boardCount, selectedIds),
+    boardCount,
+    totalHamsters: hamsters.length
+  };
 }
 
 export async function getHamsterManagementData() {
@@ -104,3 +134,32 @@ export async function getWeightPageData(selectedHamsterId: string | undefined) {
   };
 }
 
+export async function getDashboardSettingsPageData() {
+  const [hamsters, setting] = await Promise.all([
+    prisma.hamster.findMany({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        memo: true
+      }
+    }),
+    prisma.appSetting.findUnique({
+      where: { id: APP_SETTING_ID },
+      include: {
+        dashboardHamsters: {
+          orderBy: { sortOrder: "asc" }
+        }
+      }
+    })
+  ]);
+  const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
+  const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
+  const selectedHamsterIds = pickDashboardHamsters(hamsters, boardCount, selectedIds).map((hamster) => hamster.id);
+
+  return {
+    boardCount,
+    hamsters,
+    selectedHamsterIds
+  };
+}

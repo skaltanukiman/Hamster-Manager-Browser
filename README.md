@@ -29,6 +29,9 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
 - CSV 出力
   - 体重記録を CSV 出力
   - ハムスター指定、年月指定で絞り込み
+- 設定
+  - ダッシュボードの表示ボード数を変更
+  - 表示数を超えるハムスターが登録されている場合の表示対象を選択
 
 ## 技術スタック
 
@@ -54,6 +57,8 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
   - 体重管理
 - `/export`
   - CSV 出力
+- `/settings`
+  - 設定
 
 ## DB 設計
 
@@ -93,6 +98,26 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
 - `updatedAt`
 
 `hamsterId` と `recordDate` の組み合わせはユニークです。体重履歴は、ハムスターごとに 1 日 1 件として保存します。
+
+### `app_settings`
+
+- `id`
+- `dashboardBoardCount`
+- `createdAt`
+- `updatedAt`
+
+ダッシュボードの表示ボード数など、アプリ全体の設定を保存します。
+
+### `dashboard_hamsters`
+
+- `id`
+- `settingId`
+- `hamsterId`
+- `sortOrder`
+- `createdAt`
+- `updatedAt`
+
+ダッシュボードの表示対象ハムスターを保存します。
 
 ## 環境変数ファイル
 
@@ -444,4 +469,3 @@ docker compose exec -T db psql -U hamster_user hamster_manager < backup.sql
 ```
 
 `.env` で DB 名やユーザー名を変更している場合は、コマンド内の `hamster_user` と `hamster_manager` も実際の値に合わせてください。
-

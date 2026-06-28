@@ -16,6 +16,7 @@ model Hamster {
   updatedAt       DateTime         @updatedAt
   cleaningRecords CleaningRecord[]
   weightRecords   WeightRecord[]
+  dashboardEntries DashboardHamster[]
 
   @@map("hamsters")
 }
@@ -55,3 +56,27 @@ model WeightRecord {
   @@map("weight_records")
 }
 
+model AppSetting {
+  id                  String             @id
+  dashboardBoardCount Int                @default(6)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  dashboardHamsters   DashboardHamster[]
+
+  @@map("app_settings")
+}
+
+model DashboardHamster {
+  id        String     @id @default(cuid())
+  settingId String
+  setting   AppSetting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+  hamsterId String
+  hamster   Hamster    @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([settingId, hamsterId])
+  @@index([hamsterId])
+  @@map("dashboard_hamsters")
+}
