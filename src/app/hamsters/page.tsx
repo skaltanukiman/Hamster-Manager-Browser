@@ -32,7 +32,7 @@ export default async function HamstersPage({
         <form action={createHamster} className="mt-4 grid gap-4 md:grid-cols-[minmax(180px,260px)_1fr_auto]">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             名前
-            <input name="name" required maxLength={80} placeholder="例: きなこ" />
+            <input name="name" required maxLength={15} placeholder="例: きなこ" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             メモ
@@ -63,7 +63,7 @@ export default async function HamstersPage({
                     <input type="hidden" name="id" value={hamster.id} />
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       名前
-                      <input name="name" required maxLength={80} defaultValue={hamster.name} />
+                      <input name="name" required maxLength={15} defaultValue={hamster.name} />
                     </label>
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       メモ

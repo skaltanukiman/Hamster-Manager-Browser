@@ -18,7 +18,7 @@ const nullableMemoSchema = z.preprocess((value) => {
 }, z.string().max(2000).nullable());
 
 export const createHamsterSchema = z.object({
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(15),
   memo: nullableMemoSchema
 });
 
