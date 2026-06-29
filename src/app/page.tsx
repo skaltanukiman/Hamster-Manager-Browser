@@ -77,8 +77,8 @@ export default async function DashboardPage() {
                         <Scale className="h-4 w-4 text-persimmon" aria-hidden />
                         最新体重
                       </dt>
-                      <dd className="text-sm font-bold text-ink">
-                        {latestWeight ? `${latestWeight.weightG.toFixed(1)}g` : "未記録"}
+                      <dd className="text-sm text-ink">
+                        {latestWeight ? <span className="font-bold">{latestWeight.weightG.toFixed(1)}g</span> : "未記録"}
                       </dd>
                     </div>
                     {cleaningItems.map((item) => {
