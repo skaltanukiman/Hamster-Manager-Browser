@@ -1,19 +1,6 @@
-import type { Prisma } from "@prisma/client";
-
 import { APP_SETTING_ID, normalizeDashboardBoardCount } from "@/lib/dashboard-settings";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
-
-// ダッシュボードの最終掃除日は、何かしらの掃除項目がチェックされた日だけを対象にする。
-const cleaningDoneWhere: Prisma.CleaningRecordWhereInput = {
-  OR: [
-    { toiletCleaned: true },
-    { bathCleaned: true },
-    { flooringPartCleaned: true },
-    { flooringAllCleaned: true },
-    { houseCleaned: true }
-  ]
-};
 
 // 設定済みの表示対象を優先し、未設定・削除済みIDがある場合は登録順のハムスターで不足分を補う。
 function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
@@ -27,19 +14,27 @@ function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCou
   return [...selectedHamsters, ...fallbackHamsters].slice(0, boardCount);
 }
 
+function latestRecordByHamster<T extends { hamsterId: string }>(records: T[]) {
+  const recordsByHamster = new Map<string, T>();
+
+  // 呼び出し側で新しい順に取得しているため、最初に見つかったレコードをそのハムスターの最新扱いにする。
+  for (const record of records) {
+    if (!recordsByHamster.has(record.hamsterId)) {
+      recordsByHamster.set(record.hamsterId, record);
+    }
+  }
+
+  return recordsByHamster;
+}
+
 export async function getDashboardData() {
   const [hamsters, setting] = await Promise.all([
-    // 一覧カードで使う最新体重・最新掃除だけを取得し、不要な履歴全体は読み込まない。
+    // 一覧カードで使う最新体重だけを取得し、不要な体重履歴全体は読み込まない。
     prisma.hamster.findMany({
       orderBy: { createdAt: "asc" },
       include: {
         weightRecords: {
           orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
-          take: 1
-        },
-        cleaningRecords: {
-          where: cleaningDoneWhere,
-          orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }],
           take: 1
         }
       }
@@ -55,9 +50,44 @@ export async function getDashboardData() {
   ]);
   const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
   const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
+  const dashboardHamsters = pickDashboardHamsters(hamsters, boardCount, selectedIds);
+  const dashboardHamsterIds = dashboardHamsters.map((hamster) => hamster.id);
+
+  // ダッシュボードでは掃除全体ではなく、主要な掃除タスクごとの最終実施日を別々に表示する。
+  const [toiletCleaningRecords, bathCleaningRecords, flooringAllCleaningRecords] = await Promise.all([
+    prisma.cleaningRecord.findMany({
+      where: {
+        hamsterId: { in: dashboardHamsterIds },
+        toiletCleaned: true
+      },
+      orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }]
+    }),
+    prisma.cleaningRecord.findMany({
+      where: {
+        hamsterId: { in: dashboardHamsterIds },
+        bathCleaned: true
+      },
+      orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }]
+    }),
+    prisma.cleaningRecord.findMany({
+      where: {
+        hamsterId: { in: dashboardHamsterIds },
+        flooringAllCleaned: true
+      },
+      orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }]
+    })
+  ]);
+  const toiletCleaningByHamster = latestRecordByHamster(toiletCleaningRecords);
+  const bathCleaningByHamster = latestRecordByHamster(bathCleaningRecords);
+  const flooringAllCleaningByHamster = latestRecordByHamster(flooringAllCleaningRecords);
 
   return {
-    hamsters: pickDashboardHamsters(hamsters, boardCount, selectedIds),
+    hamsters: dashboardHamsters.map((hamster) => ({
+      ...hamster,
+      latestToiletCleaning: toiletCleaningByHamster.get(hamster.id) ?? null,
+      latestBathCleaning: bathCleaningByHamster.get(hamster.id) ?? null,
+      latestFlooringAllCleaning: flooringAllCleaningByHamster.get(hamster.id) ?? null
+    })),
     boardCount,
     totalHamsters: hamsters.length
   };

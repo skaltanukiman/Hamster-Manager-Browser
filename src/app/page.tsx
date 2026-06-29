@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
+import { ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { daysSinceDate, formatDateJp } from "@/lib/date";
@@ -52,8 +52,11 @@ export default async function DashboardPage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {hamsters.map((hamster) => {
               const latestWeight = hamster.weightRecords[0];
-              const latestCleaning = hamster.cleaningRecords[0];
-              const cleaningDays = latestCleaning ? daysSinceDate(latestCleaning.recordDate) : null;
+              const cleaningItems = [
+                { label: "トイレ掃除", record: hamster.latestToiletCleaning },
+                { label: "砂場掃除", record: hamster.latestBathCleaning },
+                { label: "床材全交換", record: hamster.latestFlooringAllCleaning }
+              ];
 
               return (
                 <article key={hamster.id} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -77,22 +80,31 @@ export default async function DashboardPage() {
                         {latestWeight ? `${latestWeight.weightG.toFixed(1)}g` : "未記録"}
                       </dd>
                     </div>
-                    <div className="flex items-center justify-between gap-4 rounded-md bg-slate-50 px-3 py-3">
-                      <dt className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <CalendarDays className="h-4 w-4 text-moss" aria-hidden />
-                        最終掃除日
-                      </dt>
-                      <dd className="text-sm font-bold text-ink">{formatDateJp(latestCleaning?.recordDate)}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 rounded-md bg-slate-50 px-3 py-3">
-                      <dt className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <ClipboardCheck className="h-4 w-4 text-moss" aria-hidden />
-                        経過日数
-                      </dt>
-                      <dd className="text-sm font-bold text-ink">
-                        {cleaningDays == null ? "未記録" : `${cleaningDays}日`}
-                      </dd>
-                    </div>
+                    {cleaningItems.map((item) => {
+                      const elapsedDays = item.record ? daysSinceDate(item.record.recordDate) : null;
+
+                      return (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between gap-4 rounded-md bg-slate-50 px-3 py-3"
+                        >
+                          <dt className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                            <ClipboardCheck className="h-4 w-4 text-moss" aria-hidden />
+                            {item.label}
+                          </dt>
+                          <dd className="text-right text-sm font-bold text-ink">
+                            {item.record ? (
+                              <span className="grid gap-0.5">
+                                <span>{formatDateJp(item.record.recordDate)}</span>
+                                <span className="text-xs font-semibold text-slate-500">{elapsedDays}日経過</span>
+                              </span>
+                            ) : (
+                              "未記録"
+                            )}
+                          </dd>
+                        </div>
+                      );
+                    })}
                   </dl>
                 </article>
               );
