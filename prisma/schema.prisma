@@ -12,6 +12,9 @@ model Hamster {
   // 画面上ではハムスター名を識別子として扱うため、同名登録を避ける。
   name            String           @unique
   memo            String?
+  // カード表示にはまだ使わず、プロフィール情報として保存しておく日付。
+  birthDate       DateTime?        @db.Date
+  adoptionDate    DateTime?        @db.Date
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   cleaningRecords CleaningRecord[]

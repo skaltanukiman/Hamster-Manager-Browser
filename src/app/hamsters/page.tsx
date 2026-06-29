@@ -2,6 +2,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 
 import { createHamster, deleteHamster, updateHamster } from "@/app/actions/hamsters";
 import { StatusMessage } from "@/components/status-message";
+import { toDateInputValue } from "@/lib/date";
 import { getHamsterManagementData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -22,17 +23,25 @@ export default async function HamstersPage({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-ink">ハムスター管理</h2>
-        <p className="mt-1 text-sm text-slate-600">名前とメモを管理します。</p>
+        <p className="mt-1 text-sm text-slate-600">名前、メモ、誕生日、お迎え日を管理します。</p>
       </div>
 
       <StatusMessage status={getParam(params.status)} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
-        <form action={createHamster} className="mt-4 grid gap-4 md:grid-cols-[minmax(180px,260px)_1fr_auto]">
+        <form action={createHamster} className="mt-4 grid gap-4 lg:grid-cols-[minmax(150px,200px)_160px_160px_1fr_auto]">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             名前
             <input name="name" required maxLength={15} placeholder="例: きなこ" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            誕生日
+            <input type="date" name="birthDate" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            お迎え日
+            <input type="date" name="adoptionDate" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             メモ
@@ -59,11 +68,27 @@ export default async function HamstersPage({
             {hamsters.map((hamster) => (
               <article key={hamster.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                  <form action={updateHamster} className="grid gap-3 md:grid-cols-[minmax(160px,220px)_1fr_auto]">
+                  <form action={updateHamster} className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]">
                     <input type="hidden" name="id" value={hamster.id} />
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       名前
                       <input name="name" required maxLength={15} defaultValue={hamster.name} />
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      誕生日
+                      <input
+                        type="date"
+                        name="birthDate"
+                        defaultValue={hamster.birthDate ? toDateInputValue(hamster.birthDate) : ""}
+                      />
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      お迎え日
+                      <input
+                        type="date"
+                        name="adoptionDate"
+                        defaultValue={hamster.adoptionDate ? toDateInputValue(hamster.adoptionDate) : ""}
+                      />
                     </label>
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       メモ

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
+import { parseDateInput } from "@/lib/date";
 
 export const idSchema = z.string().min(1);
 
@@ -17,9 +18,26 @@ const nullableMemoSchema = z.preprocess((value) => {
   return trimmed.length > 0 ? trimmed : null;
 }, z.string().max(2000).nullable());
 
+// 任意の日付入力は空欄ならnull、入力ありならDB保存用のDateへ正規化する。
+const nullableDateInputSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return dateInputSchema.safeParse(trimmed).success ? parseDateInput(trimmed) : value;
+}, z.date().nullable());
+
 export const createHamsterSchema = z.object({
   name: z.string().trim().min(1).max(15),
-  memo: nullableMemoSchema
+  memo: nullableMemoSchema,
+  birthDate: nullableDateInputSchema,
+  adoptionDate: nullableDateInputSchema
 });
 
 export const updateHamsterSchema = createHamsterSchema.extend({

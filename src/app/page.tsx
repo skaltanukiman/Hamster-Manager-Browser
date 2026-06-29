@@ -56,7 +56,8 @@ export default async function DashboardPage() {
               const cleaningItems = [
                 { label: "トイレ掃除", record: hamster.latestToiletCleaning },
                 { label: "砂場掃除", record: hamster.latestBathCleaning },
-                { label: "床材全交換", record: hamster.latestFlooringAllCleaning }
+                { label: "床材全交換", record: hamster.latestFlooringAllCleaning },
+                { label: "ハウス掃除", record: hamster.latestHouseCleaning }
               ];
 
               return (

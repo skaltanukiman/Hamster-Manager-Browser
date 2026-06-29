@@ -54,7 +54,7 @@ export async function getDashboardData() {
   const dashboardHamsterIds = dashboardHamsters.map((hamster) => hamster.id);
 
   // ダッシュボードでは掃除全体ではなく、主要な掃除タスクごとの最終実施日を別々に表示する。
-  const [toiletCleaningRecords, bathCleaningRecords, flooringAllCleaningRecords] = await Promise.all([
+  const [toiletCleaningRecords, bathCleaningRecords, flooringAllCleaningRecords, houseCleaningRecords] = await Promise.all([
     prisma.cleaningRecord.findMany({
       where: {
         hamsterId: { in: dashboardHamsterIds },
@@ -75,18 +75,27 @@ export async function getDashboardData() {
         flooringAllCleaned: true
       },
       orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }]
+    }),
+    prisma.cleaningRecord.findMany({
+      where: {
+        hamsterId: { in: dashboardHamsterIds },
+        houseCleaned: true
+      },
+      orderBy: [{ recordDate: "desc" }, { updatedAt: "desc" }]
     })
   ]);
   const toiletCleaningByHamster = latestRecordByHamster(toiletCleaningRecords);
   const bathCleaningByHamster = latestRecordByHamster(bathCleaningRecords);
   const flooringAllCleaningByHamster = latestRecordByHamster(flooringAllCleaningRecords);
+  const houseCleaningByHamster = latestRecordByHamster(houseCleaningRecords);
 
   return {
     hamsters: dashboardHamsters.map((hamster) => ({
       ...hamster,
       latestToiletCleaning: toiletCleaningByHamster.get(hamster.id) ?? null,
       latestBathCleaning: bathCleaningByHamster.get(hamster.id) ?? null,
-      latestFlooringAllCleaning: flooringAllCleaningByHamster.get(hamster.id) ?? null
+      latestFlooringAllCleaning: flooringAllCleaningByHamster.get(hamster.id) ?? null,
+      latestHouseCleaning: houseCleaningByHamster.get(hamster.id) ?? null
     })),
     boardCount,
     totalHamsters: hamsters.length

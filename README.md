@@ -67,6 +67,8 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
 - `id`
 - `name`
 - `memo`
+- `birthDate`
+- `adoptionDate`
 - `createdAt`
 - `updatedAt`
 
