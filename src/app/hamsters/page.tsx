@@ -2,7 +2,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 
 import { createHamster, deleteHamster, updateHamster } from "@/app/actions/hamsters";
 import { StatusMessage } from "@/components/status-message";
-import { toDateInputValue } from "@/lib/date";
+import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getHamsterManagementData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,8 @@ export default async function HamstersPage({
 }) {
   const params = await searchParams;
   const hamsters = await getHamsterManagementData();
+  // 誕生日とお迎え日は過去から今日までの日付だけを扱うため、入力欄側でも未来日を選ばせない。
+  const today = todayInputJst();
 
   return (
     <div className="space-y-6">
@@ -37,11 +39,11 @@ export default async function HamstersPage({
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             誕生日
-            <input type="date" name="birthDate" />
+            <input type="date" name="birthDate" max={today} />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             お迎え日
-            <input type="date" name="adoptionDate" />
+            <input type="date" name="adoptionDate" max={today} />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             メモ
@@ -79,6 +81,7 @@ export default async function HamstersPage({
                       <input
                         type="date"
                         name="birthDate"
+                        max={today}
                         defaultValue={hamster.birthDate ? toDateInputValue(hamster.birthDate) : ""}
                       />
                     </label>
@@ -87,6 +90,7 @@ export default async function HamstersPage({
                       <input
                         type="date"
                         name="adoptionDate"
+                        max={today}
                         defaultValue={hamster.adoptionDate ? toDateInputValue(hamster.adoptionDate) : ""}
                       />
                     </label>

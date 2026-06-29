@@ -17,6 +17,11 @@ function hamsterValidationStatus(issues: ZodIssue[]) {
     return "hamsterMemoTooLong";
   }
 
+  // 誕生日・お迎え日の未来日だけは、入力不備の理由が伝わるように専用メッセージへ振り分ける。
+  if (issues.some((issue) => ["birthDate", "adoptionDate"].includes(String(issue.path[0])) && issue.message === "future")) {
+    return "future";
+  }
+
   return "invalid";
 }
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
-import { parseDateInput } from "@/lib/date";
+import { parseDateInput, todayInputJst } from "@/lib/date";
 
 export const idSchema = z.string().min(1);
 
@@ -33,11 +33,17 @@ const nullableDateInputSchema = z.preprocess((value) => {
   return dateInputSchema.safeParse(trimmed).success ? parseDateInput(trimmed) : value;
 }, z.date().nullable());
 
+// 誕生日・お迎え日はプロフィールの日付なので、ブラウザ制限を迂回した未来日の送信も保存前に弾く。
+const nullablePastOrTodayDateInputSchema = nullableDateInputSchema.refine(
+  (value) => value === null || value.getTime() <= parseDateInput(todayInputJst()).getTime(),
+  { message: "future" }
+);
+
 export const createHamsterSchema = z.object({
   name: z.string().trim().min(1).max(15),
   memo: nullableMemoSchema,
-  birthDate: nullableDateInputSchema,
-  adoptionDate: nullableDateInputSchema
+  birthDate: nullablePastOrTodayDateInputSchema,
+  adoptionDate: nullablePastOrTodayDateInputSchema
 });
 
 export const updateHamsterSchema = createHamsterSchema.extend({
