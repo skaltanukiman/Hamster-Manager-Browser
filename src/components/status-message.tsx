@@ -6,6 +6,8 @@ const messages: Record<string, string> = {
   invalid: "入力内容を確認してください。",
   duplicate: "同じ日付の記録が既にあります。",
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
+  hamsterNameTooLong: "名前は15文字以内で入力してください。",
+  hamsterMemoTooLong: "メモは2000文字以内で入力してください。",
   dashboardLimitExceeded: "表示数を超えてハムスターを選択しています。",
   dashboardSelectionRequired: "表示対象のハムスター数を表示ボード数に合わせてください。",
   future: "未来日には記録できません。"
@@ -20,6 +22,8 @@ export function StatusMessage({ status }: { status?: string }) {
     status === "invalid" ||
     status === "duplicate" ||
     status === "hamsterDuplicate" ||
+    status === "hamsterNameTooLong" ||
+    status === "hamsterMemoTooLong" ||
     status === "dashboardLimitExceeded" ||
     status === "dashboardSelectionRequired" ||
     status === "future";

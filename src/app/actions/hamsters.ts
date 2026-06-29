@@ -2,15 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { ZodIssue } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { createHamsterSchema, deleteHamsterSchema, updateHamsterSchema } from "@/lib/schemas";
+
+// maxLengthをすり抜けて送信された場合でも、文字数超過は項目別のメッセージに分ける。
+function hamsterValidationStatus(issues: ZodIssue[]) {
+  if (issues.some((issue) => issue.path[0] === "name" && issue.code === "too_big")) {
+    return "hamsterNameTooLong";
+  }
+
+  if (issues.some((issue) => issue.path[0] === "memo" && issue.code === "too_big")) {
+    return "hamsterMemoTooLong";
+  }
+
+  return "invalid";
+}
 
 export async function createHamster(formData: FormData) {
   const result = createHamsterSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
-    redirect("/hamsters?status=invalid");
+    redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
   }
 
   let status = "created";
@@ -31,7 +45,7 @@ export async function updateHamster(formData: FormData) {
   const result = updateHamsterSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
-    redirect("/hamsters?status=invalid");
+    redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
   }
 
   const { id, ...data } = result.data;
