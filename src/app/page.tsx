@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
 
 import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
+import { DashboardMemo } from "@/components/dashboard-memo";
 import { EmptyState } from "@/components/empty-state";
 import { daysSinceDate, formatDateJp } from "@/lib/date";
 import { getDashboardData } from "@/lib/queries";
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="break-words text-lg font-bold text-ink">{hamster.name}</h3>
-                      {hamster.memo ? <p className="mt-1 line-clamp-2 text-sm text-slate-500">{hamster.memo}</p> : null}
+                      {hamster.memo ? <DashboardMemo hamsterName={hamster.name} memo={hamster.memo} /> : null}
                     </div>
                     <span className="shrink-0 whitespace-nowrap rounded-md bg-straw/40 px-2 py-1 text-xs font-semibold text-slate-700">
                       管理中
