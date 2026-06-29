@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
 
+import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { EmptyState } from "@/components/empty-state";
 import { daysSinceDate, formatDateJp } from "@/lib/date";
 import { getDashboardData } from "@/lib/queries";
@@ -92,12 +93,13 @@ export default async function DashboardPage() {
                             <ClipboardCheck className="h-4 w-4 text-moss" aria-hidden />
                             {item.label}
                           </dt>
-                          <dd className="text-right text-sm font-bold text-ink">
+                          <dd className="text-right text-sm">
                             {item.record ? (
-                              <span className="grid gap-0.5">
-                                <span>{formatDateJp(item.record.recordDate)}</span>
-                                <span className="text-xs font-semibold text-slate-500">{elapsedDays}日経過</span>
-                              </span>
+                              <CleaningDateToggle
+                                dateLabel={formatDateJp(item.record.recordDate)}
+                                elapsedLabel={`${elapsedDays}日経過`}
+                                taskLabel={item.label}
+                              />
                             ) : (
                               "未記録"
                             )}
