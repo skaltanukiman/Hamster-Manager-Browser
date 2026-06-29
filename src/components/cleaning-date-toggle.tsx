@@ -1,5 +1,6 @@
 "use client";
 
+import { Repeat2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const FEEDBACK_DURATION_MS = 1200;
@@ -46,13 +47,14 @@ export function CleaningDateToggle({ dateLabel, elapsedLabel, taskLabel }: Clean
     <button
       type="button"
       aria-label={`${taskLabel}の表示を${nextLabel}に切り替え`}
-      className="relative inline-flex min-w-24 cursor-pointer justify-end rounded-md px-2 py-1 text-right text-sm font-bold text-ink transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-moss/40"
+      className="group relative inline-flex min-w-28 cursor-pointer items-center justify-end gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-right text-sm font-bold text-ink shadow-sm transition hover:border-moss hover:bg-moss/5 focus:outline-none focus:ring-2 focus:ring-moss/40"
       onClick={handleToggle}
     >
       {/* 初期表示は経過日数にし、クリック/タッチで日付と交互に切り替える。 */}
       <span>{showDate ? dateLabel : elapsedLabel}</span>
+      <Repeat2 className="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:text-moss" aria-hidden />
       <span
-        className={`pointer-events-none absolute right-0 top-full z-10 mt-1 flex min-w-24 rounded border border-slate-200 bg-white p-0.5 text-[10px] font-bold leading-none shadow-sm transition ${
+        className={`pointer-events-none absolute right-0 top-full z-10 mt-1 flex min-w-28 rounded border border-slate-200 bg-white p-0.5 text-[10px] font-bold leading-none shadow-sm transition ${
           showFeedback ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
         }`}
         aria-hidden
