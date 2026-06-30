@@ -47,8 +47,12 @@ export default async function WeightsPage({
     filterMode === "month" && selectedMonth
       ? records.filter((record) => getRecordYearMonth(record.recordDate) === selectedMonth)
       : records;
+  const filteredChartRecords =
+    filterMode === "month" && selectedMonth
+      ? chartRecords.filter((record) => getRecordYearMonth(record.recordDate) === selectedMonth)
+      : chartRecords;
 
-  const chartData = chartRecords.map((record) => ({
+  const chartData = filteredChartRecords.map((record) => ({
     date: toDateInputValue(record.recordDate),
     weightG: record.weightG
   }));
@@ -125,7 +129,12 @@ export default async function WeightsPage({
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>
             {records.length > 0 ? (
-              <form method="get" className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[160px_180px]">
+              <form
+                method="get"
+                className={`grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm ${
+                  filterMode === "month" ? "sm:grid-cols-[160px_180px]" : "sm:grid-cols-[160px]"
+                }`}
+              >
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   表示
@@ -134,17 +143,19 @@ export default async function WeightsPage({
                     <option value="month">月ごと</option>
                   </AutoSubmitSelect>
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-slate-700">
-                  対象月
-                  <AutoSubmitSelect name="month" defaultValue={selectedMonth} disabled={filterMode !== "month" || monthSelectOptions.length === 0}>
-                    {monthSelectOptions.map((yearMonth) => (
-                      <option key={yearMonth} value={yearMonth}>
-                        {formatYearMonthLabel(yearMonth)}
-                        {monthOptions.includes(yearMonth) ? "" : "（記録なし）"}
-                      </option>
-                    ))}
-                  </AutoSubmitSelect>
-                </label>
+                {filterMode === "month" ? (
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    対象月
+                    <AutoSubmitSelect name="month" defaultValue={selectedMonth} disabled={monthSelectOptions.length === 0}>
+                      {monthSelectOptions.map((yearMonth) => (
+                        <option key={yearMonth} value={yearMonth}>
+                          {formatYearMonthLabel(yearMonth)}
+                          {monthOptions.includes(yearMonth) ? "" : "（記録なし）"}
+                        </option>
+                      ))}
+                    </AutoSubmitSelect>
+                  </label>
+                ) : null}
               </form>
             ) : null}
             {records.length === 0 ? (
