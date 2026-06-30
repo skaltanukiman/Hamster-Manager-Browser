@@ -15,6 +15,8 @@ model Hamster {
   // カード表示にはまだ使わず、プロフィール情報として保存しておく日付。
   birthDate       DateTime?        @db.Date
   adoptionDate    DateTime?        @db.Date
+  // 管理外にしたハムスターは記録編集をロックし、復活時に同じ履歴を再利用する。
+  isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   cleaningRecords CleaningRecord[]

@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { createHamsterSchema, deleteHamsterSchema, updateHamsterSchema } from "@/lib/schemas";
+import {
+  createHamsterSchema,
+  deleteHamsterSchema,
+  updateHamsterActiveStatusSchema,
+  updateHamsterSchema
+} from "@/lib/schemas";
 
 // maxLengthをすり抜けて送信された場合でも、文字数超過は項目別のメッセージに分ける。
 function hamsterValidationStatus(issues: ZodIssue[]) {
@@ -55,6 +60,19 @@ export async function updateHamster(formData: FormData) {
 
   const { id, ...data } = result.data;
   let status = "updated";
+  const hamster = await prisma.hamster.findUnique({
+    where: { id },
+    select: { isActive: true }
+  });
+
+  if (!hamster) {
+    redirect("/hamsters?status=invalid");
+  }
+
+  // 管理外のハムスターはプロフィールも含めてロックし、復活後だけ編集できるようにする。
+  if (!hamster.isActive) {
+    redirect("/hamsters?status=locked");
+  }
 
   // 名前変更でも同名の別ハムスターと衝突する可能性があるため、登録時と同じ重複エラーを返す。
   try {
@@ -69,6 +87,26 @@ export async function updateHamster(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/hamsters");
   redirect(`/hamsters?status=${status}`);
+}
+
+export async function updateHamsterActiveStatus(formData: FormData) {
+  const result = updateHamsterActiveStatusSchema.safeParse(Object.fromEntries(formData));
+
+  if (!result.success) {
+    redirect("/hamsters?status=invalid");
+  }
+
+  await prisma.hamster.update({
+    where: { id: result.data.id },
+    data: { isActive: result.data.isActive }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/hamsters");
+  revalidatePath("/cleaning");
+  revalidatePath("/weights");
+  revalidatePath("/settings");
+  redirect("/hamsters?status=updated");
 }
 
 export async function deleteHamster(formData: FormData) {

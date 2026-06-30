@@ -54,6 +54,11 @@ export const deleteHamsterSchema = z.object({
   id: idSchema
 });
 
+export const updateHamsterActiveStatusSchema = z.object({
+  id: idSchema,
+  isActive: z.enum(["true", "false"]).transform((value) => value === "true")
+});
+
 export const createWeightRecordSchema = z.object({
   hamsterId: idSchema,
   recordDate: dateInputSchema,

@@ -1,0 +1,1 @@
+ALTER TABLE "hamsters" ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;

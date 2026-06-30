@@ -27,6 +27,7 @@ export default async function CleaningPage({
   );
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
+  const isLocked = selectedHamster ? !selectedHamster.isActive : false;
 
   return (
     <div className="space-y-6">
@@ -48,6 +49,7 @@ export default async function CleaningPage({
                 {hamsters.map((hamster) => (
                   <option key={hamster.id} value={hamster.id}>
                     {hamster.name}
+                    {hamster.isActive ? "" : "（管理外）"}
                   </option>
                 ))}
               </AutoSubmitSelect>
@@ -57,6 +59,12 @@ export default async function CleaningPage({
               <AutoSubmitInput type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
             </label>
           </form>
+
+          {isLocked ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              このハムスターは管理外のため、掃除記録の編集・保存はできません。
+            </p>
+          ) : null}
 
           <form action={saveCleaningMonth} className="space-y-4">
             <input type="hidden" name="hamsterId" value={selectedHamster.id} />
@@ -81,9 +89,10 @@ export default async function CleaningPage({
                     const record = recordsByDate.get(day.date);
                     // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
                     const isFuture = isFutureDateInput(day.date);
+                    const isDisabled = isFuture || isLocked;
 
                     return (
-                      <tr key={day.date} className={isFuture ? "bg-slate-50 text-slate-400" : undefined}>
+                      <tr key={day.date} className={isDisabled ? "bg-slate-50 text-slate-400" : undefined}>
                         <td className="font-semibold text-slate-700">{day.day}</td>
                         <td className="text-slate-500">{day.weekday}</td>
                         <td className="checkbox-cell">
@@ -92,7 +101,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`toilet_${day.date}`}
                             defaultChecked={record?.toiletCleaned ?? false}
-                            disabled={isFuture}
+                            disabled={isDisabled}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -101,7 +110,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`bath_${day.date}`}
                             defaultChecked={record?.bathCleaned ?? false}
-                            disabled={isFuture}
+                            disabled={isDisabled}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -110,7 +119,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`flooring_part_${day.date}`}
                             defaultChecked={record?.flooringPartCleaned ?? false}
-                            disabled={isFuture}
+                            disabled={isDisabled}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -119,7 +128,7 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`flooring_all_${day.date}`}
                             defaultChecked={record?.flooringAllCleaned ?? false}
-                            disabled={isFuture}
+                            disabled={isDisabled}
                           />
                         </td>
                         <td className="checkbox-cell">
@@ -128,15 +137,15 @@ export default async function CleaningPage({
                             type="checkbox"
                             name={`house_${day.date}`}
                             defaultChecked={record?.houseCleaned ?? false}
-                            disabled={isFuture}
+                            disabled={isDisabled}
                           />
                         </td>
                         <td>
                           <input
                             name={`memo_${day.date}`}
                             defaultValue={record?.memo ?? ""}
-                            placeholder={isFuture ? "未来日は入力できません" : "メモ"}
-                            disabled={isFuture}
+                            placeholder={isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
+                            disabled={isDisabled}
                           />
                         </td>
                       </tr>
@@ -149,7 +158,8 @@ export default async function CleaningPage({
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90"
+                disabled={isLocked}
+                className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 <Save className="h-4 w-4" aria-hidden />
                 保存

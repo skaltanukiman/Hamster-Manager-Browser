@@ -124,8 +124,12 @@ export async function getHamsterOptions() {
 
 export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string) {
   const hamsters = await getHamsterOptions();
-  // URLのhamsterIdが未指定または削除済みの場合でも、画面を開けるよう先頭のハムスターを選択する。
-  const selectedHamster = hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters[0] ?? null;
+  // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
+  const selectedHamster =
+    hamsters.find((hamster) => hamster.id === selectedHamsterId) ??
+    hamsters.find((hamster) => hamster.isActive) ??
+    hamsters[0] ??
+    null;
 
   if (!selectedHamster) {
     return { hamsters, selectedHamster, recordsByDate: new Map() };
@@ -153,8 +157,12 @@ export async function getCleaningPageData(selectedHamsterId: string | undefined,
 
 export async function getWeightPageData(selectedHamsterId: string | undefined) {
   const hamsters = await getHamsterOptions();
-  // URLのhamsterIdが未指定または削除済みの場合でも、画面を開けるよう先頭のハムスターを選択する。
-  const selectedHamster = hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters[0] ?? null;
+  // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
+  const selectedHamster =
+    hamsters.find((hamster) => hamster.id === selectedHamsterId) ??
+    hamsters.find((hamster) => hamster.isActive) ??
+    hamsters[0] ??
+    null;
 
   if (!selectedHamster) {
     return { hamsters, selectedHamster, records: [], chartRecords: [] };
@@ -181,7 +189,8 @@ export async function getDashboardSettingsPageData() {
       select: {
         id: true,
         name: true,
-        memo: true
+        memo: true,
+        isActive: true
       }
     }),
     prisma.appSetting.findUnique({

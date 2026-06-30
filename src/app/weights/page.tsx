@@ -27,6 +27,7 @@ export default async function WeightsPage({
     weightG: record.weightG
   }));
   const today = todayInputJst();
+  const isLocked = selectedHamster ? !selectedHamster.isActive : false;
 
   return (
     <div className="space-y-6">
@@ -48,11 +49,18 @@ export default async function WeightsPage({
                 {hamsters.map((hamster) => (
                   <option key={hamster.id} value={hamster.id}>
                     {hamster.name}
+                    {hamster.isActive ? "" : "（管理外）"}
                   </option>
                 ))}
               </AutoSubmitSelect>
             </label>
           </form>
+
+          {isLocked ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              このハムスターは管理外のため、体重記録の登録・編集・削除はできません。
+            </p>
+          ) : null}
 
           <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
             <form action={createWeightRecord} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -61,15 +69,16 @@ export default async function WeightsPage({
               <div className="mt-4 grid gap-4">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   日付
-                  <input type="date" name="recordDate" defaultValue={today} max={today} required />
+                  <input type="date" name="recordDate" defaultValue={today} max={today} required disabled={isLocked} />
                 </label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   体重(g)
-                  <input type="number" name="weightG" min="1" max="500" step="0.1" required placeholder="38.5" />
+                  <input type="number" name="weightG" min="1" max="500" step="0.1" required placeholder="38.5" disabled={isLocked} />
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss/90"
+                  disabled={isLocked}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   <Plus className="h-4 w-4" aria-hidden />
                   登録
@@ -104,15 +113,25 @@ export default async function WeightsPage({
                             name="recordDate"
                             defaultValue={toDateInputValue(record.recordDate)}
                             max={today}
+                            disabled={isLocked}
                           />
                         </label>
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           体重(g)
-                          <input type="number" name="weightG" min="1" max="500" step="0.1" defaultValue={record.weightG} />
+                          <input
+                            type="number"
+                            name="weightG"
+                            min="1"
+                            max="500"
+                            step="0.1"
+                            defaultValue={record.weightG}
+                            disabled={isLocked}
+                          />
                         </label>
                         <button
                           type="submit"
-                          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
+                          disabled={isLocked}
+                          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
                         >
                           <Save className="h-4 w-4" aria-hidden />
                           保存
@@ -123,7 +142,8 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <button
                           type="submit"
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
+                          disabled={isLocked}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden />
                           削除

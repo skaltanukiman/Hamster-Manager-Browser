@@ -10,7 +10,8 @@ const messages: Record<string, string> = {
   hamsterMemoTooLong: "メモは2000文字以内で入力してください。",
   dashboardLimitExceeded: "表示数を超えてハムスターを選択しています。",
   dashboardSelectionRequired: "表示対象のハムスター数を表示ボード数に合わせてください。",
-  future: "未来日には記録できません。"
+  future: "未来日には記録できません。",
+  locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。"
 };
 
 export function StatusMessage({ status }: { status?: string }) {
@@ -26,7 +27,8 @@ export function StatusMessage({ status }: { status?: string }) {
     status === "hamsterMemoTooLong" ||
     status === "dashboardLimitExceeded" ||
     status === "dashboardSelectionRequired" ||
-    status === "future";
+    status === "future" ||
+    status === "locked";
 
   return (
     <p

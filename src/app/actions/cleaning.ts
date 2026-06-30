@@ -24,6 +24,20 @@ export async function saveCleaningMonth(formData: FormData) {
   }
 
   const { hamsterId, yearMonth } = result.data;
+  const hamster = await prisma.hamster.findUnique({
+    where: { id: hamsterId },
+    select: { isActive: true }
+  });
+
+  if (!hamster) {
+    redirect("/cleaning?status=invalid");
+  }
+
+  // 管理外のハムスターは衛生記録もロックし、復活するまで保存できないようにする。
+  if (!hamster.isActive) {
+    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=locked`);
+  }
+
   const days = getDaysInMonth(yearMonth);
 
   // 画面上は未来日を無効化しているが、直接送信された場合も保存しないようサーバー側で確認する。

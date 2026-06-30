@@ -11,6 +11,7 @@ type HamsterOption = {
   id: string;
   name: string;
   memo: string | null;
+  isActive: boolean;
 };
 
 type DashboardSettingsFormProps = {
@@ -125,7 +126,14 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
                     className="mt-0.5"
                   />
                   <span className="min-w-0">
-                    <span className="block font-semibold text-ink">{hamster.name}</span>
+                    <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                      {hamster.name}
+                      {hamster.isActive ? null : (
+                        <span className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                          管理外
+                        </span>
+                      )}
+                    </span>
                     {hamster.memo ? <span className="mt-1 block truncate text-slate-500">{hamster.memo}</span> : null}
                   </span>
                 </label>

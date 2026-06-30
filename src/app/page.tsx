@@ -68,8 +68,12 @@ export default async function DashboardPage() {
                       <h3 className="break-words text-lg font-bold text-ink">{hamster.name}</h3>
                       {hamster.memo ? <DashboardMemo hamsterName={hamster.name} memo={hamster.memo} /> : null}
                     </div>
-                    <span className="shrink-0 whitespace-nowrap rounded-md bg-straw/40 px-2 py-1 text-xs font-semibold text-slate-700">
-                      管理中
+                    <span
+                      className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
+                        hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {hamster.isActive ? "管理中" : "管理外"}
                     </span>
                   </div>
 

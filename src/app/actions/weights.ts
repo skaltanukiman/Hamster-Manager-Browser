@@ -15,6 +15,47 @@ function weightRedirect(hamsterId: string, status: string) {
   redirect(`/weights?hamsterId=${encodeURIComponent(hamsterId)}&status=${status}`);
 }
 
+async function ensureHamsterIsActive(hamsterId: string) {
+  const hamster = await prisma.hamster.findUnique({
+    where: { id: hamsterId },
+    select: { isActive: true }
+  });
+
+  if (!hamster) {
+    redirect("/weights?status=invalid");
+  }
+
+  if (!hamster.isActive) {
+    weightRedirect(hamsterId, "locked");
+  }
+}
+
+async function getEditableWeightRecord(recordId: string, hamsterId: string) {
+  const record = await prisma.weightRecord.findUnique({
+    where: { id: recordId },
+    select: {
+      id: true,
+      hamsterId: true,
+      hamster: {
+        select: {
+          isActive: true
+        }
+      }
+    }
+  });
+
+  if (!record || record.hamsterId !== hamsterId) {
+    redirect("/weights?status=invalid");
+  }
+
+  // 管理外のハムスターに紐づく履歴は、復活するまで編集・削除を受け付けない。
+  if (!record.hamster.isActive) {
+    weightRedirect(record.hamsterId, "locked");
+  }
+
+  return record;
+}
+
 export async function createWeightRecord(formData: FormData) {
   const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
 
@@ -25,6 +66,8 @@ export async function createWeightRecord(formData: FormData) {
   if (isFutureDateInput(result.data.recordDate)) {
     weightRedirect(result.data.hamsterId, "future");
   }
+
+  await ensureHamsterIsActive(result.data.hamsterId);
 
   const recordDate = parseDateInput(result.data.recordDate);
 
@@ -62,6 +105,8 @@ export async function updateWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future");
   }
 
+  await getEditableWeightRecord(result.data.id, result.data.hamsterId);
+
   const recordDate = parseDateInput(result.data.recordDate);
   let status = "updated";
 
@@ -89,6 +134,8 @@ export async function deleteWeightRecord(formData: FormData) {
   if (!result.success) {
     redirect("/weights?status=invalid");
   }
+
+  await getEditableWeightRecord(result.data.id, result.data.hamsterId);
 
   await prisma.weightRecord.delete({
     where: { id: result.data.id }
