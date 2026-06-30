@@ -11,8 +11,34 @@ import {
   updateWeightRecordSchema
 } from "@/lib/schemas";
 
-function weightRedirect(hamsterId: string, status: string) {
-  redirect(`/weights?hamsterId=${encodeURIComponent(hamsterId)}&status=${status}`);
+const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
+
+function getWeightHistoryFilter(formData: FormData) {
+  const filter = formData.get("filter");
+  const month = formData.get("month");
+
+  if (filter !== "month") {
+    return {};
+  }
+
+  return typeof month === "string" && YEAR_MONTH_PATTERN.test(month) ? { filter: "month", month } : { filter: "month" };
+}
+
+function weightRedirect(hamsterId: string, status: string, historyFilter: { filter?: string; month?: string } = {}) {
+  const params = new URLSearchParams({
+    hamsterId,
+    status
+  });
+
+  if (historyFilter.filter) {
+    params.set("filter", historyFilter.filter);
+  }
+
+  if (historyFilter.month) {
+    params.set("month", historyFilter.month);
+  }
+
+  redirect(`/weights?${params.toString()}`);
 }
 
 async function ensureHamsterIsActive(hamsterId: string) {
@@ -63,8 +89,10 @@ export async function createWeightRecord(formData: FormData) {
     redirect("/weights?status=invalid");
   }
 
+  const historyFilter = getWeightHistoryFilter(formData);
+
   if (isFutureDateInput(result.data.recordDate)) {
-    weightRedirect(result.data.hamsterId, "future");
+    weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
   await ensureHamsterIsActive(result.data.hamsterId);
@@ -91,7 +119,7 @@ export async function createWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  weightRedirect(result.data.hamsterId, "saved");
+  weightRedirect(result.data.hamsterId, "saved", historyFilter);
 }
 
 export async function updateWeightRecord(formData: FormData) {
@@ -101,8 +129,10 @@ export async function updateWeightRecord(formData: FormData) {
     redirect("/weights?status=invalid");
   }
 
+  const historyFilter = getWeightHistoryFilter(formData);
+
   if (isFutureDateInput(result.data.recordDate)) {
-    weightRedirect(result.data.hamsterId, "future");
+    weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
   await getEditableWeightRecord(result.data.id, result.data.hamsterId);
@@ -125,7 +155,7 @@ export async function updateWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  weightRedirect(result.data.hamsterId, status);
+  weightRedirect(result.data.hamsterId, status, historyFilter);
 }
 
 export async function deleteWeightRecord(formData: FormData) {
@@ -135,6 +165,8 @@ export async function deleteWeightRecord(formData: FormData) {
     redirect("/weights?status=invalid");
   }
 
+  const historyFilter = getWeightHistoryFilter(formData);
+
   await getEditableWeightRecord(result.data.id, result.data.hamsterId);
 
   await prisma.weightRecord.delete({
@@ -143,5 +175,5 @@ export async function deleteWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  weightRedirect(result.data.hamsterId, "deleted");
+  weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }

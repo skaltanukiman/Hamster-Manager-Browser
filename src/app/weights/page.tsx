@@ -14,13 +14,39 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function normalizeFilterMode(value: string | undefined) {
+  return value === "month" ? "month" : "all";
+}
+
+function getRecordYearMonth(recordDate: Date) {
+  return toDateInputValue(recordDate).slice(0, 7);
+}
+
+function formatYearMonthLabel(yearMonth: string) {
+  const [year, month] = yearMonth.split("-");
+  return `${year}年${Number(month)}月`;
+}
+
 export default async function WeightsPage({
   searchParams
 }: {
-  searchParams: Promise<{ hamsterId?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{ hamsterId?: string | string[]; status?: string | string[]; filter?: string | string[]; month?: string | string[] }>;
 }) {
   const params = await searchParams;
   const { hamsters, selectedHamster, records, chartRecords } = await getWeightPageData(getParam(params.hamsterId));
+  const filterMode = normalizeFilterMode(getParam(params.filter));
+  const requestedMonth = getParam(params.month);
+  const monthOptions = Array.from(new Set(records.map((record) => getRecordYearMonth(record.recordDate))));
+  const selectedMonth =
+    filterMode === "month" && requestedMonth && /^\d{4}-\d{2}$/.test(requestedMonth)
+      ? requestedMonth
+      : monthOptions[0] ?? "";
+  const monthSelectOptions =
+    selectedMonth && !monthOptions.includes(selectedMonth) ? [selectedMonth, ...monthOptions] : monthOptions;
+  const filteredRecords =
+    filterMode === "month" && selectedMonth
+      ? records.filter((record) => getRecordYearMonth(record.recordDate) === selectedMonth)
+      : records;
 
   const chartData = chartRecords.map((record) => ({
     date: toDateInputValue(record.recordDate),
@@ -43,6 +69,8 @@ export default async function WeightsPage({
       ) : (
         <>
           <form method="get" className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <input type="hidden" name="filter" value={filterMode} />
+            {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
               <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
@@ -65,6 +93,8 @@ export default async function WeightsPage({
           <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
             <form action={createWeightRecord} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+              <input type="hidden" name="filter" value={filterMode} />
+              {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
               <h3 className="text-base font-bold text-ink">体重登録</h3>
               <div className="mt-4 grid gap-4">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -94,18 +124,47 @@ export default async function WeightsPage({
 
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>
+            {records.length > 0 ? (
+              <form method="get" className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[160px_180px]">
+                <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  表示
+                  <AutoSubmitSelect name="filter" defaultValue={filterMode}>
+                    <option value="all">全件</option>
+                    <option value="month">月ごと</option>
+                  </AutoSubmitSelect>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  対象月
+                  <AutoSubmitSelect name="month" defaultValue={selectedMonth} disabled={filterMode !== "month" || monthSelectOptions.length === 0}>
+                    {monthSelectOptions.map((yearMonth) => (
+                      <option key={yearMonth} value={yearMonth}>
+                        {formatYearMonthLabel(yearMonth)}
+                        {monthOptions.includes(yearMonth) ? "" : "（記録なし）"}
+                      </option>
+                    ))}
+                  </AutoSubmitSelect>
+                </label>
+              </form>
+            ) : null}
             {records.length === 0 ? (
               <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                 体重記録がまだありません。
               </div>
+            ) : filteredRecords.length === 0 ? (
+              <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                選択した月の体重記録はありません。
+              </div>
             ) : (
               <div className="grid gap-3">
-                {records.map((record) => (
+                {filteredRecords.map((record) => (
                   <article key={record.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                       <form action={updateWeightRecord} className="grid gap-3 md:grid-cols-[180px_160px_auto]">
                         <input type="hidden" name="id" value={record.id} />
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                        <input type="hidden" name="filter" value={filterMode} />
+                        {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           日付
                           <input
@@ -140,6 +199,8 @@ export default async function WeightsPage({
                       <form action={deleteWeightRecord} className="flex items-end">
                         <input type="hidden" name="id" value={record.id} />
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                        <input type="hidden" name="filter" value={filterMode} />
+                        {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
                         <button
                           type="submit"
                           disabled={isLocked}
