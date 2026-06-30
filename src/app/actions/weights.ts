@@ -16,15 +16,26 @@ const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 function getWeightHistoryFilter(formData: FormData) {
   const filter = formData.get("filter");
   const month = formData.get("month");
+  const page = formData.get("page");
+  const pageNumber = typeof page === "string" && /^\d+$/.test(page) ? Number(page) : undefined;
+  const historyFilter: { filter?: string; month?: string; page?: number } = {};
 
-  if (filter !== "month") {
-    return {};
+  if (filter === "month") {
+    historyFilter.filter = "month";
+
+    if (typeof month === "string" && YEAR_MONTH_PATTERN.test(month)) {
+      historyFilter.month = month;
+    }
   }
 
-  return typeof month === "string" && YEAR_MONTH_PATTERN.test(month) ? { filter: "month", month } : { filter: "month" };
+  if (pageNumber && pageNumber > 1) {
+    historyFilter.page = pageNumber;
+  }
+
+  return historyFilter;
 }
 
-function weightRedirect(hamsterId: string, status: string, historyFilter: { filter?: string; month?: string } = {}) {
+function weightRedirect(hamsterId: string, status: string, historyFilter: { filter?: string; month?: string; page?: number } = {}) {
   const params = new URLSearchParams({
     hamsterId,
     status
@@ -36,6 +47,10 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: { filt
 
   if (historyFilter.month) {
     params.set("month", historyFilter.month);
+  }
+
+  if (historyFilter.page && historyFilter.page > 1) {
+    params.set("page", String(historyFilter.page));
   }
 
   redirect(`/weights?${params.toString()}`);

@@ -1,6 +1,10 @@
+import type { Prisma } from "@prisma/client";
+
 import { APP_SETTING_ID, normalizeDashboardBoardCount } from "@/lib/dashboard-settings";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+
+export const WEIGHT_HISTORY_PAGE_SIZE = 20;
 
 // 設定済みの表示対象を優先し、未設定・削除済みIDがある場合は登録順のハムスターで不足分を補う。
 function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
@@ -155,7 +159,33 @@ export async function getCleaningPageData(selectedHamsterId: string | undefined,
   };
 }
 
-export async function getWeightPageData(selectedHamsterId: string | undefined) {
+type WeightHistoryFilterMode = "all" | "month";
+
+function buildWeightRecordWhere(hamsterId: string, filterMode: WeightHistoryFilterMode, selectedMonth: string) {
+  const where: Prisma.WeightRecordWhereInput = { hamsterId };
+
+  if (filterMode === "month" && selectedMonth) {
+    const { start, end } = monthDateRange(selectedMonth);
+    where.recordDate = {
+      gte: start,
+      lt: end
+    };
+  }
+
+  return where;
+}
+
+export async function getWeightPageData({
+  selectedHamsterId,
+  filterMode,
+  month,
+  page
+}: {
+  selectedHamsterId: string | undefined;
+  filterMode: WeightHistoryFilterMode;
+  month: string | undefined;
+  page: number;
+}) {
   const hamsters = await getHamsterOptions();
   // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
   const selectedHamster =
@@ -165,20 +195,57 @@ export async function getWeightPageData(selectedHamsterId: string | undefined) {
     null;
 
   if (!selectedHamster) {
-    return { hamsters, selectedHamster, records: [], chartRecords: [] };
+    return {
+      hamsters,
+      selectedHamster,
+      records: [],
+      chartRecords: [],
+      monthOptions: [],
+      selectedMonth: "",
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        pageSize: WEIGHT_HISTORY_PAGE_SIZE
+      }
+    };
   }
 
+  // 月候補は体重履歴の実データからDB側で年月だけを重複排除して作る。
+  const monthRows = await prisma.$queryRaw<Array<{ yearMonth: string }>>`
+    SELECT to_char("recordDate", 'YYYY-MM') AS "yearMonth"
+    FROM "weight_records"
+    WHERE "hamsterId" = ${selectedHamster.id}
+    GROUP BY to_char("recordDate", 'YYYY-MM')
+    ORDER BY "yearMonth" DESC
+  `;
+  const monthOptions = monthRows.map((row) => row.yearMonth);
+  const selectedMonth = filterMode === "month" ? month ?? monthOptions[0] ?? "" : "";
+  const where = buildWeightRecordWhere(selectedHamster.id, filterMode, selectedMonth);
+  const totalCount = await prisma.weightRecord.count({ where });
+  const totalPages = Math.max(Math.ceil(totalCount / WEIGHT_HISTORY_PAGE_SIZE), 1);
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
   const records = await prisma.weightRecord.findMany({
-    where: { hamsterId: selectedHamster.id },
-    orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }]
+    where,
+    orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
+    skip: (currentPage - 1) * WEIGHT_HISTORY_PAGE_SIZE,
+    take: WEIGHT_HISTORY_PAGE_SIZE
   });
 
   return {
     hamsters,
     selectedHamster,
     records,
-    // 履歴一覧は新しい順、グラフは時系列順で扱うため、同じ取得結果から表示用途ごとに並びを分ける。
-    chartRecords: [...records].reverse()
+    // 履歴一覧は新しい順、グラフは現在表示中ページの時系列順で扱う。
+    chartRecords: [...records].reverse(),
+    monthOptions,
+    selectedMonth,
+    pagination: {
+      currentPage,
+      totalPages,
+      totalCount,
+      pageSize: WEIGHT_HISTORY_PAGE_SIZE
+    }
   };
 }
 

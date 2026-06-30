@@ -1,4 +1,5 @@
-import { Plus, Save, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Plus, Save, Trash2 } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
@@ -14,12 +15,19 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function normalizeFilterMode(value: string | undefined) {
+type FilterMode = "all" | "month";
+
+function normalizeFilterMode(value: string | undefined): FilterMode {
   return value === "month" ? "month" : "all";
 }
 
-function getRecordYearMonth(recordDate: Date) {
-  return toDateInputValue(recordDate).slice(0, 7);
+function normalizePage(value: string | undefined) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function isYearMonthInput(value: string | undefined): value is string {
+  return Boolean(value && /^\d{4}-\d{2}$/.test(value));
 }
 
 function formatYearMonthLabel(yearMonth: string) {
@@ -27,37 +35,65 @@ function formatYearMonthLabel(yearMonth: string) {
   return `${year}年${Number(month)}月`;
 }
 
+function buildWeightsHref({
+  hamsterId,
+  filterMode,
+  month,
+  page
+}: {
+  hamsterId: string;
+  filterMode: FilterMode;
+  month: string;
+  page: number;
+}) {
+  const params = new URLSearchParams({ hamsterId });
+
+  if (filterMode === "month") {
+    params.set("filter", "month");
+    if (month) {
+      params.set("month", month);
+    }
+  }
+
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+
+  return `/weights?${params.toString()}`;
+}
+
 export default async function WeightsPage({
   searchParams
 }: {
-  searchParams: Promise<{ hamsterId?: string | string[]; status?: string | string[]; filter?: string | string[]; month?: string | string[] }>;
+  searchParams: Promise<{
+    hamsterId?: string | string[];
+    status?: string | string[];
+    filter?: string | string[];
+    month?: string | string[];
+    page?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
-  const { hamsters, selectedHamster, records, chartRecords } = await getWeightPageData(getParam(params.hamsterId));
   const filterMode = normalizeFilterMode(getParam(params.filter));
   const requestedMonth = getParam(params.month);
-  const monthOptions = Array.from(new Set(records.map((record) => getRecordYearMonth(record.recordDate))));
-  const selectedMonth =
-    filterMode === "month" && requestedMonth && /^\d{4}-\d{2}$/.test(requestedMonth)
-      ? requestedMonth
-      : monthOptions[0] ?? "";
+  const requestedPage = normalizePage(getParam(params.page));
+  const { hamsters, selectedHamster, records, chartRecords, monthOptions, selectedMonth, pagination } =
+    await getWeightPageData({
+      selectedHamsterId: getParam(params.hamsterId),
+      filterMode,
+      month: isYearMonthInput(requestedMonth) ? requestedMonth : undefined,
+      page: requestedPage
+    });
   const monthSelectOptions =
     selectedMonth && !monthOptions.includes(selectedMonth) ? [selectedMonth, ...monthOptions] : monthOptions;
-  const filteredRecords =
-    filterMode === "month" && selectedMonth
-      ? records.filter((record) => getRecordYearMonth(record.recordDate) === selectedMonth)
-      : records;
-  const filteredChartRecords =
-    filterMode === "month" && selectedMonth
-      ? chartRecords.filter((record) => getRecordYearMonth(record.recordDate) === selectedMonth)
-      : chartRecords;
 
-  const chartData = filteredChartRecords.map((record) => ({
+  const chartData = chartRecords.map((record) => ({
     date: toDateInputValue(record.recordDate),
     weightG: record.weightG
   }));
   const today = todayInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
+  const hasWeightRecords = monthOptions.length > 0;
 
   return (
     <div className="space-y-6">
@@ -128,7 +164,7 @@ export default async function WeightsPage({
 
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>
-            {records.length > 0 ? (
+            {hasWeightRecords ? (
               <form
                 method="get"
                 className={`grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm ${
@@ -158,17 +194,33 @@ export default async function WeightsPage({
                 ) : null}
               </form>
             ) : null}
-            {records.length === 0 ? (
+            {hasWeightRecords ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                <span>
+                  {pagination.totalCount} 件中{" "}
+                  {pagination.totalCount === 0
+                    ? "0"
+                    : `${(pagination.currentPage - 1) * pagination.pageSize + 1} - ${
+                        (pagination.currentPage - 1) * pagination.pageSize + records.length
+                      }`}{" "}
+                  件を表示しています。
+                </span>
+                <span>
+                  {pagination.currentPage} / {pagination.totalPages} ページ
+                </span>
+              </div>
+            ) : null}
+            {!hasWeightRecords ? (
               <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                 体重記録がまだありません。
               </div>
-            ) : filteredRecords.length === 0 ? (
+            ) : records.length === 0 ? (
               <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                 選択した月の体重記録はありません。
               </div>
             ) : (
               <div className="grid gap-3">
-                {filteredRecords.map((record) => (
+                {records.map((record) => (
                   <article key={record.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                       <form action={updateWeightRecord} className="grid gap-3 md:grid-cols-[180px_160px_auto]">
@@ -176,6 +228,7 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <input type="hidden" name="filter" value={filterMode} />
                         {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+                        <input type="hidden" name="page" value={pagination.currentPage} />
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           日付
                           <input
@@ -212,6 +265,7 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <input type="hidden" name="filter" value={filterMode} />
                         {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+                        <input type="hidden" name="page" value={pagination.currentPage} />
                         <button
                           type="submit"
                           disabled={isLocked}
@@ -226,6 +280,48 @@ export default async function WeightsPage({
                 ))}
               </div>
             )}
+            {hasWeightRecords && pagination.totalPages > 1 ? (
+              <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="体重履歴のページ移動">
+                {pagination.currentPage > 1 ? (
+                  <Link
+                    href={buildWeightsHref({
+                      hamsterId: selectedHamster.id,
+                      filterMode,
+                      month: selectedMonth,
+                      page: pagination.currentPage - 1
+                    })}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    前へ
+                  </Link>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    前へ
+                  </span>
+                )}
+                {pagination.currentPage < pagination.totalPages ? (
+                  <Link
+                    href={buildWeightsHref({
+                      hamsterId: selectedHamster.id,
+                      filterMode,
+                      month: selectedMonth,
+                      page: pagination.currentPage + 1
+                    })}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    次へ
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                    次へ
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </span>
+                )}
+              </nav>
+            ) : null}
           </section>
         </>
       )}
