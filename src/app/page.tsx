@@ -51,7 +51,7 @@ export default async function DashboardPage() {
             </p>
           ) : null}
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {hamsters.map((hamster) => {
               const latestWeight = hamster.weightRecords[0];
               const cleaningItems = [
@@ -62,7 +62,7 @@ export default async function DashboardPage() {
               ];
 
               return (
-                <article key={hamster.id} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+                <article key={hamster.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <h3 className="break-words text-lg font-bold text-ink">{hamster.name}</h3>

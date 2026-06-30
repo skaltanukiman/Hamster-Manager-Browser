@@ -67,7 +67,7 @@ export function DashboardMemo({ hamsterName, memo }: DashboardMemoProps) {
             setIsOpen(true);
           }
         }}
-        className={`mt-1 block w-full truncate rounded-sm text-left text-sm text-slate-500 transition ${
+        className={`mt-1 block w-full max-w-full truncate rounded-sm text-left text-sm text-slate-500 transition ${
           isTruncated ? "cursor-pointer hover:text-moss focus-visible:outline focus-visible:outline-2 focus-visible:outline-moss" : "cursor-default"
         }`}
       >
