@@ -305,6 +305,48 @@ DB データも削除したい場合だけ `-v` を付けます。開発DBを初
 docker compose down -v
 ```
 
+### 開発環境の自動起動スクリプト
+
+Windows 開発環境では、開発用の Docker Compose 起動フローをまとめたスクリプトを使えます。
+
+基本的には `start-dev.bat` から起動する想定です。
+
+```bat
+start-dev.bat
+```
+
+`start-dev.bat` は文字コードを UTF-8 に切り替えたうえで、同じフォルダにある `start-dev.ps1` を PowerShell で実行します。
+
+```bat
+powershell.exe -NoExit -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-dev.ps1"
+```
+
+主な指定の意味:
+
+- `-ExecutionPolicy Bypass`: `.ps1` や `npm.ps1` などが実行ポリシーでブロックされる環境向けに、この起動中だけ制限を回避します。
+- `-File`: 実行する PowerShell スクリプトファイルを指定します。
+- `%~dp0start-dev.ps1`: `.bat` と同じフォルダにある `start-dev.ps1` を指定します。
+- `-NoExit`: 実行後も PowerShell ウィンドウを閉じず、エラー内容を確認しやすくします。
+
+`-ExecutionPolicy Bypass` はスクリプト実行制限への対策です。Docker Desktop が未インストール、`.env.development` が存在しない、ポートが使用中、`docker-compose.yml` が不正といったエラーを回避するものではありません。自分で管理している開発用スクリプトに対して使ってください。
+
+PowerShell から直接起動したい場合:
+
+```powershell
+.\start-dev.ps1
+```
+
+`start-dev.ps1` は次の処理をまとめて行います。
+
+- スクリプトがあるリポジトリルートへ移動
+- Docker Desktop を起動
+- Docker が利用可能になるまで待機
+- `ENV_FILE` に `.env.development` を設定
+- `docker compose up -d app` で app と依存するコンテナを起動
+- `http://localhost:3001` をブラウザで開く
+
+初回起動前に `.env.development.example` をコピーして `.env.development` を作成してください。Prisma migrate や seed は自動実行しないため、初回セットアップ時やスキーマ変更時は必要に応じて別途実行します。
+
 ## Prisma コマンド
 
 `package.json` には次のスクリプトがあります。
