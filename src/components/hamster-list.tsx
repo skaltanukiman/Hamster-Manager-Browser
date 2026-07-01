@@ -49,9 +49,9 @@ export function HamsterList({ hamsters, today }: HamsterListProps) {
     <div className="space-y-3">
       <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[180px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
-          表示
+          並び順
           <select value={sortMode} onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}>
-            <option value="all">全件</option>
+            <option value="all">登録順に表示</option>
             <option value="asc">文字の昇順</option>
             <option value="desc">文字の降順</option>
           </select>
