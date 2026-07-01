@@ -16,7 +16,8 @@ type HamsterListItem = {
   weightRecordCount: number;
 };
 
-type SortMode = "all" | "asc" | "desc";
+type SortTarget = "registered" | "name";
+type SortDirection = "asc" | "desc";
 
 type HamsterListProps = {
   hamsters: HamsterListItem[];
@@ -24,7 +25,8 @@ type HamsterListProps = {
 };
 
 export function HamsterList({ hamsters, today }: HamsterListProps) {
-  const [sortMode, setSortMode] = useState<SortMode>("all");
+  const [sortTarget, setSortTarget] = useState<SortTarget>("registered");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredHamsters = useMemo(() => {
@@ -34,26 +36,32 @@ export function HamsterList({ hamsters, today }: HamsterListProps) {
         ? hamsters.filter((hamster) => hamster.name.toLocaleLowerCase().includes(normalizedSearchTerm))
         : hamsters;
 
-    // 「全件」は従来の登録順を保ち、昇順・降順だけ名前基準で表示順を変える。
-    if (sortMode === "all") {
-      return searchedHamsters;
+    // 検索で絞り込んだ結果に対し、表示対象と並び順の組み合わせで表示順だけを変える。
+    if (sortTarget === "registered") {
+      return sortDirection === "asc" ? searchedHamsters : [...searchedHamsters].reverse();
     }
 
     return [...searchedHamsters].sort((a, b) => {
       const result = a.name.localeCompare(b.name, "ja");
-      return sortMode === "asc" ? result : -result;
+      return sortDirection === "asc" ? result : -result;
     });
-  }, [hamsters, searchTerm, sortMode]);
+  }, [hamsters, searchTerm, sortDirection, sortTarget]);
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[180px_1fr]">
+      <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[160px_160px_1fr]">
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          表示
+          <select value={sortTarget} onChange={(event) => setSortTarget(event.currentTarget.value as SortTarget)}>
+            <option value="registered">登録順</option>
+            <option value="name">名前</option>
+          </select>
+        </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           並び順
-          <select value={sortMode} onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}>
-            <option value="all">登録順に表示</option>
-            <option value="asc">文字の昇順</option>
-            <option value="desc">文字の降順</option>
+          <select value={sortDirection} onChange={(event) => setSortDirection(event.currentTarget.value as SortDirection)}>
+            <option value="asc">昇順</option>
+            <option value="desc">降順</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
