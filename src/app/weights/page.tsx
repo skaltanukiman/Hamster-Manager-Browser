@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Trash2 } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
@@ -288,6 +288,25 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
+                      page: 1
+                    })}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <ChevronsLeft className="h-4 w-4" aria-hidden />
+                    最初へ
+                  </Link>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                    <ChevronsLeft className="h-4 w-4" aria-hidden />
+                    最初へ
+                  </span>
+                )}
+                {pagination.currentPage > 1 ? (
+                  <Link
+                    href={buildWeightsHref({
+                      hamsterId: selectedHamster.id,
+                      filterMode,
+                      month: selectedMonth,
                       page: pagination.currentPage - 1
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -318,6 +337,25 @@ export default async function WeightsPage({
                   <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
                     次へ
                     <ChevronRight className="h-4 w-4" aria-hidden />
+                  </span>
+                )}
+                {pagination.currentPage < pagination.totalPages ? (
+                  <Link
+                    href={buildWeightsHref({
+                      hamsterId: selectedHamster.id,
+                      filterMode,
+                      month: selectedMonth,
+                      page: pagination.totalPages
+                    })}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    最後へ
+                    <ChevronsRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                    最後へ
+                    <ChevronsRight className="h-4 w-4" aria-hidden />
                   </span>
                 )}
               </nav>
