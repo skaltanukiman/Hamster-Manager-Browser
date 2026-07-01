@@ -18,6 +18,7 @@ export default async function HamstersPage({
   searchParams: Promise<{ status?: string | string[] }>;
 }) {
   const params = await searchParams;
+  const status = getParam(params.status);
   const hamsters = await getHamsterManagementData();
   const hamsterListItems = hamsters.map((hamster) => ({
     id: hamster.id,
@@ -39,7 +40,7 @@ export default async function HamstersPage({
         <p className="mt-1 text-sm text-slate-600">名前、メモ、誕生日、お迎え日を管理します。</p>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={status} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
@@ -77,7 +78,12 @@ export default async function HamstersPage({
             登録済みハムスターはありません。
           </div>
         ) : (
-          <HamsterList hamsters={hamsterListItems} today={today} />
+          <HamsterList
+            hamsters={hamsterListItems}
+            today={today}
+            initialSortTarget="registered"
+            initialSortDirection={status === "created" ? "desc" : "asc"}
+          />
         )}
       </section>
     </div>

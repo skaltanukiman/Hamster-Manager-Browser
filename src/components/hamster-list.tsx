@@ -22,11 +22,18 @@ type SortDirection = "asc" | "desc";
 type HamsterListProps = {
   hamsters: HamsterListItem[];
   today: string;
+  initialSortTarget?: SortTarget;
+  initialSortDirection?: SortDirection;
 };
 
-export function HamsterList({ hamsters, today }: HamsterListProps) {
-  const [sortTarget, setSortTarget] = useState<SortTarget>("registered");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+export function HamsterList({
+  hamsters,
+  today,
+  initialSortTarget = "registered",
+  initialSortDirection = "asc"
+}: HamsterListProps) {
+  const [sortTarget, setSortTarget] = useState<SortTarget>(initialSortTarget);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredHamsters = useMemo(() => {
