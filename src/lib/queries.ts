@@ -160,6 +160,8 @@ export async function getCleaningPageData(selectedHamsterId: string | undefined,
 }
 
 type WeightHistoryFilterMode = "all" | "month";
+type WeightHistorySortTarget = "registered" | "date" | "weight";
+type SortDirection = "asc" | "desc";
 
 function buildWeightRecordWhere(hamsterId: string, filterMode: WeightHistoryFilterMode, selectedMonth: string) {
   const where: Prisma.WeightRecordWhereInput = { hamsterId };
@@ -175,16 +177,35 @@ function buildWeightRecordWhere(hamsterId: string, filterMode: WeightHistoryFilt
   return where;
 }
 
+function buildWeightRecordOrderBy(sortTarget: WeightHistorySortTarget, sortDirection: SortDirection) {
+  const tieBreakDirection = sortDirection;
+
+  // 体重履歴一覧の表示順だけを切り替え、同値のときは安定して並ぶよう補助条件を足す。
+  if (sortTarget === "registered") {
+    return [{ createdAt: sortDirection }, { recordDate: tieBreakDirection }];
+  }
+
+  if (sortTarget === "weight") {
+    return [{ weightG: sortDirection }, { recordDate: tieBreakDirection }, { createdAt: tieBreakDirection }];
+  }
+
+  return [{ recordDate: sortDirection }, { createdAt: tieBreakDirection }];
+}
+
 export async function getWeightPageData({
   selectedHamsterId,
   filterMode,
   month,
-  page
+  page,
+  sortTarget,
+  sortDirection
 }: {
   selectedHamsterId: string | undefined;
   filterMode: WeightHistoryFilterMode;
   month: string | undefined;
   page: number;
+  sortTarget: WeightHistorySortTarget;
+  sortDirection: SortDirection;
 }) {
   const hamsters = await getHamsterOptions();
   // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
@@ -225,10 +246,11 @@ export async function getWeightPageData({
   const totalCount = await prisma.weightRecord.count({ where });
   const totalPages = Math.max(Math.ceil(totalCount / WEIGHT_HISTORY_PAGE_SIZE), 1);
   const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const orderBy = buildWeightRecordOrderBy(sortTarget, sortDirection);
   const [records, chartRecords] = await Promise.all([
     prisma.weightRecord.findMany({
       where,
-      orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
+      orderBy,
       skip: (currentPage - 1) * WEIGHT_HISTORY_PAGE_SIZE,
       take: WEIGHT_HISTORY_PAGE_SIZE
     }),

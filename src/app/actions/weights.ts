@@ -12,13 +12,25 @@ import {
 } from "@/lib/schemas";
 
 const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
+const WEIGHT_SORT_TARGETS = new Set(["registered", "date", "weight"]);
+const SORT_DIRECTIONS = new Set(["asc", "desc"]);
+
+type WeightHistoryFilter = {
+  filter?: string;
+  month?: string;
+  page?: number;
+  sort?: string;
+  direction?: string;
+};
 
 function getWeightHistoryFilter(formData: FormData) {
   const filter = formData.get("filter");
   const month = formData.get("month");
   const page = formData.get("page");
+  const sort = formData.get("sort");
+  const direction = formData.get("direction");
   const pageNumber = typeof page === "string" && /^\d+$/.test(page) ? Number(page) : undefined;
-  const historyFilter: { filter?: string; month?: string; page?: number } = {};
+  const historyFilter: WeightHistoryFilter = {};
 
   if (filter === "month") {
     historyFilter.filter = "month";
@@ -32,10 +44,18 @@ function getWeightHistoryFilter(formData: FormData) {
     historyFilter.page = pageNumber;
   }
 
+  if (typeof sort === "string" && WEIGHT_SORT_TARGETS.has(sort)) {
+    historyFilter.sort = sort;
+  }
+
+  if (typeof direction === "string" && SORT_DIRECTIONS.has(direction)) {
+    historyFilter.direction = direction;
+  }
+
   return historyFilter;
 }
 
-function weightRedirect(hamsterId: string, status: string, historyFilter: { filter?: string; month?: string; page?: number } = {}) {
+function weightRedirect(hamsterId: string, status: string, historyFilter: WeightHistoryFilter = {}) {
   const params = new URLSearchParams({
     hamsterId,
     status
@@ -51,6 +71,14 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: { filt
 
   if (historyFilter.page && historyFilter.page > 1) {
     params.set("page", String(historyFilter.page));
+  }
+
+  if (historyFilter.sort) {
+    params.set("sort", historyFilter.sort);
+  }
+
+  if (historyFilter.direction) {
+    params.set("direction", historyFilter.direction);
   }
 
   redirect(`/weights?${params.toString()}`);
@@ -134,7 +162,12 @@ export async function createWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  weightRedirect(result.data.hamsterId, "saved", historyFilter);
+  weightRedirect(result.data.hamsterId, "saved", {
+    filter: historyFilter.filter,
+    month: historyFilter.month,
+    sort: "registered",
+    direction: "desc"
+  });
 }
 
 export async function updateWeightRecord(formData: FormData) {

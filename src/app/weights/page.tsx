@@ -16,9 +16,19 @@ function getParam(value: string | string[] | undefined) {
 }
 
 type FilterMode = "all" | "month";
+type WeightSortTarget = "registered" | "date" | "weight";
+type SortDirection = "asc" | "desc";
 
 function normalizeFilterMode(value: string | undefined): FilterMode {
   return value === "month" ? "month" : "all";
+}
+
+function normalizeWeightSortTarget(value: string | undefined): WeightSortTarget {
+  return value === "registered" || value === "weight" ? value : "date";
+}
+
+function normalizeSortDirection(value: string | undefined): SortDirection {
+  return value === "asc" ? "asc" : "desc";
 }
 
 function normalizePage(value: string | undefined) {
@@ -39,12 +49,16 @@ function buildWeightsHref({
   hamsterId,
   filterMode,
   month,
-  page
+  page,
+  sortTarget,
+  sortDirection
 }: {
   hamsterId: string;
   filterMode: FilterMode;
   month: string;
   page: number;
+  sortTarget: WeightSortTarget;
+  sortDirection: SortDirection;
 }) {
   const params = new URLSearchParams({ hamsterId });
 
@@ -53,6 +67,14 @@ function buildWeightsHref({
     if (month) {
       params.set("month", month);
     }
+  }
+
+  if (sortTarget !== "date") {
+    params.set("sort", sortTarget);
+  }
+
+  if (sortDirection !== "desc") {
+    params.set("direction", sortDirection);
   }
 
   if (page > 1) {
@@ -71,18 +93,24 @@ export default async function WeightsPage({
     filter?: string | string[];
     month?: string | string[];
     page?: string | string[];
+    sort?: string | string[];
+    direction?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const filterMode = normalizeFilterMode(getParam(params.filter));
   const requestedMonth = getParam(params.month);
   const requestedPage = normalizePage(getParam(params.page));
+  const sortTarget = normalizeWeightSortTarget(getParam(params.sort));
+  const sortDirection = normalizeSortDirection(getParam(params.direction));
   const { hamsters, selectedHamster, records, chartRecords, monthOptions, selectedMonth, pagination } =
     await getWeightPageData({
       selectedHamsterId: getParam(params.hamsterId),
       filterMode,
       month: isYearMonthInput(requestedMonth) ? requestedMonth : undefined,
-      page: requestedPage
+      page: requestedPage,
+      sortTarget,
+      sortDirection
     });
   const monthSelectOptions =
     selectedMonth && !monthOptions.includes(selectedMonth) ? [selectedMonth, ...monthOptions] : monthOptions;
@@ -111,6 +139,8 @@ export default async function WeightsPage({
           <form method="get" className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <input type="hidden" name="filter" value={filterMode} />
             {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+            <input type="hidden" name="sort" value={sortTarget} />
+            <input type="hidden" name="direction" value={sortDirection} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
               <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
@@ -135,6 +165,8 @@ export default async function WeightsPage({
               <input type="hidden" name="hamsterId" value={selectedHamster.id} />
               <input type="hidden" name="filter" value={filterMode} />
               {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+              <input type="hidden" name="sort" value={sortTarget} />
+              <input type="hidden" name="direction" value={sortDirection} />
               <h3 className="text-base font-bold text-ink">体重登録</h3>
               <div className="mt-4 grid gap-4">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -168,7 +200,9 @@ export default async function WeightsPage({
               <form
                 method="get"
                 className={`grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm ${
-                  filterMode === "month" ? "sm:grid-cols-[160px_180px]" : "sm:grid-cols-[160px]"
+                  filterMode === "month"
+                    ? "sm:grid-cols-[160px_180px_160px_160px]"
+                    : "sm:grid-cols-[160px_160px_160px]"
                 }`}
               >
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
@@ -192,6 +226,21 @@ export default async function WeightsPage({
                     </AutoSubmitSelect>
                   </label>
                 ) : null}
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  並び対象
+                  <AutoSubmitSelect name="sort" defaultValue={sortTarget}>
+                    <option value="registered">登録順</option>
+                    <option value="date">日付</option>
+                    <option value="weight">体重</option>
+                  </AutoSubmitSelect>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  並び順
+                  <AutoSubmitSelect name="direction" defaultValue={sortDirection}>
+                    <option value="asc">昇順</option>
+                    <option value="desc">降順</option>
+                  </AutoSubmitSelect>
+                </label>
               </form>
             ) : null}
             {hasWeightRecords ? (
@@ -228,6 +277,8 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <input type="hidden" name="filter" value={filterMode} />
                         {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+                        <input type="hidden" name="sort" value={sortTarget} />
+                        <input type="hidden" name="direction" value={sortDirection} />
                         <input type="hidden" name="page" value={pagination.currentPage} />
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           日付
@@ -265,6 +316,8 @@ export default async function WeightsPage({
                         <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                         <input type="hidden" name="filter" value={filterMode} />
                         {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+                        <input type="hidden" name="sort" value={sortTarget} />
+                        <input type="hidden" name="direction" value={sortDirection} />
                         <input type="hidden" name="page" value={pagination.currentPage} />
                         <button
                           type="submit"
@@ -288,7 +341,9 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
-                      page: 1
+                      page: 1,
+                      sortTarget,
+                      sortDirection
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -307,7 +362,9 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
-                      page: pagination.currentPage - 1
+                      page: pagination.currentPage - 1,
+                      sortTarget,
+                      sortDirection
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -326,7 +383,9 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
-                      page: pagination.currentPage + 1
+                      page: pagination.currentPage + 1,
+                      sortTarget,
+                      sortDirection
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -345,7 +404,9 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
-                      page: pagination.totalPages
+                      page: pagination.totalPages,
+                      sortTarget,
+                      sortDirection
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
