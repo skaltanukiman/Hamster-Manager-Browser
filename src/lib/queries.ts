@@ -225,19 +225,25 @@ export async function getWeightPageData({
   const totalCount = await prisma.weightRecord.count({ where });
   const totalPages = Math.max(Math.ceil(totalCount / WEIGHT_HISTORY_PAGE_SIZE), 1);
   const currentPage = Math.min(Math.max(page, 1), totalPages);
-  const records = await prisma.weightRecord.findMany({
-    where,
-    orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
-    skip: (currentPage - 1) * WEIGHT_HISTORY_PAGE_SIZE,
-    take: WEIGHT_HISTORY_PAGE_SIZE
-  });
+  const [records, chartRecords] = await Promise.all([
+    prisma.weightRecord.findMany({
+      where,
+      orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
+      skip: (currentPage - 1) * WEIGHT_HISTORY_PAGE_SIZE,
+      take: WEIGHT_HISTORY_PAGE_SIZE
+    }),
+    // グラフはページング中の一覧とは独立して、現在の表示条件に一致する体重推移全体を描画する。
+    prisma.weightRecord.findMany({
+      where,
+      orderBy: [{ recordDate: "asc" }, { createdAt: "asc" }]
+    })
+  ]);
 
   return {
     hamsters,
     selectedHamster,
     records,
-    // 履歴一覧は新しい順、グラフは現在表示中ページの時系列順で扱う。
-    chartRecords: [...records].reverse(),
+    chartRecords,
     monthOptions,
     selectedMonth,
     pagination: {
