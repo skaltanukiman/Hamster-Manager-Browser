@@ -5,6 +5,7 @@ import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/ap
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
+import { WeightCsvImportForm } from "@/components/weight-csv-import-form";
 import { WeightChart } from "@/components/weight-chart";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getWeightPageData } from "@/lib/queries";
@@ -193,6 +194,8 @@ export default async function WeightsPage({
               <WeightChart data={chartData} />
             </section>
           </section>
+
+          <WeightCsvImportForm />
 
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>

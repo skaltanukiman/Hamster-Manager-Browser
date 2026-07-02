@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { isFutureDateInput, parseDateInput } from "@/lib/date";
+import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
   createWeightRecordSchema,
   deleteWeightRecordSchema,
   updateWeightRecordSchema
 } from "@/lib/schemas";
+import { parseWeightCsvImport, type WeightCsvImportIssue } from "@/lib/weight-csv-import";
 
 const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const WEIGHT_SORT_TARGETS = new Set(["registered", "date", "weight"]);
@@ -22,6 +23,36 @@ type WeightHistoryFilter = {
   sort?: string;
   direction?: string;
 };
+
+export type WeightCsvImportState = {
+  hasResult: boolean;
+  successCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: WeightCsvImportIssue[];
+  message: string;
+};
+
+function weightCsvImportState({
+  successCount = 0,
+  skippedCount = 0,
+  errors = [],
+  message
+}: {
+  successCount?: number;
+  skippedCount?: number;
+  errors?: WeightCsvImportIssue[];
+  message: string;
+}): WeightCsvImportState {
+  return {
+    hasResult: true,
+    successCount,
+    skippedCount,
+    errorCount: errors.length,
+    errors,
+    message
+  };
+}
 
 function getWeightHistoryFilter(formData: FormData) {
   const filter = formData.get("filter");
@@ -224,4 +255,128 @@ export async function deleteWeightRecord(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/weights");
   weightRedirect(result.data.hamsterId, "deleted", historyFilter);
+}
+
+export async function importWeightRecordsCsv(
+  _previousState: WeightCsvImportState,
+  formData: FormData
+): Promise<WeightCsvImportState> {
+  const csvFile = formData.get("csvFile");
+
+  if (!(csvFile instanceof File) || csvFile.size === 0) {
+    return weightCsvImportState({
+      errors: [{ lineNumber: 0, message: "CSVファイルを選択してください。" }],
+      message: "CSVインポートに失敗しました。"
+    });
+  }
+
+  const parsed = parseWeightCsvImport(await csvFile.text());
+  const errors: WeightCsvImportIssue[] = [...parsed.errors];
+
+  if (parsed.rows.length === 0) {
+    return weightCsvImportState({
+      errors,
+      message: errors.length > 0 ? "登録できる行がありませんでした。" : "CSVに登録対象の行がありませんでした。"
+    });
+  }
+
+  const hamsters = await prisma.hamster.findMany({
+    select: {
+      id: true,
+      name: true,
+      isActive: true
+    }
+  });
+  const hamsterByName = new Map(hamsters.map((hamster) => [hamster.name, hamster]));
+  const importCandidates: Array<{
+    hamsterId: string;
+    recordDate: Date;
+    recordDateInput: string;
+    weightG: number;
+  }> = [];
+
+  for (const row of parsed.rows) {
+    const hamster = hamsterByName.get(row.hamsterName);
+
+    if (!hamster) {
+      errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」が登録されていません。` });
+      continue;
+    }
+
+    if (!hamster.isActive) {
+      errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」は管理外のため登録できません。` });
+      continue;
+    }
+
+    importCandidates.push({
+      hamsterId: hamster.id,
+      recordDate: row.recordDate,
+      recordDateInput: row.recordDateInput,
+      weightG: row.weightG
+    });
+  }
+
+  if (importCandidates.length === 0) {
+    return weightCsvImportState({
+      errors,
+      message: "登録できる行がありませんでした。"
+    });
+  }
+
+  const hamsterIds = [...new Set(importCandidates.map((row) => row.hamsterId))];
+  const recordDates = [...new Set(importCandidates.map((row) => row.recordDateInput))].map(parseDateInput);
+  const existingRecords = await prisma.weightRecord.findMany({
+    where: {
+      hamsterId: { in: hamsterIds },
+      recordDate: { in: recordDates }
+    },
+    select: {
+      hamsterId: true,
+      recordDate: true
+    }
+  });
+  const existingKeys = new Set(existingRecords.map((record) => `${record.hamsterId}:${toDateInputValue(record.recordDate)}`));
+  const csvKeys = new Set<string>();
+  const createRows: Array<{
+    hamsterId: string;
+    recordDate: Date;
+    weightG: number;
+  }> = [];
+  let skippedCount = 0;
+
+  for (const row of importCandidates) {
+    const key = `${row.hamsterId}:${row.recordDateInput}`;
+
+    if (existingKeys.has(key) || csvKeys.has(key)) {
+      skippedCount++;
+      continue;
+    }
+
+    csvKeys.add(key);
+    createRows.push({
+      hamsterId: row.hamsterId,
+      recordDate: row.recordDate,
+      weightG: row.weightG
+    });
+  }
+
+  const createResult =
+    createRows.length > 0
+      ? await prisma.weightRecord.createMany({
+          data: createRows,
+          skipDuplicates: true
+        })
+      : { count: 0 };
+
+  skippedCount += createRows.length - createResult.count;
+
+  revalidatePath("/");
+  revalidatePath("/weights");
+
+  return weightCsvImportState({
+    successCount: createResult.count,
+    skippedCount,
+    errors,
+    message: "CSVインポートが完了しました。"
+  });
 }
