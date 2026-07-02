@@ -81,9 +81,13 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
             onChange={handleLimitChange}
             required
           />
+          <span className="text-xs font-normal text-slate-500">
+            設定できる範囲: {MIN_DASHBOARD_BOARD_COUNT}〜{MAX_DASHBOARD_BOARD_COUNT} 件
+          </span>
         </label>
         <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-600">
           現在の表示対象: {effectiveSelectedIds.length} / {targetCount} 件
+          <span className="block pt-1">表示ボード数の上限は {MAX_DASHBOARD_BOARD_COUNT} 件です。</span>
           {needsSelection ? (
             <span className="block pt-1">表示するハムスターを {targetCount} 件選択します。</span>
           ) : (
