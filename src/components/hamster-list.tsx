@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, RotateCcw, Save, Search, Trash2 } from "lucide-react";
+import { Archive, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { deleteHamster, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
@@ -26,6 +26,8 @@ type HamsterListProps = {
   initialSortDirection?: SortDirection;
 };
 
+const HAMSTER_LIST_PAGE_SIZE = 20;
+
 export function HamsterList({
   hamsters,
   today,
@@ -35,6 +37,7 @@ export function HamsterList({
   const [sortTarget, setSortTarget] = useState<SortTarget>(initialSortTarget);
   const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPageNumber, setCurrentPageNumber] = useState(1);
 
   const filteredHamsters = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
@@ -54,19 +57,40 @@ export function HamsterList({
     });
   }, [hamsters, searchTerm, sortDirection, sortTarget]);
 
+  const totalPages = Math.max(Math.ceil(filteredHamsters.length / HAMSTER_LIST_PAGE_SIZE), 1);
+  const currentPage = Math.min(currentPageNumber, totalPages);
+  const firstVisibleNumber = filteredHamsters.length === 0 ? 0 : (currentPage - 1) * HAMSTER_LIST_PAGE_SIZE + 1;
+  const lastVisibleNumber = Math.min(currentPage * HAMSTER_LIST_PAGE_SIZE, filteredHamsters.length);
+  const pagedHamsters = filteredHamsters.slice(
+    (currentPage - 1) * HAMSTER_LIST_PAGE_SIZE,
+    currentPage * HAMSTER_LIST_PAGE_SIZE
+  );
+
   return (
     <div className="space-y-3">
       <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[160px_160px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示
-          <select value={sortTarget} onChange={(event) => setSortTarget(event.currentTarget.value as SortTarget)}>
+          <select
+            value={sortTarget}
+            onChange={(event) => {
+              setSortTarget(event.currentTarget.value as SortTarget);
+              setCurrentPageNumber(1);
+            }}
+          >
             <option value="registered">登録順</option>
             <option value="name">名前</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           並び順
-          <select value={sortDirection} onChange={(event) => setSortDirection(event.currentTarget.value as SortDirection)}>
+          <select
+            value={sortDirection}
+            onChange={(event) => {
+              setSortDirection(event.currentTarget.value as SortDirection);
+              setCurrentPageNumber(1);
+            }}
+          >
             <option value="asc">昇順</option>
             <option value="desc">降順</option>
           </select>
@@ -78,7 +102,10 @@ export function HamsterList({
             <input
               type="search"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.currentTarget.value)}
+              onChange={(event) => {
+                setSearchTerm(event.currentTarget.value);
+                setCurrentPageNumber(1);
+              }}
               className="pl-9"
               placeholder="ハムスター名で検索"
             />
@@ -87,7 +114,8 @@ export function HamsterList({
       </div>
 
       <p className="text-xs text-slate-500">
-        {hamsters.length} 件中 {filteredHamsters.length} 件を表示しています。
+        {hamsters.length} 件中 {filteredHamsters.length} 件が条件に一致しています。
+        {filteredHamsters.length > 0 ? ` ${firstVisibleNumber} - ${lastVisibleNumber} 件を表示しています。` : ""}
       </p>
 
       {filteredHamsters.length === 0 ? (
@@ -96,7 +124,7 @@ export function HamsterList({
         </div>
       ) : (
         <div className="grid gap-3">
-          {filteredHamsters.map((hamster) => {
+          {pagedHamsters.map((hamster) => {
             const isLocked = !hamster.isActive;
 
             return (
@@ -171,6 +199,49 @@ export function HamsterList({
           })}
         </div>
       )}
+      {filteredHamsters.length > 0 && totalPages > 1 ? (
+        <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="ハムスター一覧のページ移動">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPageNumber(1)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <ChevronsLeft className="h-4 w-4" aria-hidden />
+            最初へ
+          </button>
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPageNumber(currentPage - 1)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+            前へ
+          </button>
+          <span className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">
+            {currentPage} / {totalPages} ページ
+          </span>
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPageNumber(currentPage + 1)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            次へ
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPageNumber(totalPages)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            最後へ
+            <ChevronsRight className="h-4 w-4" aria-hidden />
+          </button>
+        </nav>
+      ) : null}
     </div>
   );
 }
