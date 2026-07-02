@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Trash2, Upload } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
-import { WeightCsvImportForm } from "@/components/weight-csv-import-form";
 import { WeightChart } from "@/components/weight-chart";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getWeightPageData } from "@/lib/queries";
@@ -126,9 +125,18 @@ export default async function WeightsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-ink">体重管理</h2>
-        <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-ink">体重管理</h2>
+          <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
+        </div>
+        <Link
+          href="/weights/import"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
+        >
+          <Upload className="h-4 w-4" aria-hidden />
+          CSVインポート
+        </Link>
       </div>
 
       <StatusMessage status={getParam(params.status)} />
@@ -194,8 +202,6 @@ export default async function WeightsPage({
               <WeightChart data={chartData} />
             </section>
           </section>
-
-          <WeightCsvImportForm />
 
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>
