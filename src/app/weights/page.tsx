@@ -5,6 +5,7 @@ import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/ap
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
+import { HamsterCombobox } from "@/components/hamster-combobox";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
@@ -172,23 +173,14 @@ export default async function WeightsPage({
             <input type="hidden" name="direction" value={sortDirection} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <AutoSubmitSelect
+              <HamsterCombobox
                 key={`${selectedHamster?.id ?? "none"}-${includeInactive ? "all" : "active"}`}
                 name="hamsterId"
-                defaultValue={selectedHamster?.id ?? ""}
+                selectedId={selectedHamster?.id ?? ""}
+                options={selectableHamsters}
                 disabled={selectableHamsters.length === 0}
-              >
-                {selectableHamsters.length === 0 ? (
-                  <option value="">管理中のハムスターがいません</option>
-                ) : (
-                  selectableHamsters.map((hamster) => (
-                    <option key={hamster.id} value={hamster.id}>
-                      {hamster.name}
-                      {hamster.isActive ? "" : "（管理外）"}
-                    </option>
-                  ))
-                )}
-              </AutoSubmitSelect>
+                emptyMessage="条件に一致するハムスターはいません"
+              />
             </label>
             <label className="inline-flex h-10 items-center gap-2 self-end text-sm font-medium text-slate-700 md:justify-end">
               <AutoSubmitInput type="checkbox" name="includeInactive" value="1" defaultChecked={includeInactive} />
