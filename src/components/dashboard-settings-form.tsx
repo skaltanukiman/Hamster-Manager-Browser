@@ -1,6 +1,6 @@
 "use client";
 
-import { Save } from "lucide-react";
+import { Save, Search } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 
@@ -27,7 +27,15 @@ function clampBoardCount(value: number) {
 export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds }: DashboardSettingsFormProps) {
   const [limit, setLimit] = useState(boardCount);
   const [selectedIds, setSelectedIds] = useState(selectedHamsterIds);
+  const [searchTerm, setSearchTerm] = useState("");
   const hamsterIds = useMemo(() => hamsters.map((hamster) => hamster.id), [hamsters]);
+  const filteredHamsters = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+
+    return normalizedSearchTerm.length > 0
+      ? hamsters.filter((hamster) => hamster.name.toLocaleLowerCase().includes(normalizedSearchTerm))
+      : hamsters;
+  }, [hamsters, searchTerm]);
   const needsSelection = hamsters.length > limit;
   // 登録数が表示数以下なら個別選択は不要なので、全ハムスターを送信対象として扱う。
   const effectiveSelectedIds = needsSelection ? selectedIds : hamsterIds;
@@ -109,41 +117,69 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
             ハムスターがまだ登録されていません。
           </div>
         ) : (
-          <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
-            {hamsters.map((hamster) => {
-              const checked = selectedIdSet.has(hamster.id);
-              // 上限に達した後は未選択の行だけを無効化し、選択済みの解除はできるようにする。
-              const disabled = !checked && needsSelection && effectiveSelectedIds.length >= limit;
-
-              return (
-                <label
-                  key={hamster.id}
-                  className={`flex items-start gap-3 px-4 py-3 text-sm ${
-                    disabled ? "cursor-not-allowed bg-slate-50 text-slate-400" : "cursor-pointer text-slate-700"
-                  }`}
-                >
+          <>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                検索ワード
+                <span className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                   <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!needsSelection || disabled}
-                    onChange={() => handleToggle(hamster.id)}
-                    className="mt-0.5"
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                    className="pl-9"
+                    placeholder="ハムスター名で検索"
                   />
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">
-                      {hamster.name}
-                      {hamster.isActive ? null : (
-                        <span className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                          管理外
+                </span>
+              </label>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              {hamsters.length} 件中 {filteredHamsters.length} 件が条件に一致しています。
+            </p>
+
+            {filteredHamsters.length === 0 ? (
+              <div className="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                条件に一致するハムスターはいません。
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+                {filteredHamsters.map((hamster) => {
+                  const checked = selectedIdSet.has(hamster.id);
+                  // 上限に達した後は未選択の行だけを無効化し、選択済みの解除はできるようにする。
+                  const disabled = !checked && needsSelection && effectiveSelectedIds.length >= limit;
+
+                  return (
+                    <label
+                      key={hamster.id}
+                      className={`flex items-start gap-3 px-4 py-3 text-sm ${
+                        disabled ? "cursor-not-allowed bg-slate-50 text-slate-400" : "cursor-pointer text-slate-700"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!needsSelection || disabled}
+                        onChange={() => handleToggle(hamster.id)}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                          {hamster.name}
+                          {hamster.isActive ? null : (
+                            <span className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                              管理外
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    {hamster.memo ? <span className="mt-1 block truncate text-slate-500">{hamster.memo}</span> : null}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+                        {hamster.memo ? <span className="mt-1 block truncate text-slate-500">{hamster.memo}</span> : null}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </section>
 
