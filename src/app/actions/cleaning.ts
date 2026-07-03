@@ -16,8 +16,23 @@ function getChecked(formData: FormData, key: string) {
   return formData.get(key) === "on";
 }
 
+function cleaningRedirect(hamsterId: string, yearMonth: string, status: string, includeInactive: boolean) {
+  const params = new URLSearchParams({
+    hamsterId,
+    month: yearMonth,
+    status
+  });
+
+  if (includeInactive) {
+    params.set("includeInactive", "1");
+  }
+
+  redirect(`/cleaning?${params.toString()}`);
+}
+
 export async function saveCleaningMonth(formData: FormData) {
   const result = cleaningMonthSchema.safeParse(Object.fromEntries(formData));
+  const includeInactive = formData.get("includeInactive") === "1";
 
   if (!result.success) {
     redirect("/cleaning?status=invalid");
@@ -35,7 +50,7 @@ export async function saveCleaningMonth(formData: FormData) {
 
   // 管理外のハムスターは衛生記録もロックし、復活するまで保存できないようにする。
   if (!hamster.isActive) {
-    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=locked`);
+    cleaningRedirect(hamsterId, yearMonth, "locked", includeInactive);
   }
 
   const days = getDaysInMonth(yearMonth);
@@ -57,14 +72,14 @@ export async function saveCleaningMonth(formData: FormData) {
   });
 
   if (hasFutureInput) {
-    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=future`);
+    cleaningRedirect(hamsterId, yearMonth, "future", includeInactive);
   }
 
   // 未来日を含む月でも、当日以前の行だけを保存対象にする。
   const editableDays = days.filter((day) => !isFutureDateInput(day.date));
 
   if (editableDays.length === 0) {
-    redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=future`);
+    cleaningRedirect(hamsterId, yearMonth, "future", includeInactive);
   }
 
   const operations = editableDays.map((day) => {
@@ -120,5 +135,5 @@ export async function saveCleaningMonth(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/cleaning");
-  redirect(`/cleaning?hamsterId=${encodeURIComponent(hamsterId)}&month=${yearMonth}&status=saved`);
+  cleaningRedirect(hamsterId, yearMonth, "saved", includeInactive);
 }

@@ -126,14 +126,22 @@ export async function getHamsterOptions() {
   });
 }
 
-export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string) {
+function getSelectableHamsters<T extends { isActive: boolean }>(hamsters: T[], includeInactive: boolean) {
+  return includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
+}
+
+function pickSelectedHamster<T extends { id: string; isActive: boolean }>(
+  hamsters: T[],
+  selectedHamsterId: string | undefined
+) {
+  return hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters.find((hamster) => hamster.isActive) ?? hamsters[0] ?? null;
+}
+
+export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string, includeInactive: boolean) {
   const hamsters = await getHamsterOptions();
-  // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
-  const selectedHamster =
-    hamsters.find((hamster) => hamster.id === selectedHamsterId) ??
-    hamsters.find((hamster) => hamster.isActive) ??
-    hamsters[0] ??
-    null;
+  const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
+  // 管理外を含めない表示では、URLに管理外IDが残っていても管理中ハムスターへ戻す。
+  const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
 
   if (!selectedHamster) {
     return { hamsters, selectedHamster, recordsByDate: new Map() };
@@ -198,7 +206,8 @@ export async function getWeightPageData({
   month,
   page,
   sortTarget,
-  sortDirection
+  sortDirection,
+  includeInactive
 }: {
   selectedHamsterId: string | undefined;
   filterMode: WeightHistoryFilterMode;
@@ -206,14 +215,12 @@ export async function getWeightPageData({
   page: number;
   sortTarget: WeightHistorySortTarget;
   sortDirection: SortDirection;
+  includeInactive: boolean;
 }) {
   const hamsters = await getHamsterOptions();
-  // URLのhamsterIdが未指定または削除済みの場合は、記録できる管理中ハムスターを優先して選択する。
-  const selectedHamster =
-    hamsters.find((hamster) => hamster.id === selectedHamsterId) ??
-    hamsters.find((hamster) => hamster.isActive) ??
-    hamsters[0] ??
-    null;
+  const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
+  // 管理外を含めない表示では、URLに管理外IDが残っていても管理中ハムスターへ戻す。
+  const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
 
   if (!selectedHamster) {
     return {

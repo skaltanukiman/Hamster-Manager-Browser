@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Save, Trash2, Upload } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
+import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusMessage } from "@/components/status-message";
@@ -51,7 +52,8 @@ function buildWeightsHref({
   month,
   page,
   sortTarget,
-  sortDirection
+  sortDirection,
+  includeInactive
 }: {
   hamsterId: string;
   filterMode: FilterMode;
@@ -59,6 +61,7 @@ function buildWeightsHref({
   page: number;
   sortTarget: WeightSortTarget;
   sortDirection: SortDirection;
+  includeInactive: boolean;
 }) {
   const params = new URLSearchParams({ hamsterId });
 
@@ -75,6 +78,10 @@ function buildWeightsHref({
 
   if (sortDirection !== "desc") {
     params.set("direction", sortDirection);
+  }
+
+  if (includeInactive) {
+    params.set("includeInactive", "1");
   }
 
   if (page > 1) {
@@ -95,6 +102,7 @@ export default async function WeightsPage({
     page?: string | string[];
     sort?: string | string[];
     direction?: string | string[];
+    includeInactive?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -103,6 +111,7 @@ export default async function WeightsPage({
   const requestedPage = normalizePage(getParam(params.page));
   const sortTarget = normalizeWeightSortTarget(getParam(params.sort));
   const sortDirection = normalizeSortDirection(getParam(params.direction));
+  const includeInactive = getParam(params.includeInactive) === "1";
   const { hamsters, selectedHamster, records, chartRecords, monthOptions, selectedMonth, pagination } =
     await getWeightPageData({
       selectedHamsterId: getParam(params.hamsterId),
@@ -110,8 +119,10 @@ export default async function WeightsPage({
       month: isYearMonthInput(requestedMonth) ? requestedMonth : undefined,
       page: requestedPage,
       sortTarget,
-      sortDirection
+      sortDirection,
+      includeInactive
     });
+  const selectableHamsters = includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
   const monthSelectOptions =
     selectedMonth && !monthOptions.includes(selectedMonth) ? [selectedMonth, ...monthOptions] : monthOptions;
 
@@ -150,33 +161,52 @@ export default async function WeightsPage({
 
       <StatusMessage status={getParam(params.status)} />
 
-      {hamsters.length === 0 || !selectedHamster ? (
+      {hamsters.length === 0 ? (
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
       ) : (
         <>
-          <form method="get" className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto]">
             <input type="hidden" name="filter" value={filterMode} />
             {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
             <input type="hidden" name="sort" value={sortTarget} />
             <input type="hidden" name="direction" value={sortDirection} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
-                {hamsters.map((hamster) => (
-                  <option key={hamster.id} value={hamster.id}>
-                    {hamster.name}
-                    {hamster.isActive ? "" : "（管理外）"}
-                  </option>
-                ))}
+              <AutoSubmitSelect
+                key={`${selectedHamster?.id ?? "none"}-${includeInactive ? "all" : "active"}`}
+                name="hamsterId"
+                defaultValue={selectedHamster?.id ?? ""}
+                disabled={selectableHamsters.length === 0}
+              >
+                {selectableHamsters.length === 0 ? (
+                  <option value="">管理中のハムスターがいません</option>
+                ) : (
+                  selectableHamsters.map((hamster) => (
+                    <option key={hamster.id} value={hamster.id}>
+                      {hamster.name}
+                      {hamster.isActive ? "" : "（管理外）"}
+                    </option>
+                  ))
+                )}
               </AutoSubmitSelect>
+            </label>
+            <label className="inline-flex h-10 items-center gap-2 self-end text-sm font-medium text-slate-700 md:justify-end">
+              <AutoSubmitInput type="checkbox" name="includeInactive" value="1" defaultChecked={includeInactive} />
+              管理外も含む
             </label>
           </form>
 
-          {isLocked ? (
+          {!selectedHamster ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              このハムスターは管理外のため、体重記録の登録・編集・削除はできません。
+              管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。
             </p>
-          ) : null}
+          ) : (
+            <>
+              {isLocked ? (
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  このハムスターは管理外のため、体重記録の登録・編集・削除はできません。
+                </p>
+              ) : null}
 
           <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
             <form action={createWeightRecord} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -185,6 +215,7 @@ export default async function WeightsPage({
               {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
               <input type="hidden" name="sort" value={sortTarget} />
               <input type="hidden" name="direction" value={sortDirection} />
+              {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
               <h3 className="text-base font-bold text-ink">体重登録</h3>
               <div className="mt-4 grid gap-4">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -224,6 +255,7 @@ export default async function WeightsPage({
                 }`}
               >
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   表示
                   <AutoSubmitSelect name="filter" defaultValue={filterMode}>
@@ -298,6 +330,7 @@ export default async function WeightsPage({
                         <input type="hidden" name="sort" value={sortTarget} />
                         <input type="hidden" name="direction" value={sortDirection} />
                         <input type="hidden" name="page" value={pagination.currentPage} />
+                        {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
                         <label className="grid gap-1 text-sm font-medium text-slate-700">
                           日付
                           <input
@@ -337,6 +370,7 @@ export default async function WeightsPage({
                         <input type="hidden" name="sort" value={sortTarget} />
                         <input type="hidden" name="direction" value={sortDirection} />
                         <input type="hidden" name="page" value={pagination.currentPage} />
+                        {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
                         <button
                           type="submit"
                           disabled={isLocked}
@@ -361,7 +395,8 @@ export default async function WeightsPage({
                       month: selectedMonth,
                       page: 1,
                       sortTarget,
-                      sortDirection
+                      sortDirection,
+                      includeInactive
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -382,7 +417,8 @@ export default async function WeightsPage({
                       month: selectedMonth,
                       page: pagination.currentPage - 1,
                       sortTarget,
-                      sortDirection
+                      sortDirection,
+                      includeInactive
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -403,7 +439,8 @@ export default async function WeightsPage({
                       month: selectedMonth,
                       page: pagination.currentPage + 1,
                       sortTarget,
-                      sortDirection
+                      sortDirection,
+                      includeInactive
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -424,7 +461,8 @@ export default async function WeightsPage({
                       month: selectedMonth,
                       page: pagination.totalPages,
                       sortTarget,
-                      sortDirection
+                      sortDirection,
+                      includeInactive
                     })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -440,6 +478,8 @@ export default async function WeightsPage({
               </nav>
             ) : null}
           </section>
+            </>
+          )}
         </>
       )}
     </div>

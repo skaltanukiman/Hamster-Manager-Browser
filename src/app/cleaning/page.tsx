@@ -17,14 +17,22 @@ function getParam(value: string | string[] | undefined) {
 export default async function CleaningPage({
   searchParams
 }: {
-  searchParams: Promise<{ hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{
+    hamsterId?: string | string[];
+    month?: string | string[];
+    status?: string | string[];
+    includeInactive?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const yearMonth = normalizeYearMonth(getParam(params.month));
+  const includeInactive = getParam(params.includeInactive) === "1";
   const { hamsters, selectedHamster, recordsByDate } = await getCleaningPageData(
     getParam(params.hamsterId),
-    yearMonth
+    yearMonth,
+    includeInactive
   );
+  const selectableHamsters = includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
@@ -38,134 +46,159 @@ export default async function CleaningPage({
 
       <StatusMessage status={getParam(params.status)} />
 
-      {hamsters.length === 0 || !selectedHamster ? (
+      {hamsters.length === 0 ? (
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
       ) : (
         <>
-          <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px]">
+          <form
+            method="get"
+            className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]"
+          >
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <AutoSubmitSelect key={selectedHamster.id} name="hamsterId" defaultValue={selectedHamster.id}>
-                {hamsters.map((hamster) => (
-                  <option key={hamster.id} value={hamster.id}>
-                    {hamster.name}
-                    {hamster.isActive ? "" : "（管理外）"}
-                  </option>
-                ))}
+              <AutoSubmitSelect
+                key={`${selectedHamster?.id ?? "none"}-${includeInactive ? "all" : "active"}`}
+                name="hamsterId"
+                defaultValue={selectedHamster?.id ?? ""}
+                disabled={selectableHamsters.length === 0}
+              >
+                {selectableHamsters.length === 0 ? (
+                  <option value="">管理中のハムスターがいません</option>
+                ) : (
+                  selectableHamsters.map((hamster) => (
+                    <option key={hamster.id} value={hamster.id}>
+                      {hamster.name}
+                      {hamster.isActive ? "" : "（管理外）"}
+                    </option>
+                  ))
+                )}
               </AutoSubmitSelect>
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               年月
               <AutoSubmitInput type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
             </label>
+            <label className="inline-flex h-10 items-center gap-2 self-end text-sm font-medium text-slate-700 md:justify-end">
+              <AutoSubmitInput type="checkbox" name="includeInactive" value="1" defaultChecked={includeInactive} />
+              管理外も含む
+            </label>
           </form>
 
-          {isLocked ? (
+          {!selectedHamster ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              このハムスターは管理外のため、掃除記録の編集・保存はできません。
+              管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。
             </p>
-          ) : null}
+          ) : (
+            <>
+              {isLocked ? (
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  このハムスターは管理外のため、掃除記録の編集・保存はできません。
+                </p>
+              ) : null}
 
-          <form action={saveCleaningMonth} className="space-y-4">
-            <input type="hidden" name="hamsterId" value={selectedHamster.id} />
-            <input type="hidden" name="yearMonth" value={yearMonth} />
+              <form action={saveCleaningMonth} className="space-y-4">
+                <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                <input type="hidden" name="yearMonth" value={yearMonth} />
+                {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
 
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th className="w-24">日付</th>
-                    <th className="w-24">曜日</th>
-                    <th className="checkbox-cell">トイレ掃除</th>
-                    <th className="checkbox-cell">砂場掃除</th>
-                    <th className="checkbox-cell">床材一部交換</th>
-                    <th className="checkbox-cell">床材全交換</th>
-                    <th className="checkbox-cell">ハウス掃除</th>
-                    <th className="min-w-64">メモ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.map((day) => {
-                    const record = recordsByDate.get(day.date);
-                    // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
-                    const isFuture = isFutureDateInput(day.date);
-                    const isDisabled = isFuture || isLocked;
-
-                    return (
-                      <tr key={day.date} className={isDisabled ? "bg-slate-50 text-slate-400" : undefined}>
-                        <td className="font-semibold text-slate-700">{day.day}</td>
-                        <td className="text-slate-500">{day.weekday}</td>
-                        <td className="checkbox-cell">
-                          <input
-                            aria-label={`${day.date} トイレ掃除`}
-                            type="checkbox"
-                            name={`toilet_${day.date}`}
-                            defaultChecked={record?.toiletCleaned ?? false}
-                            disabled={isDisabled}
-                          />
-                        </td>
-                        <td className="checkbox-cell">
-                          <input
-                            aria-label={`${day.date} 砂場掃除`}
-                            type="checkbox"
-                            name={`bath_${day.date}`}
-                            defaultChecked={record?.bathCleaned ?? false}
-                            disabled={isDisabled}
-                          />
-                        </td>
-                        <td className="checkbox-cell">
-                          <input
-                            aria-label={`${day.date} 床材一部交換`}
-                            type="checkbox"
-                            name={`flooring_part_${day.date}`}
-                            defaultChecked={record?.flooringPartCleaned ?? false}
-                            disabled={isDisabled}
-                          />
-                        </td>
-                        <td className="checkbox-cell">
-                          <input
-                            aria-label={`${day.date} 床材全交換`}
-                            type="checkbox"
-                            name={`flooring_all_${day.date}`}
-                            defaultChecked={record?.flooringAllCleaned ?? false}
-                            disabled={isDisabled}
-                          />
-                        </td>
-                        <td className="checkbox-cell">
-                          <input
-                            aria-label={`${day.date} ハウス掃除`}
-                            type="checkbox"
-                            name={`house_${day.date}`}
-                            defaultChecked={record?.houseCleaned ?? false}
-                            disabled={isDisabled}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            name={`memo_${day.date}`}
-                            defaultValue={record?.memo ?? ""}
-                            placeholder={isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
-                            disabled={isDisabled}
-                          />
-                        </td>
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th className="w-24">日付</th>
+                        <th className="w-24">曜日</th>
+                        <th className="checkbox-cell">トイレ掃除</th>
+                        <th className="checkbox-cell">砂場掃除</th>
+                        <th className="checkbox-cell">床材一部交換</th>
+                        <th className="checkbox-cell">床材全交換</th>
+                        <th className="checkbox-cell">ハウス掃除</th>
+                        <th className="min-w-64">メモ</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {days.map((day) => {
+                        const record = recordsByDate.get(day.date);
+                        // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
+                        const isFuture = isFutureDateInput(day.date);
+                        const isDisabled = isFuture || isLocked;
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isLocked}
-                className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                <Save className="h-4 w-4" aria-hidden />
-                保存
-              </button>
-            </div>
-          </form>
+                        return (
+                          <tr key={day.date} className={isDisabled ? "bg-slate-50 text-slate-400" : undefined}>
+                            <td className="font-semibold text-slate-700">{day.day}</td>
+                            <td className="text-slate-500">{day.weekday}</td>
+                            <td className="checkbox-cell">
+                              <input
+                                aria-label={`${day.date} トイレ掃除`}
+                                type="checkbox"
+                                name={`toilet_${day.date}`}
+                                defaultChecked={record?.toiletCleaned ?? false}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                            <td className="checkbox-cell">
+                              <input
+                                aria-label={`${day.date} 砂場掃除`}
+                                type="checkbox"
+                                name={`bath_${day.date}`}
+                                defaultChecked={record?.bathCleaned ?? false}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                            <td className="checkbox-cell">
+                              <input
+                                aria-label={`${day.date} 床材一部交換`}
+                                type="checkbox"
+                                name={`flooring_part_${day.date}`}
+                                defaultChecked={record?.flooringPartCleaned ?? false}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                            <td className="checkbox-cell">
+                              <input
+                                aria-label={`${day.date} 床材全交換`}
+                                type="checkbox"
+                                name={`flooring_all_${day.date}`}
+                                defaultChecked={record?.flooringAllCleaned ?? false}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                            <td className="checkbox-cell">
+                              <input
+                                aria-label={`${day.date} ハウス掃除`}
+                                type="checkbox"
+                                name={`house_${day.date}`}
+                                defaultChecked={record?.houseCleaned ?? false}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                name={`memo_${day.date}`}
+                                defaultValue={record?.memo ?? ""}
+                                placeholder={isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
+                                disabled={isDisabled}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isLocked}
+                    className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Save className="h-4 w-4" aria-hidden />
+                    保存
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </>
       )}
     </div>

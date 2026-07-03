@@ -22,6 +22,7 @@ type WeightHistoryFilter = {
   page?: number;
   sort?: string;
   direction?: string;
+  includeInactive?: string;
 };
 
 export type WeightCsvImportState = {
@@ -60,6 +61,7 @@ function getWeightHistoryFilter(formData: FormData) {
   const page = formData.get("page");
   const sort = formData.get("sort");
   const direction = formData.get("direction");
+  const includeInactive = formData.get("includeInactive");
   const pageNumber = typeof page === "string" && /^\d+$/.test(page) ? Number(page) : undefined;
   const historyFilter: WeightHistoryFilter = {};
 
@@ -81,6 +83,10 @@ function getWeightHistoryFilter(formData: FormData) {
 
   if (typeof direction === "string" && SORT_DIRECTIONS.has(direction)) {
     historyFilter.direction = direction;
+  }
+
+  if (includeInactive === "1") {
+    historyFilter.includeInactive = "1";
   }
 
   return historyFilter;
@@ -112,10 +118,14 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: Weight
     params.set("direction", historyFilter.direction);
   }
 
+  if (historyFilter.includeInactive) {
+    params.set("includeInactive", historyFilter.includeInactive);
+  }
+
   redirect(`/weights?${params.toString()}`);
 }
 
-async function ensureHamsterIsActive(hamsterId: string) {
+async function ensureHamsterIsActive(hamsterId: string, historyFilter: WeightHistoryFilter = {}) {
   const hamster = await prisma.hamster.findUnique({
     where: { id: hamsterId },
     select: { isActive: true }
@@ -126,11 +136,11 @@ async function ensureHamsterIsActive(hamsterId: string) {
   }
 
   if (!hamster.isActive) {
-    weightRedirect(hamsterId, "locked");
+    weightRedirect(hamsterId, "locked", historyFilter);
   }
 }
 
-async function getEditableWeightRecord(recordId: string, hamsterId: string) {
+async function getEditableWeightRecord(recordId: string, hamsterId: string, historyFilter: WeightHistoryFilter = {}) {
   const record = await prisma.weightRecord.findUnique({
     where: { id: recordId },
     select: {
@@ -150,7 +160,7 @@ async function getEditableWeightRecord(recordId: string, hamsterId: string) {
 
   // 管理外のハムスターに紐づく履歴は、復活するまで編集・削除を受け付けない。
   if (!record.hamster.isActive) {
-    weightRedirect(record.hamsterId, "locked");
+    weightRedirect(record.hamsterId, "locked", historyFilter);
   }
 
   return record;
@@ -169,7 +179,7 @@ export async function createWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
-  await ensureHamsterIsActive(result.data.hamsterId);
+  await ensureHamsterIsActive(result.data.hamsterId, historyFilter);
 
   const recordDate = parseDateInput(result.data.recordDate);
 
@@ -197,7 +207,8 @@ export async function createWeightRecord(formData: FormData) {
     filter: historyFilter.filter,
     month: historyFilter.month,
     sort: "registered",
-    direction: "desc"
+    direction: "desc",
+    includeInactive: historyFilter.includeInactive
   });
 }
 
@@ -214,7 +225,7 @@ export async function updateWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
-  await getEditableWeightRecord(result.data.id, result.data.hamsterId);
+  await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
 
   const recordDate = parseDateInput(result.data.recordDate);
   let status = "updated";
@@ -246,7 +257,7 @@ export async function deleteWeightRecord(formData: FormData) {
 
   const historyFilter = getWeightHistoryFilter(formData);
 
-  await getEditableWeightRecord(result.data.id, result.data.hamsterId);
+  await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
 
   await prisma.weightRecord.delete({
     where: { id: result.data.id }
