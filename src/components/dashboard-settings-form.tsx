@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { saveDashboardSettings } from "@/app/actions/settings";
 import { MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
+import { normalizeSearchText } from "@/lib/search";
 
 type HamsterOption = {
   id: string;
@@ -30,10 +31,10 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
   const [searchTerm, setSearchTerm] = useState("");
   const hamsterIds = useMemo(() => hamsters.map((hamster) => hamster.id), [hamsters]);
   const filteredHamsters = useMemo(() => {
-    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+    const normalizedSearchTerm = normalizeSearchText(searchTerm);
 
     return normalizedSearchTerm.length > 0
-      ? hamsters.filter((hamster) => hamster.name.toLocaleLowerCase().includes(normalizedSearchTerm))
+      ? hamsters.filter((hamster) => normalizeSearchText(hamster.name).includes(normalizedSearchTerm))
       : hamsters;
   }, [hamsters, searchTerm]);
   const needsSelection = hamsters.length > limit;

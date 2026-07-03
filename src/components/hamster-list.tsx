@@ -4,6 +4,7 @@ import { Archive, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Rotate
 import { useMemo, useState } from "react";
 
 import { deleteHamster, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
+import { normalizeSearchText } from "@/lib/search";
 
 type HamsterListItem = {
   id: string;
@@ -40,10 +41,10 @@ export function HamsterList({
   const [currentPageNumber, setCurrentPageNumber] = useState(1);
 
   const filteredHamsters = useMemo(() => {
-    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+    const normalizedSearchTerm = normalizeSearchText(searchTerm);
     const searchedHamsters =
       normalizedSearchTerm.length > 0
-        ? hamsters.filter((hamster) => hamster.name.toLocaleLowerCase().includes(normalizedSearchTerm))
+        ? hamsters.filter((hamster) => normalizeSearchText(hamster.name).includes(normalizedSearchTerm))
         : hamsters;
 
     // 検索で絞り込んだ結果に対し、表示対象と並び順の組み合わせで表示順だけを変える。
