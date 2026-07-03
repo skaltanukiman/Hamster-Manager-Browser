@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Save, Trash2, Upload } from "lucide-react";
 
 import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
@@ -130,13 +130,22 @@ export default async function WeightsPage({
           <h2 className="text-xl font-bold text-ink">体重管理</h2>
           <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
         </div>
-        <Link
-          href="/weights/import"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
-        >
-          <Upload className="h-4 w-4" aria-hidden />
-          CSVインポート
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/weights/export"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            CSVエクスポート
+          </Link>
+          <Link
+            href="/weights/import"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
+          >
+            <Upload className="h-4 w-4" aria-hidden />
+            CSVインポート
+          </Link>
+        </div>
       </div>
 
       <StatusMessage status={getParam(params.status)} />

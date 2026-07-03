@@ -38,8 +38,8 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
   - 月ごとの候補は体重記録日に存在する年月から自動作成
   - 未来日は入力不可
   - 管理外のハムスターは登録・編集・削除不可
-- CSV 出力
-  - 体重記録を CSV 出力
+- CSV エクスポート
+  - 体重記録を CSV エクスポート
   - ハムスター指定、年月指定で絞り込み
 - 設定
   - ダッシュボードの表示ボード数を変更
@@ -68,8 +68,10 @@ Next.js アプリと PostgreSQL を Docker Compose で分離して動かし、VP
   - 衛生管理
 - `/weights`
   - 体重管理
-- `/export`
-  - CSV 出力
+- `/weights/export`
+  - 体重 CSV エクスポート
+- `/weights/import`
+  - 体重 CSV インポート
 - `/settings`
   - 設定
 

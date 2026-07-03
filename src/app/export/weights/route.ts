@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get("month") || undefined;
   const where: Prisma.WeightRecordWhereInput = {};
 
-  // CSV出力は画面と同じ絞り込み条件を受け取り、指定がなければ全ハムスター・全期間を対象にする。
+  // CSVエクスポートは画面と同じ絞り込み条件を受け取り、指定がなければ全ハムスター・全期間を対象にする。
   if (hamsterId) {
     where.hamsterId = hamsterId;
   }
@@ -59,4 +59,3 @@ export async function GET(request: NextRequest) {
     }
   });
 }
-

@@ -2,25 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, Download, LayoutDashboard, LineChart, PawPrint, Settings } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/hamsters", label: "ハムスター", icon: PawPrint },
   { href: "/cleaning", label: "衛生管理", icon: ClipboardCheck },
   { href: "/weights", label: "体重管理", icon: LineChart },
-  { href: "/export", label: "CSV出力", icon: Download },
   { href: "/settings", label: "設定", icon: Settings }
 ];
 
 export function AppNav() {
   const pathname = usePathname();
+  const activeHref = navItems
+    .filter((item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <nav className="flex flex-wrap gap-2">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+        const isActive = item.href === activeHref;
 
         return (
           <Link
