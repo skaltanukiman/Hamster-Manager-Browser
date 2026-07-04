@@ -33,6 +33,7 @@ export default async function CleaningPage({
     includeInactive
   );
   const selectableHamsters = includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
+  const hasSelectableHamsters = selectableHamsters.length > 0;
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
@@ -61,7 +62,7 @@ export default async function CleaningPage({
                 name="hamsterId"
                 selectedId={selectedHamster?.id ?? ""}
                 options={selectableHamsters}
-                disabled={selectableHamsters.length === 0}
+                disabled={!hasSelectableHamsters}
                 emptyMessage="条件に一致するハムスターはいません"
               />
             </label>
@@ -77,10 +78,12 @@ export default async function CleaningPage({
 
           {!selectedHamster ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。
+              {hasSelectableHamsters
+                ? "ハムスター名を入力するか候補から選択すると、掃除記録の入力表を表示します。"
+                : "管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。"}
             </p>
           ) : (
-            <>
+            <div className="content-reveal space-y-4">
               {isLocked ? (
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   このハムスターは管理外のため、掃除記録の編集・保存はできません。
@@ -188,7 +191,7 @@ export default async function CleaningPage({
                   </button>
                 </div>
               </form>
-            </>
+            </div>
           )}
         </>
       )}

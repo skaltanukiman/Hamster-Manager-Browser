@@ -124,6 +124,7 @@ export default async function WeightsPage({
       includeInactive
     });
   const selectableHamsters = includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
+  const hasSelectableHamsters = selectableHamsters.length > 0;
   const monthSelectOptions =
     selectedMonth && !monthOptions.includes(selectedMonth) ? [selectedMonth, ...monthOptions] : monthOptions;
 
@@ -178,7 +179,7 @@ export default async function WeightsPage({
                 name="hamsterId"
                 selectedId={selectedHamster?.id ?? ""}
                 options={selectableHamsters}
-                disabled={selectableHamsters.length === 0}
+                disabled={!hasSelectableHamsters}
                 emptyMessage="条件に一致するハムスターはいません"
               />
             </label>
@@ -190,10 +191,12 @@ export default async function WeightsPage({
 
           {!selectedHamster ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。
+              {hasSelectableHamsters
+                ? "ハムスター名を入力するか候補から選択すると、体重登録フォームと履歴を表示します。"
+                : "管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。"}
             </p>
           ) : (
-            <>
+            <div className="content-reveal space-y-6">
               {isLocked ? (
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   このハムスターは管理外のため、体重記録の登録・編集・削除はできません。
@@ -470,7 +473,7 @@ export default async function WeightsPage({
               </nav>
             ) : null}
           </section>
-            </>
+            </div>
           )}
         </>
       )}

@@ -49,6 +49,22 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+@keyframes content-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-reveal {
+  animation: content-reveal 180ms ease-out both;
+}
+
 .table-scroll {
   overflow-x: auto;
   border-radius: 8px;

@@ -134,13 +134,17 @@ function pickSelectedHamster<T extends { id: string; isActive: boolean }>(
   hamsters: T[],
   selectedHamsterId: string | undefined
 ) {
-  return hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? hamsters.find((hamster) => hamster.isActive) ?? hamsters[0] ?? null;
+  if (!selectedHamsterId) {
+    return null;
+  }
+
+  return hamsters.find((hamster) => hamster.id === selectedHamsterId) ?? null;
 }
 
 export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string, includeInactive: boolean) {
   const hamsters = await getHamsterOptions();
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
-  // 管理外を含めない表示では、URLに管理外IDが残っていても管理中ハムスターへ戻す。
+  // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
 
   if (!selectedHamster) {
@@ -219,7 +223,7 @@ export async function getWeightPageData({
 }) {
   const hamsters = await getHamsterOptions();
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
-  // 管理外を含めない表示では、URLに管理外IDが残っていても管理中ハムスターへ戻す。
+  // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
 
   if (!selectedHamster) {
@@ -228,7 +232,7 @@ export async function getWeightPageData({
       selectedHamster,
       records: [],
       chartRecords: [],
-      monthOptions: [],
+      monthOptions: [] as string[],
       selectedMonth: "",
       pagination: {
         currentPage: 1,
