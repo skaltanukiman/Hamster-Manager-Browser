@@ -5,7 +5,11 @@ import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 
 import { saveDashboardSettings } from "@/app/actions/settings";
-import { MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
+import {
+  MAX_DASHBOARD_BOARD_COUNT,
+  MIN_DASHBOARD_BOARD_COUNT,
+  type HamsterSelectorMode
+} from "@/lib/dashboard-settings";
 import { normalizeSearchText } from "@/lib/search";
 
 type HamsterOption = {
@@ -17,6 +21,7 @@ type HamsterOption = {
 
 type DashboardSettingsFormProps = {
   boardCount: number;
+  hamsterSelectorMode: HamsterSelectorMode;
   hamsters: HamsterOption[];
   selectedHamsterIds: string[];
 };
@@ -25,7 +30,12 @@ function clampBoardCount(value: number) {
   return Math.min(MAX_DASHBOARD_BOARD_COUNT, Math.max(MIN_DASHBOARD_BOARD_COUNT, Math.trunc(value)));
 }
 
-export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds }: DashboardSettingsFormProps) {
+export function DashboardSettingsForm({
+  boardCount,
+  hamsterSelectorMode,
+  hamsters,
+  selectedHamsterIds
+}: DashboardSettingsFormProps) {
   const [limit, setLimit] = useState(boardCount);
   const [selectedIds, setSelectedIds] = useState(selectedHamsterIds);
   const [searchTerm, setSearchTerm] = useState("");
@@ -105,6 +115,38 @@ export function DashboardSettingsForm({ boardCount, hamsters, selectedHamsterIds
           {!canSave ? <span className="block pt-1 text-red-600">表示対象を {targetCount} 件選択してください。</span> : null}
         </div>
       </div>
+
+      <section className="space-y-3">
+        <h3 className="text-base font-bold text-ink">ハムスター選択方式</h3>
+        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="hamsterSelectorMode"
+              value="combobox"
+              defaultChecked={hamsterSelectorMode === "combobox"}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block font-semibold text-ink">コンボボックス式</span>
+              <span className="mt-1 block text-xs text-slate-500">文字入力で候補を絞り込みながら選択します。</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="hamsterSelectorMode"
+              value="select"
+              defaultChecked={hamsterSelectorMode === "select"}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block font-semibold text-ink">プルダウン式</span>
+              <span className="mt-1 block text-xs text-slate-500">従来の一覧から選択する形式で表示します。</span>
+            </span>
+          </label>
+        </div>
+      </section>
 
       {/* disabled の checkbox は送信されないため、保存対象IDは hidden input に正規化して渡す。 */}
       {effectiveSelectedIds.map((id) => (

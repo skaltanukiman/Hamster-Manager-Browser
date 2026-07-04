@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowLeft, Download, Search } from "lucide-react";
 
-import { HamsterCombobox } from "@/components/hamster-combobox";
+import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { normalizeYearMonth } from "@/lib/date";
-import { getHamsterOptions } from "@/lib/queries";
+import { getHamsterOptions, getHamsterSelectorMode } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function WeightExportPage({
   searchParams: Promise<{ hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] }>;
 }) {
   const query = await searchParams;
-  const hamsters = await getHamsterOptions();
+  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
   const selectedHamsterId = getParam(query.hamsterId) ?? "";
   const month = getParam(query.month) ?? "";
   const normalizedMonth = month ? normalizeYearMonth(month) : "";
@@ -54,8 +54,9 @@ export default async function WeightExportPage({
       <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           ハムスター
-          <HamsterCombobox
+          <HamsterSelectorInput
             key={selectedHamsterId}
+            mode={hamsterSelectorMode}
             name="hamsterId"
             selectedId={selectedHamsterId}
             options={hamsters}

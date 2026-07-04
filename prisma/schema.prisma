@@ -65,6 +65,8 @@ model AppSetting {
   // 認証なしの個人運用アプリなので、設定は固定IDの1レコードに集約する。
   id                  String             @id
   dashboardBoardCount Int                @default(6)
+  // ハムスター選択UIを、検索入力できるコンボボックス式か従来のプルダウン式かで切り替える。
+  hamsterSelectorMode String             @default("combobox")
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   dashboardHamsters   DashboardHamster[]

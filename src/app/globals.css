@@ -44,6 +44,12 @@ input[type="checkbox"] {
   accent-color: #426b5a;
 }
 
+input[type="radio"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #426b5a;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;

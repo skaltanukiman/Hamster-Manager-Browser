@@ -10,6 +10,7 @@ import { dashboardSettingsSchema } from "@/lib/schemas";
 export async function saveDashboardSettings(formData: FormData) {
   const result = dashboardSettingsSchema.safeParse({
     dashboardBoardCount: formData.get("dashboardBoardCount"),
+    hamsterSelectorMode: formData.get("hamsterSelectorMode"),
     hamsterIds: formData.getAll("hamsterIds")
   });
 
@@ -17,7 +18,7 @@ export async function saveDashboardSettings(formData: FormData) {
     redirect("/settings?status=invalid");
   }
 
-  const { dashboardBoardCount } = result.data;
+  const { dashboardBoardCount, hamsterSelectorMode } = result.data;
   // チェックボックスの多重送信や手動POSTを考慮し、保存前にIDを一意化する。
   const selectedHamsterIds = [...new Set(result.data.hamsterIds)];
   const hamsters = await prisma.hamster.findMany({
@@ -44,10 +45,11 @@ export async function saveDashboardSettings(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.appSetting.upsert({
       where: { id: APP_SETTING_ID },
-      update: { dashboardBoardCount },
+      update: { dashboardBoardCount, hamsterSelectorMode },
       create: {
         id: APP_SETTING_ID,
-        dashboardBoardCount
+        dashboardBoardCount,
+        hamsterSelectorMode
       }
     });
 
@@ -68,6 +70,9 @@ export async function saveDashboardSettings(formData: FormData) {
   });
 
   revalidatePath("/");
+  revalidatePath("/cleaning");
   revalidatePath("/settings");
+  revalidatePath("/weights");
+  revalidatePath("/weights/export");
   redirect("/settings?status=saved");
 }

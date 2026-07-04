@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
-import { APP_SETTING_ID, normalizeDashboardBoardCount } from "@/lib/dashboard-settings";
+import { APP_SETTING_ID, normalizeDashboardBoardCount, normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
@@ -126,6 +126,15 @@ export async function getHamsterOptions() {
   });
 }
 
+export async function getHamsterSelectorMode() {
+  const setting = await prisma.appSetting.findUnique({
+    where: { id: APP_SETTING_ID },
+    select: { hamsterSelectorMode: true }
+  });
+
+  return normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
+}
+
 function getSelectableHamsters<T extends { isActive: boolean }>(hamsters: T[], includeInactive: boolean) {
   return includeInactive ? hamsters : hamsters.filter((hamster) => hamster.isActive);
 }
@@ -142,13 +151,13 @@ function pickSelectedHamster<T extends { id: string; isActive: boolean }>(
 }
 
 export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string, includeInactive: boolean) {
-  const hamsters = await getHamsterOptions();
+  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
   // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
 
   if (!selectedHamster) {
-    return { hamsters, selectedHamster, recordsByDate: new Map() };
+    return { hamsters, selectedHamster, recordsByDate: new Map(), hamsterSelectorMode };
   }
 
   const { start, end } = monthDateRange(yearMonth);
@@ -166,6 +175,7 @@ export async function getCleaningPageData(selectedHamsterId: string | undefined,
   return {
     hamsters,
     selectedHamster,
+    hamsterSelectorMode,
     // 表形式では日付文字列から即座にレコードを引けるよう、DB結果をMapへ変換しておく。
     recordsByDate: new Map(records.map((record) => [toDateInputValue(record.recordDate), record]))
   };
@@ -221,7 +231,7 @@ export async function getWeightPageData({
   sortDirection: SortDirection;
   includeInactive: boolean;
 }) {
-  const hamsters = await getHamsterOptions();
+  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
   // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
@@ -230,6 +240,7 @@ export async function getWeightPageData({
     return {
       hamsters,
       selectedHamster,
+      hamsterSelectorMode,
       records: [],
       chartRecords: [],
       monthOptions: [] as string[],
@@ -275,6 +286,7 @@ export async function getWeightPageData({
   return {
     hamsters,
     selectedHamster,
+    hamsterSelectorMode,
     records,
     chartRecords,
     monthOptions,
@@ -309,12 +321,14 @@ export async function getDashboardSettingsPageData() {
     })
   ]);
   const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
+  const hamsterSelectorMode = normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
   const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
   // 設定画面の初期表示でも、ダッシュボードと同じ補完ルールで選択状態を作る。
   const selectedHamsterIds = pickDashboardHamsters(hamsters, boardCount, selectedIds).map((hamster) => hamster.id);
 
   return {
     boardCount,
+    hamsterSelectorMode,
     hamsters,
     selectedHamsterIds
   };

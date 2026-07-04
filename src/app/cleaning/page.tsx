@@ -3,7 +3,7 @@ import { Save } from "lucide-react";
 import { saveCleaningMonth } from "@/app/actions/cleaning";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { EmptyState } from "@/components/empty-state";
-import { HamsterCombobox } from "@/components/hamster-combobox";
+import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth } from "@/lib/date";
 import { getCleaningPageData } from "@/lib/queries";
@@ -27,7 +27,7 @@ export default async function CleaningPage({
   const params = await searchParams;
   const yearMonth = normalizeYearMonth(getParam(params.month));
   const includeInactive = getParam(params.includeInactive) === "1";
-  const { hamsters, selectedHamster, recordsByDate } = await getCleaningPageData(
+  const { hamsters, selectedHamster, recordsByDate, hamsterSelectorMode } = await getCleaningPageData(
     getParam(params.hamsterId),
     yearMonth,
     includeInactive
@@ -57,8 +57,9 @@ export default async function CleaningPage({
           >
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <HamsterCombobox
+              <HamsterSelectorInput
                 key={`${selectedHamster?.id ?? "none"}-${includeInactive ? "all" : "active"}`}
+                mode={hamsterSelectorMode}
                 name="hamsterId"
                 selectedId={selectedHamster?.id ?? ""}
                 options={selectableHamsters}

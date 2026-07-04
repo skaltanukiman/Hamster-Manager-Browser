@@ -14,7 +14,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ status?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const { boardCount, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
+  const { boardCount, hamsterSelectorMode, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
 
   return (
     <div className="space-y-6">
@@ -25,7 +25,12 @@ export default async function SettingsPage({
 
       <StatusMessage status={getParam(params.status)} />
 
-      <DashboardSettingsForm boardCount={boardCount} hamsters={hamsters} selectedHamsterIds={selectedHamsterIds} />
+      <DashboardSettingsForm
+        boardCount={boardCount}
+        hamsterSelectorMode={hamsterSelectorMode}
+        hamsters={hamsters}
+        selectedHamsterIds={selectedHamsterIds}
+      />
     </div>
   );
 }

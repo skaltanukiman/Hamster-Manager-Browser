@@ -5,7 +5,7 @@ import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/ap
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
-import { HamsterCombobox } from "@/components/hamster-combobox";
+import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
@@ -113,7 +113,7 @@ export default async function WeightsPage({
   const sortTarget = normalizeWeightSortTarget(getParam(params.sort));
   const sortDirection = normalizeSortDirection(getParam(params.direction));
   const includeInactive = getParam(params.includeInactive) === "1";
-  const { hamsters, selectedHamster, records, chartRecords, monthOptions, selectedMonth, pagination } =
+  const { hamsters, selectedHamster, hamsterSelectorMode, records, chartRecords, monthOptions, selectedMonth, pagination } =
     await getWeightPageData({
       selectedHamsterId: getParam(params.hamsterId),
       filterMode,
@@ -174,8 +174,9 @@ export default async function WeightsPage({
             <input type="hidden" name="direction" value={sortDirection} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
-              <HamsterCombobox
+              <HamsterSelectorInput
                 key={`${selectedHamster?.id ?? "none"}-${includeInactive ? "all" : "active"}`}
+                mode={hamsterSelectorMode}
                 name="hamsterId"
                 selectedId={selectedHamster?.id ?? ""}
                 options={selectableHamsters}
