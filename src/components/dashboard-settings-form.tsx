@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, Search } from "lucide-react";
+import { ChevronDown, Save, Search } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 
@@ -86,8 +86,26 @@ export function DashboardSettingsForm({
     });
   }
 
+  function scrollToSaveButton() {
+    document.getElementById("dashboard-settings-save")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+  }
+
   return (
-    <form action={saveDashboardSettings} className="space-y-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <>
+      <button
+        type="button"
+        onClick={scrollToSaveButton}
+        aria-label="保存ボタンまでスクロール"
+        title="保存ボタンまでスクロール"
+        className="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-md bg-[#999999] text-white shadow-lg shadow-slate-400/50 transition hover:bg-[#7f7f7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 md:bottom-8 md:right-8"
+      >
+        <ChevronDown className="h-9 w-9 stroke-[3]" aria-hidden />
+      </button>
+
+      <form action={saveDashboardSettings} className="space-y-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="grid gap-4 md:grid-cols-[220px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示ボード数
@@ -226,7 +244,7 @@ export function DashboardSettingsForm({
         )}
       </section>
 
-      <div className="flex justify-end">
+      <div id="dashboard-settings-save" className="flex justify-end scroll-mt-24">
         <button
           type="submit"
           disabled={!canSave}
@@ -236,6 +254,7 @@ export function DashboardSettingsForm({
           保存
         </button>
       </div>
-    </form>
+      </form>
+    </>
   );
 }
