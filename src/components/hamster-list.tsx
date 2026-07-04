@@ -201,12 +201,12 @@ export function HamsterList({
         </div>
       )}
       {filteredHamsters.length > 0 && totalPages > 1 ? (
-        <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="ハムスター一覧のページ移動">
+        <nav className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label="ハムスター一覧のページ移動">
           <button
             type="button"
             disabled={currentPage === 1}
             onClick={() => setCurrentPageNumber(1)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             <ChevronsLeft className="h-4 w-4" aria-hidden />
             最初へ
@@ -215,19 +215,19 @@ export function HamsterList({
             type="button"
             disabled={currentPage === 1}
             onClick={() => setCurrentPageNumber(currentPage - 1)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
             前へ
           </button>
-          <span className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">
+          <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
             {currentPage} / {totalPages} ページ
           </span>
           <button
             type="button"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPageNumber(currentPage + 1)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             次へ
             <ChevronRight className="h-4 w-4" aria-hidden />
@@ -236,7 +236,7 @@ export function HamsterList({
             type="button"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPageNumber(totalPages)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             最後へ
             <ChevronsRight className="h-4 w-4" aria-hidden />

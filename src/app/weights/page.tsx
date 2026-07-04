@@ -382,7 +382,7 @@ export default async function WeightsPage({
               </div>
             )}
             {hasWeightRecords && pagination.totalPages > 1 ? (
-              <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="体重履歴のページ移動">
+              <nav className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label="体重履歴のページ移動">
                 {pagination.currentPage > 1 ? (
                   <Link
                     href={buildWeightsHref({
@@ -394,13 +394,13 @@ export default async function WeightsPage({
                       sortDirection,
                       includeInactive
                     })}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                   >
                     <ChevronsLeft className="h-4 w-4" aria-hidden />
                     最初へ
                   </Link>
                 ) : (
-                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
                     <ChevronsLeft className="h-4 w-4" aria-hidden />
                     最初へ
                   </span>
@@ -416,17 +416,20 @@ export default async function WeightsPage({
                       sortDirection,
                       includeInactive
                     })}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                   >
                     <ChevronLeft className="h-4 w-4" aria-hidden />
                     前へ
                   </Link>
                 ) : (
-                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
                     <ChevronLeft className="h-4 w-4" aria-hidden />
                     前へ
                   </span>
                 )}
+                <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
+                  {pagination.currentPage} / {pagination.totalPages} ページ
+                </span>
                 {pagination.currentPage < pagination.totalPages ? (
                   <Link
                     href={buildWeightsHref({
@@ -438,13 +441,13 @@ export default async function WeightsPage({
                       sortDirection,
                       includeInactive
                     })}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                   >
                     次へ
                     <ChevronRight className="h-4 w-4" aria-hidden />
                   </Link>
                 ) : (
-                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
                     次へ
                     <ChevronRight className="h-4 w-4" aria-hidden />
                   </span>
@@ -460,13 +463,13 @@ export default async function WeightsPage({
                       sortDirection,
                       includeInactive
                     })}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                   >
                     最後へ
                     <ChevronsRight className="h-4 w-4" aria-hidden />
                   </Link>
                 ) : (
-                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400">
+                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
                     最後へ
                     <ChevronsRight className="h-4 w-4" aria-hidden />
                   </span>
