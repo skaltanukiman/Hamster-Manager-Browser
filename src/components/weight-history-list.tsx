@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { deleteWeightRecords, updateWeightRecord } from "@/app/actions/weights";
+import { SelectionActionBar } from "@/components/selection-action-bar";
 
 type WeightHistoryRecord = {
   id: string;
@@ -37,19 +38,8 @@ export function WeightHistoryList({
   today,
   isLocked
 }: WeightHistoryListProps) {
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
   const selectedDeleteIdSet = new Set(selectedDeleteIds);
-
-  function handleDeleteModeStart() {
-    setIsDeleteMode(true);
-    setSelectedDeleteIds([]);
-  }
-
-  function handleDeleteModeCancel() {
-    setIsDeleteMode(false);
-    setSelectedDeleteIds([]);
-  }
 
   function handleDeleteTargetToggle(recordId: string) {
     setSelectedDeleteIds((current) =>
@@ -70,70 +60,41 @@ export function WeightHistoryList({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        {isLocked ? (
-          <p className="text-sm text-slate-600">管理外のハムスターのため、体重履歴は削除できません。</p>
-        ) : isDeleteMode ? (
-          <>
-            <p className="text-sm text-slate-600">{selectedDeleteIds.length} 件選択中</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleDeleteModeCancel}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                キャンセル
-              </button>
-              <form action={deleteWeightRecords} onSubmit={handleBulkDeleteSubmit}>
-                <input type="hidden" name="hamsterId" value={selectedHamsterId} />
-                <input type="hidden" name="filter" value={filterMode} />
-                {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
-                <input type="hidden" name="sort" value={sortTarget} />
-                <input type="hidden" name="direction" value={sortDirection} />
-                <input type="hidden" name="page" value={currentPage} />
-                {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
-                {selectedDeleteIds.map((id) => (
-                  <input key={id} type="hidden" name="ids" value={id} />
-                ))}
-                <button
-                  type="submit"
-                  disabled={selectedDeleteIds.length === 0}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                  削除
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-slate-600">削除する場合は削除モードに切り替えて選択します。</p>
-            <button
-              type="button"
-              onClick={handleDeleteModeStart}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-              削除
-            </button>
-          </>
-        )}
-      </div>
+      <SelectionActionBar selectedCount={isLocked ? 0 : selectedDeleteIds.length}>
+        <form action={deleteWeightRecords} onSubmit={handleBulkDeleteSubmit}>
+          <input type="hidden" name="hamsterId" value={selectedHamsterId} />
+          <input type="hidden" name="filter" value={filterMode} />
+          {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+          <input type="hidden" name="sort" value={sortTarget} />
+          <input type="hidden" name="direction" value={sortDirection} />
+          <input type="hidden" name="page" value={currentPage} />
+          {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
+          {selectedDeleteIds.map((id) => (
+            <input key={id} type="hidden" name="ids" value={id} />
+          ))}
+          <button
+            type="submit"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            削除
+          </button>
+        </form>
+      </SelectionActionBar>
 
       <div className="grid gap-3">
         {records.map((record) => (
           <article key={record.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-            {isDeleteMode ? (
-              <label className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={selectedDeleteIdSet.has(record.id)}
-                  onChange={() => handleDeleteTargetToggle(record.id)}
-                />
-                削除対象
-              </label>
-            ) : null}
+            <label className="mb-3 inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={selectedDeleteIdSet.has(record.id)}
+                onChange={() => handleDeleteTargetToggle(record.id)}
+                disabled={isLocked}
+                className="h-4 w-4 rounded border-slate-300 text-moss disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span className="sr-only">{record.recordDate}の体重履歴を選択</span>
+            </label>
 
             <form action={updateWeightRecord} className="grid gap-3 md:grid-cols-[180px_160px_auto]">
               <input type="hidden" name="id" value={record.id} />
