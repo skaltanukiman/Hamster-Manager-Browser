@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 import { deleteHamsters, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
 import { normalizeSearchText } from "@/lib/search";
 import { SelectionActionBar } from "@/components/selection-action-bar";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 
 type HamsterListItem = {
   id: string;
@@ -109,7 +110,8 @@ export function HamsterList({
   }
 
   return (
-    <div className="space-y-3">
+    <UnsavedChangesGuard>
+      <div className="space-y-3">
       <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[160px_160px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示
@@ -225,7 +227,11 @@ export function HamsterList({
                   {isLocked ? <span className="text-xs text-slate-500">記録とプロフィール編集をロック中</span> : null}
                 </div>
                 <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                  <form action={updateHamster} className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]">
+                  <form
+                    action={updateHamster}
+                    data-dirty-watch
+                    className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]"
+                  >
                     <input type="hidden" name="id" value={hamster.id} />
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       名前
@@ -329,6 +335,7 @@ export function HamsterList({
           </button>
         </nav>
       ) : null}
-    </div>
+      </div>
+    </UnsavedChangesGuard>
   );
 }

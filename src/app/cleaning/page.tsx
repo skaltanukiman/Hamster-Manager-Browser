@@ -5,6 +5,7 @@ import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth } from "@/lib/date";
 import { getCleaningPageData } from "@/lib/queries";
 
@@ -84,15 +85,16 @@ export default async function CleaningPage({
                 : "管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。"}
             </p>
           ) : (
-            <div className="content-reveal space-y-4">
-              {isLocked ? (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  このハムスターは管理外のため、掃除記録の編集・保存はできません。
-                </p>
-              ) : null}
+            <UnsavedChangesGuard>
+              <div className="content-reveal space-y-4">
+                {isLocked ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    このハムスターは管理外のため、掃除記録の編集・保存はできません。
+                  </p>
+                ) : null}
 
-              {/* レスポンシブ表示で同名入力を重複送信しないよう、PC用とスマホ用は別フォームにする。 */}
-              <form action={saveCleaningMonth} className="hidden space-y-4 md:block">
+                {/* レスポンシブ表示で同名入力を重複送信しないよう、PC用とスマホ用は別フォームにする。 */}
+                <form action={saveCleaningMonth} data-dirty-watch className="hidden space-y-4 md:block">
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                 <input type="hidden" name="yearMonth" value={yearMonth} />
                 {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
@@ -194,7 +196,7 @@ export default async function CleaningPage({
                 </div>
               </form>
 
-              <form action={saveCleaningMonth} className="space-y-4 md:hidden">
+                <form action={saveCleaningMonth} data-dirty-watch className="space-y-4 md:hidden">
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                 <input type="hidden" name="yearMonth" value={yearMonth} />
                 {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
@@ -300,8 +302,9 @@ export default async function CleaningPage({
                     保存
                   </button>
                 </div>
-              </form>
-            </div>
+                </form>
+              </div>
+            </UnsavedChangesGuard>
           )}
         </>
       )}
