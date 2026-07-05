@@ -27,12 +27,17 @@ select,
 textarea {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   padding: 0.55rem 0.7rem;
   font-size: 0.925rem;
   text-align: left;
+}
+
+label {
+  min-width: 0;
 }
 
 textarea {
@@ -42,14 +47,23 @@ textarea {
 
 input[type="date"],
 input[type="month"] {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   min-height: 2.55rem;
   line-height: 1.2;
+  overflow: hidden;
   text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 input[type="date"]::-webkit-date-and-time-value,
 input[type="month"]::-webkit-date-and-time-value {
   display: block;
+  width: 100%;
+  max-width: 100%;
   min-height: 1.2em;
   text-align: left;
 }
