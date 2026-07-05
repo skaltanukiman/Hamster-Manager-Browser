@@ -128,12 +128,7 @@ export default async function CleaningPage({
                             className={isToday ? "bg-straw/20" : isDisabled ? "bg-slate-50 text-slate-400" : undefined}
                           >
                             <td className={`date-cell ${isToday ? "font-semibold text-ink" : "font-semibold text-slate-700"}`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <span>{day.day}</span>
-                                {isToday ? (
-                                  <span className="rounded-md bg-straw/60 px-2 py-0.5 text-xs font-semibold text-ink">今日</span>
-                                ) : null}
-                              </div>
+                              {day.day}
                             </td>
                             <td className="weekday-cell text-slate-500">{day.weekday}</td>
                             <td className="checkbox-cell">
