@@ -26,16 +26,42 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   padding: 0.55rem 0.7rem;
   font-size: 0.925rem;
+  text-align: left;
 }
 
 textarea {
   min-height: 5.5rem;
   resize: vertical;
+}
+
+input[type="date"],
+input[type="month"] {
+  min-height: 2.55rem;
+  line-height: 1.2;
+  text-align: left;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+  display: block;
+  min-height: 1.2em;
+  text-align: left;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit {
+  text-align: left;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
 }
 
 input[type="checkbox"] {
