@@ -1,6 +1,18 @@
 "use client";
 
-import { Archive, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw, Save, Search, Trash2 } from "lucide-react";
+import {
+  Archive,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RotateCcw,
+  Save,
+  Search,
+  Square,
+  Trash2
+} from "lucide-react";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
@@ -81,6 +93,10 @@ export function HamsterList({
     );
   }
 
+  function handleSelectAllVisibleHamsters() {
+    setSelectedDeleteIds(pagedHamsters.map((hamster) => hamster.id));
+  }
+
   function handleBulkDeleteSubmit(event: FormEvent<HTMLFormElement>) {
     if (selectedDeleteIds.length === 0) {
       event.preventDefault();
@@ -148,6 +164,22 @@ export function HamsterList({
       </p>
 
       <SelectionActionBar selectedCount={selectedDeleteIds.length}>
+        <button
+          type="button"
+          onClick={handleSelectAllVisibleHamsters}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <CheckSquare className="h-4 w-4" aria-hidden />
+          全選択
+        </button>
+        <button
+          type="button"
+          onClick={resetDeleteSelection}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Square className="h-4 w-4" aria-hidden />
+          全解除
+        </button>
         <form action={deleteHamsters} onSubmit={handleBulkDeleteSubmit}>
           {selectedDeleteIds.map((id) => (
             <input key={id} type="hidden" name="ids" value={id} />

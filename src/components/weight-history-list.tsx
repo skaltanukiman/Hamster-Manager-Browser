@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, Trash2 } from "lucide-react";
+import { CheckSquare, Save, Square, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
@@ -47,6 +47,14 @@ export function WeightHistoryList({
     );
   }
 
+  function resetDeleteSelection() {
+    setSelectedDeleteIds([]);
+  }
+
+  function handleSelectAllVisibleRecords() {
+    setSelectedDeleteIds(records.map((record) => record.id));
+  }
+
   function handleBulkDeleteSubmit(event: FormEvent<HTMLFormElement>) {
     if (selectedDeleteIds.length === 0) {
       event.preventDefault();
@@ -61,6 +69,22 @@ export function WeightHistoryList({
   return (
     <div className="space-y-3">
       <SelectionActionBar selectedCount={isLocked ? 0 : selectedDeleteIds.length}>
+        <button
+          type="button"
+          onClick={handleSelectAllVisibleRecords}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <CheckSquare className="h-4 w-4" aria-hidden />
+          全選択
+        </button>
+        <button
+          type="button"
+          onClick={resetDeleteSelection}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Square className="h-4 w-4" aria-hidden />
+          全解除
+        </button>
         <form action={deleteWeightRecords} onSubmit={handleBulkDeleteSubmit}>
           <input type="hidden" name="hamsterId" value={selectedHamsterId} />
           <input type="hidden" name="filter" value={filterMode} />
