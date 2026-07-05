@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { deleteWeightRecords, updateWeightRecord } from "@/app/actions/weights";
 import { SelectionActionBar } from "@/components/selection-action-bar";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 
 type WeightHistoryRecord = {
   id: string;
@@ -67,7 +68,8 @@ export function WeightHistoryList({
   }
 
   return (
-    <div className="space-y-3">
+    <UnsavedChangesGuard>
+      <div className="space-y-3">
       <SelectionActionBar selectedCount={isLocked ? 0 : selectedDeleteIds.length}>
         <button
           type="button"
@@ -120,7 +122,7 @@ export function WeightHistoryList({
               <span className="sr-only">{record.recordDate}の体重履歴を選択</span>
             </label>
 
-            <form action={updateWeightRecord} className="grid gap-3 md:grid-cols-[180px_160px_auto]">
+            <form action={updateWeightRecord} data-dirty-watch className="grid gap-3 md:grid-cols-[180px_160px_auto]">
               <input type="hidden" name="id" value={record.id} />
               <input type="hidden" name="hamsterId" value={selectedHamsterId} />
               <input type="hidden" name="filter" value={filterMode} />
@@ -157,6 +159,7 @@ export function WeightHistoryList({
           </article>
         ))}
       </div>
-    </div>
+      </div>
+    </UnsavedChangesGuard>
   );
 }

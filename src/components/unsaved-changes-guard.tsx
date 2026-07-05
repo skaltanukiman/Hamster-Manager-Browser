@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type UnsavedChangesGuardProps = {
   children: ReactNode;
@@ -116,43 +117,46 @@ export function UnsavedChangesGuard({ children }: UnsavedChangesGuardProps) {
     window.location.assign(nextUrl.href);
   }
 
+  const modal = (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="unsaved-changes-title"
+    >
+      <div className="w-full max-w-md rounded-md border border-slate-200 bg-white p-5 shadow-xl">
+        <h2 id="unsaved-changes-title" className="text-lg font-bold text-ink">
+          保存されていない変更があります
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          このまま移動すると、入力中の内容は保存されずに破棄されます。移動してもよろしいですか？
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={handleStay}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            編集を続ける
+          </button>
+          <button
+            type="button"
+            onClick={handleDiscardAndNavigate}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700"
+          >
+            破棄して移動
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div onChangeCapture={handleChangeCapture} onSubmitCapture={handleSubmitCapture}>
       {children}
 
-      {isModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="unsaved-changes-title"
-        >
-          <div className="w-full max-w-md rounded-md border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 id="unsaved-changes-title" className="text-lg font-bold text-ink">
-              保存されていない変更があります
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              このまま移動すると、入力中の内容は保存されずに破棄されます。移動してもよろしいですか？
-            </p>
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleStay}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                編集を続ける
-              </button>
-              <button
-                type="button"
-                onClick={handleDiscardAndNavigate}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700"
-              >
-                破棄して移動
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* transform/animation を持つ親要素の影響を避けるため、モーダルは body 直下に出す。 */}
+      {isModalOpen ? createPortal(modal, document.body) : null}
     </div>
   );
 }
