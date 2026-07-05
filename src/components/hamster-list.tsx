@@ -1,9 +1,10 @@
 "use client";
 
 import { Archive, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw, Save, Search, Trash2 } from "lucide-react";
+import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
-import { deleteHamster, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
+import { deleteHamsters, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
 import { normalizeSearchText } from "@/lib/search";
 
 type HamsterListItem = {
@@ -39,6 +40,8 @@ export function HamsterList({
   const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPageNumber, setCurrentPageNumber] = useState(1);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
 
   const filteredHamsters = useMemo(() => {
     const normalizedSearchTerm = normalizeSearchText(searchTerm);
@@ -66,6 +69,38 @@ export function HamsterList({
     (currentPage - 1) * HAMSTER_LIST_PAGE_SIZE,
     currentPage * HAMSTER_LIST_PAGE_SIZE
   );
+  const selectedDeleteIdSet = new Set(selectedDeleteIds);
+
+  function resetDeleteSelection() {
+    setSelectedDeleteIds([]);
+  }
+
+  function handleDeleteModeStart() {
+    setIsDeleteMode(true);
+    resetDeleteSelection();
+  }
+
+  function handleDeleteModeCancel() {
+    setIsDeleteMode(false);
+    resetDeleteSelection();
+  }
+
+  function handleDeleteTargetToggle(hamsterId: string) {
+    setSelectedDeleteIds((current) =>
+      current.includes(hamsterId) ? current.filter((id) => id !== hamsterId) : [...current, hamsterId]
+    );
+  }
+
+  function handleBulkDeleteSubmit(event: FormEvent<HTMLFormElement>) {
+    if (selectedDeleteIds.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!window.confirm(`${selectedDeleteIds.length}件のハムスターを削除します。本当に削除してもよろしいですか？`)) {
+      event.preventDefault();
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -77,6 +112,7 @@ export function HamsterList({
             onChange={(event) => {
               setSortTarget(event.currentTarget.value as SortTarget);
               setCurrentPageNumber(1);
+              resetDeleteSelection();
             }}
           >
             <option value="registered">登録順</option>
@@ -90,6 +126,7 @@ export function HamsterList({
             onChange={(event) => {
               setSortDirection(event.currentTarget.value as SortDirection);
               setCurrentPageNumber(1);
+              resetDeleteSelection();
             }}
           >
             <option value="asc">昇順</option>
@@ -106,6 +143,7 @@ export function HamsterList({
               onChange={(event) => {
                 setSearchTerm(event.currentTarget.value);
                 setCurrentPageNumber(1);
+                resetDeleteSelection();
               }}
               className="pl-9"
               placeholder="ハムスター名で検索"
@@ -119,6 +157,50 @@ export function HamsterList({
         {filteredHamsters.length > 0 ? ` ${firstVisibleNumber} - ${lastVisibleNumber} 件を表示しています。` : ""}
       </p>
 
+      {filteredHamsters.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          {isDeleteMode ? (
+            <>
+              <p className="text-sm text-slate-600">{selectedDeleteIds.length} 件選択中</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleDeleteModeCancel}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  キャンセル
+                </button>
+                <form action={deleteHamsters} onSubmit={handleBulkDeleteSubmit}>
+                  {selectedDeleteIds.map((id) => (
+                    <input key={id} type="hidden" name="ids" value={id} />
+                  ))}
+                  <button
+                    type="submit"
+                    disabled={selectedDeleteIds.length === 0}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                    削除
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600">削除する場合は削除モードに切り替えて選択します。</p>
+              <button
+                type="button"
+                onClick={handleDeleteModeStart}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                削除
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+
       {filteredHamsters.length === 0 ? (
         <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
           条件に一致するハムスターはいません。
@@ -131,6 +213,16 @@ export function HamsterList({
             return (
               <article key={hamster.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {isDeleteMode ? (
+                    <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedDeleteIdSet.has(hamster.id)}
+                        onChange={() => handleDeleteTargetToggle(hamster.id)}
+                      />
+                      削除対象
+                    </label>
+                  ) : null}
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${
                       hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
@@ -180,16 +272,6 @@ export function HamsterList({
                         {isLocked ? "管理中に戻す" : "管理外にする"}
                       </button>
                     </form>
-                    <form action={deleteHamster} className="flex items-end">
-                      <input type="hidden" name="id" value={hamster.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                        削除
-                      </button>
-                    </form>
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
@@ -205,7 +287,10 @@ export function HamsterList({
           <button
             type="button"
             disabled={currentPage === 1}
-            onClick={() => setCurrentPageNumber(1)}
+            onClick={() => {
+              setCurrentPageNumber(1);
+              resetDeleteSelection();
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             <ChevronsLeft className="h-4 w-4" aria-hidden />
@@ -214,7 +299,10 @@ export function HamsterList({
           <button
             type="button"
             disabled={currentPage === 1}
-            onClick={() => setCurrentPageNumber(currentPage - 1)}
+            onClick={() => {
+              setCurrentPageNumber(currentPage - 1);
+              resetDeleteSelection();
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -226,7 +314,10 @@ export function HamsterList({
           <button
             type="button"
             disabled={currentPage === totalPages}
-            onClick={() => setCurrentPageNumber(currentPage + 1)}
+            onClick={() => {
+              setCurrentPageNumber(currentPage + 1);
+              resetDeleteSelection();
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             次へ
@@ -235,7 +326,10 @@ export function HamsterList({
           <button
             type="button"
             disabled={currentPage === totalPages}
-            onClick={() => setCurrentPageNumber(totalPages)}
+            onClick={() => {
+              setCurrentPageNumber(totalPages);
+              resetDeleteSelection();
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
           >
             最後へ

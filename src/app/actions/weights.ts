@@ -7,6 +7,7 @@ import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date"
 import { prisma } from "@/lib/prisma";
 import {
   createWeightRecordSchema,
+  deleteWeightRecordsSchema,
   deleteWeightRecordSchema,
   updateWeightRecordSchema
 } from "@/lib/schemas";
@@ -261,6 +262,44 @@ export async function deleteWeightRecord(formData: FormData) {
 
   await prisma.weightRecord.delete({
     where: { id: result.data.id }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/weights");
+  weightRedirect(result.data.hamsterId, "deleted", historyFilter);
+}
+
+export async function deleteWeightRecords(formData: FormData) {
+  const result = deleteWeightRecordsSchema.safeParse({
+    ids: formData.getAll("ids"),
+    hamsterId: formData.get("hamsterId")
+  });
+
+  if (!result.success) {
+    redirect("/weights?status=invalid");
+  }
+
+  const historyFilter = getWeightHistoryFilter(formData);
+
+  await ensureHamsterIsActive(result.data.hamsterId, historyFilter);
+
+  // 選択中のハムスターに紐づく体重履歴だけを削除対象にし、別ハムスターのID混入を弾く。
+  const targetCount = await prisma.weightRecord.count({
+    where: {
+      id: { in: result.data.ids },
+      hamsterId: result.data.hamsterId
+    }
+  });
+
+  if (targetCount !== result.data.ids.length) {
+    redirect("/weights?status=invalid");
+  }
+
+  await prisma.weightRecord.deleteMany({
+    where: {
+      id: { in: result.data.ids },
+      hamsterId: result.data.hamsterId
+    }
   });
 
   revalidatePath("/");

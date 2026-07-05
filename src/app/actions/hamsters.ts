@@ -7,6 +7,7 @@ import type { ZodIssue } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
   createHamsterSchema,
+  deleteHamstersSchema,
   deleteHamsterSchema,
   updateHamsterActiveStatusSchema,
   updateHamsterSchema
@@ -122,5 +123,39 @@ export async function deleteHamster(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/hamsters");
+  redirect("/hamsters?status=deleted");
+}
+
+export async function deleteHamsters(formData: FormData) {
+  const result = deleteHamstersSchema.safeParse({
+    ids: formData.getAll("ids")
+  });
+
+  if (!result.success) {
+    redirect("/hamsters?status=invalid");
+  }
+
+  // 送信されたIDの一部だけが存在する場合に、意図しない部分削除にならないよう全件一致を確認する。
+  const targetCount = await prisma.hamster.count({
+    where: {
+      id: { in: result.data.ids }
+    }
+  });
+
+  if (targetCount !== result.data.ids.length) {
+    redirect("/hamsters?status=invalid");
+  }
+
+  await prisma.hamster.deleteMany({
+    where: {
+      id: { in: result.data.ids }
+    }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/hamsters");
+  revalidatePath("/cleaning");
+  revalidatePath("/weights");
+  revalidatePath("/settings");
   redirect("/hamsters?status=deleted");
 }

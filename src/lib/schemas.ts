@@ -54,6 +54,10 @@ export const deleteHamsterSchema = z.object({
   id: idSchema
 });
 
+export const deleteHamstersSchema = z.object({
+  ids: z.array(idSchema).min(1)
+});
+
 export const updateHamsterActiveStatusSchema = z.object({
   id: idSchema,
   isActive: z.enum(["true", "false"]).transform((value) => value === "true")
@@ -71,6 +75,11 @@ export const updateWeightRecordSchema = createWeightRecordSchema.extend({
 
 export const deleteWeightRecordSchema = z.object({
   id: idSchema,
+  hamsterId: idSchema
+});
+
+export const deleteWeightRecordsSchema = z.object({
+  ids: z.array(idSchema).min(1),
   hamsterId: idSchema
 });
 

@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Upload } from "lucide-react";
 
-import { createWeightRecord, deleteWeightRecord, updateWeightRecord } from "@/app/actions/weights";
+import { createWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
+import { WeightHistoryList } from "@/components/weight-history-list";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getWeightPageData } from "@/lib/queries";
 
@@ -314,72 +315,32 @@ export default async function WeightsPage({
                 選択した月の体重記録はありません。
               </div>
             ) : (
-              <div className="grid gap-3">
-                {records.map((record) => (
-                  <article key={record.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                      <form action={updateWeightRecord} className="grid gap-3 md:grid-cols-[180px_160px_auto]">
-                        <input type="hidden" name="id" value={record.id} />
-                        <input type="hidden" name="hamsterId" value={selectedHamster.id} />
-                        <input type="hidden" name="filter" value={filterMode} />
-                        {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
-                        <input type="hidden" name="sort" value={sortTarget} />
-                        <input type="hidden" name="direction" value={sortDirection} />
-                        <input type="hidden" name="page" value={pagination.currentPage} />
-                        {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
-                        <label className="grid gap-1 text-sm font-medium text-slate-700">
-                          日付
-                          <input
-                            type="date"
-                            name="recordDate"
-                            defaultValue={toDateInputValue(record.recordDate)}
-                            max={today}
-                            disabled={isLocked}
-                          />
-                        </label>
-                        <label className="grid gap-1 text-sm font-medium text-slate-700">
-                          体重(g)
-                          <input
-                            type="number"
-                            name="weightG"
-                            min="1"
-                            max="500"
-                            step="0.1"
-                            defaultValue={record.weightG}
-                            disabled={isLocked}
-                          />
-                        </label>
-                        <button
-                          type="submit"
-                          disabled={isLocked}
-                          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          <Save className="h-4 w-4" aria-hidden />
-                          保存
-                        </button>
-                      </form>
-                      <form action={deleteWeightRecord} className="flex items-end">
-                        <input type="hidden" name="id" value={record.id} />
-                        <input type="hidden" name="hamsterId" value={selectedHamster.id} />
-                        <input type="hidden" name="filter" value={filterMode} />
-                        {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
-                        <input type="hidden" name="sort" value={sortTarget} />
-                        <input type="hidden" name="direction" value={sortDirection} />
-                        <input type="hidden" name="page" value={pagination.currentPage} />
-                        {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
-                        <button
-                          type="submit"
-                          disabled={isLocked}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                          削除
-                        </button>
-                      </form>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <WeightHistoryList
+                // ページや絞り込み条件が変わったとき、前の削除選択が残らないように再生成する。
+                key={[
+                  selectedHamster.id,
+                  filterMode,
+                  selectedMonth,
+                  sortTarget,
+                  sortDirection,
+                  pagination.currentPage,
+                  records.map((record) => record.id).join(",")
+                ].join(":")}
+                records={records.map((record) => ({
+                  id: record.id,
+                  recordDate: toDateInputValue(record.recordDate),
+                  weightG: record.weightG
+                }))}
+                selectedHamsterId={selectedHamster.id}
+                filterMode={filterMode}
+                selectedMonth={selectedMonth}
+                sortTarget={sortTarget}
+                sortDirection={sortDirection}
+                currentPage={pagination.currentPage}
+                includeInactive={includeInactive}
+                today={today}
+                isLocked={isLocked}
+              />
             )}
             {hasWeightRecords && pagination.totalPages > 1 ? (
               <nav className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label="体重履歴のページ移動">
