@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
-import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth } from "@/lib/date";
+import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth, todayInputJst } from "@/lib/date";
 import { getCleaningPageData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +37,7 @@ export default async function CleaningPage({
   const hasSelectableHamsters = selectableHamsters.length > 0;
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
+  const today = todayInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
 
   return (
@@ -119,10 +120,21 @@ export default async function CleaningPage({
                         // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
                         const isFuture = isFutureDateInput(day.date);
                         const isDisabled = isFuture || isLocked;
+                        const isToday = day.date === today;
 
                         return (
-                          <tr key={day.date} className={isDisabled ? "bg-slate-50 text-slate-400" : undefined}>
-                            <td className="font-semibold text-slate-700">{day.day}</td>
+                          <tr
+                            key={day.date}
+                            className={isToday ? "bg-straw/20" : isDisabled ? "bg-slate-50 text-slate-400" : undefined}
+                          >
+                            <td className={isToday ? "font-semibold text-ink" : "font-semibold text-slate-700"}>
+                              <div className="flex items-center gap-2">
+                                <span>{day.day}</span>
+                                {isToday ? (
+                                  <span className="rounded-md bg-straw/60 px-2 py-0.5 text-xs font-semibold text-ink">今日</span>
+                                ) : null}
+                              </div>
+                            </td>
                             <td className="text-slate-500">{day.weekday}</td>
                             <td className="checkbox-cell">
                               <input
@@ -207,12 +219,17 @@ export default async function CleaningPage({
                     // スマホ表示でもPC表と同じく、未来日と管理外ハムスターは入力できない状態にする。
                     const isFuture = isFutureDateInput(day.date);
                     const isDisabled = isFuture || isLocked;
+                    const isToday = day.date === today;
 
                     return (
                       <section
                         key={day.date}
-                        className={`rounded-md border border-slate-200 bg-white p-4 shadow-sm ${
-                          isDisabled ? "bg-slate-50 text-slate-400" : ""
+                        className={`rounded-md border p-4 shadow-sm ${
+                          isToday
+                            ? "border-straw bg-straw/15"
+                            : isDisabled
+                              ? "border-slate-200 bg-slate-50 text-slate-400"
+                              : "border-slate-200 bg-white"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -220,9 +237,14 @@ export default async function CleaningPage({
                             <p className="text-base font-bold text-ink">{day.day}日</p>
                             <p className="text-xs text-slate-500">{day.weekday}曜日</p>
                           </div>
-                          {isFuture ? (
-                            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">未来日</span>
-                          ) : null}
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {isToday ? (
+                              <span className="rounded-md bg-straw/70 px-2 py-1 text-xs font-semibold text-ink">今日</span>
+                            ) : null}
+                            {isFuture ? (
+                              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">未来日</span>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div className="mt-4 grid gap-2 min-[380px]:grid-cols-2">
