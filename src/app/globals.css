@@ -144,6 +144,20 @@ a {
   background: #fbfaf7;
 }
 
-.checkbox-cell {
+.data-table .date-cell,
+.data-table .weekday-cell {
+  width: 5rem;
+  min-width: 5rem;
   text-align: center;
+}
+
+.data-table .checkbox-cell {
+  width: 7rem;
+  min-width: 7rem;
+  text-align: center;
+}
+
+.data-table .memo-cell {
+  min-width: 18rem;
+  text-align: left;
 }

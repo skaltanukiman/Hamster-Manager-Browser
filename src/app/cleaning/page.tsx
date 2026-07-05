@@ -104,14 +104,14 @@ export default async function CleaningPage({
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th className="w-24">日付</th>
-                        <th className="w-24">曜日</th>
+                        <th className="date-cell">日付</th>
+                        <th className="weekday-cell">曜日</th>
                         <th className="checkbox-cell">トイレ掃除</th>
                         <th className="checkbox-cell">砂場掃除</th>
                         <th className="checkbox-cell">床材一部交換</th>
                         <th className="checkbox-cell">床材全交換</th>
                         <th className="checkbox-cell">ハウス掃除</th>
-                        <th className="min-w-64">メモ</th>
+                        <th className="memo-cell">メモ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -127,15 +127,15 @@ export default async function CleaningPage({
                             key={day.date}
                             className={isToday ? "bg-straw/20" : isDisabled ? "bg-slate-50 text-slate-400" : undefined}
                           >
-                            <td className={isToday ? "font-semibold text-ink" : "font-semibold text-slate-700"}>
-                              <div className="flex items-center gap-2">
+                            <td className={`date-cell ${isToday ? "font-semibold text-ink" : "font-semibold text-slate-700"}`}>
+                              <div className="flex items-center justify-center gap-2">
                                 <span>{day.day}</span>
                                 {isToday ? (
                                   <span className="rounded-md bg-straw/60 px-2 py-0.5 text-xs font-semibold text-ink">今日</span>
                                 ) : null}
                               </div>
                             </td>
-                            <td className="text-slate-500">{day.weekday}</td>
+                            <td className="weekday-cell text-slate-500">{day.weekday}</td>
                             <td className="checkbox-cell">
                               <input
                                 aria-label={`${day.date} トイレ掃除`}
@@ -181,7 +181,7 @@ export default async function CleaningPage({
                                 disabled={isDisabled}
                               />
                             </td>
-                            <td>
+                            <td className="memo-cell">
                               <input
                                 name={`memo_${day.date}`}
                                 defaultValue={record?.memo ?? ""}
