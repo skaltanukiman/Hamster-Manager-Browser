@@ -9,6 +9,11 @@ import { getDashboardData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
+const DASHBOARD_VALUE_CLASS =
+  "inline-flex h-8 min-w-28 items-center justify-end rounded-md border border-slate-200 bg-white px-2.5 text-right text-sm font-bold text-ink shadow-sm";
+const DASHBOARD_EMPTY_VALUE_CLASS =
+  "inline-flex h-8 min-w-28 items-center justify-end rounded-md border border-slate-200 bg-white px-2.5 text-right text-sm font-semibold text-slate-500 shadow-sm";
+
 export default async function DashboardPage() {
   const { hamsters, boardCount, totalHamsters } = await getDashboardData();
   // 表示数制限で非表示になったハムスターがいる場合だけ、設定画面への誘導文を出す。
@@ -83,8 +88,10 @@ export default async function DashboardPage() {
                         <Scale className="h-4 w-4 text-persimmon" aria-hidden />
                         最新体重
                       </dt>
-                      <dd className="text-sm text-ink">
-                        {latestWeight ? <span className="font-bold">{latestWeight.weightG.toFixed(1)}g</span> : "未記録"}
+                      <dd className="text-right text-sm">
+                        <span className={latestWeight ? DASHBOARD_VALUE_CLASS : DASHBOARD_EMPTY_VALUE_CLASS}>
+                          {latestWeight ? `${latestWeight.weightG.toFixed(1)}g` : "未記録"}
+                        </span>
                       </dd>
                     </div>
                     {cleaningItems.map((item) => {
@@ -107,7 +114,7 @@ export default async function DashboardPage() {
                                 taskLabel={item.label}
                               />
                             ) : (
-                              "未記録"
+                              <span className={DASHBOARD_EMPTY_VALUE_CLASS}>未記録</span>
                             )}
                           </dd>
                         </div>

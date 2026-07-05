@@ -47,7 +47,7 @@ export function CleaningDateToggle({ dateLabel, elapsedLabel, taskLabel }: Clean
     <button
       type="button"
       aria-label={`${taskLabel}の表示を${nextLabel}に切り替え`}
-      className="group relative inline-flex min-w-28 cursor-pointer items-center justify-end gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-right text-sm font-bold text-ink shadow-sm transition hover:border-moss hover:bg-moss/5 focus:outline-none focus:ring-2 focus:ring-moss/40"
+      className="group relative inline-flex h-8 min-w-28 cursor-pointer items-center justify-end gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-right text-sm font-bold text-ink shadow-sm transition hover:border-moss hover:bg-moss/5 focus:outline-none focus:ring-2 focus:ring-moss/40"
       onClick={handleToggle}
     >
       {/* 初期表示は経過日数にし、クリック/タッチで日付と交互に切り替える。 */}
