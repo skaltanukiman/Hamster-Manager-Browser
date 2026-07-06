@@ -4,6 +4,7 @@ import { saveCleaningMonth } from "@/app/actions/cleaning";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
+import { MobileDirtySaveArea } from "@/components/mobile-dirty-save-area";
 import { StatusMessage } from "@/components/status-message";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth, todayInputJst } from "@/lib/date";
@@ -203,11 +204,12 @@ export default async function CleaningPage({
                 </div>
               </form>
 
-                <form action={saveCleaningMonth} data-dirty-watch className="space-y-4 md:hidden">
+                <form id="cleaning-mobile-form" action={saveCleaningMonth} data-dirty-watch className="space-y-4 md:hidden">
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                 <input type="hidden" name="yearMonth" value={yearMonth} />
                 {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
 
+                <MobileDirtySaveArea disabled={isLocked} formId="cleaning-mobile-form">
                 <div className="grid gap-3">
                   {days.map((day) => {
                     const record = recordsByDate.get(day.date);
@@ -308,17 +310,7 @@ export default async function CleaningPage({
                     );
                   })}
                 </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isLocked}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    <Save className="h-4 w-4" aria-hidden />
-                    保存
-                  </button>
-                </div>
+                </MobileDirtySaveArea>
                 </form>
               </div>
             </UnsavedChangesGuard>
