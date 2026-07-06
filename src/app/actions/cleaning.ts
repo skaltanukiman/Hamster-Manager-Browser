@@ -3,9 +3,29 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getDaysInMonth, isFutureDateInput, parseDateInput } from "@/lib/date";
+import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { cleaningMonthSchema } from "@/lib/schemas";
+
+type CleaningDayData = {
+  toiletCleaned: boolean;
+  bathCleaned: boolean;
+  flooringPartCleaned: boolean;
+  flooringAllCleaned: boolean;
+  houseCleaned: boolean;
+  memo: string | null;
+};
+
+function isSameCleaningData(existing: CleaningDayData, submitted: CleaningDayData) {
+  return (
+    existing.toiletCleaned === submitted.toiletCleaned &&
+    existing.bathCleaned === submitted.bathCleaned &&
+    existing.flooringPartCleaned === submitted.flooringPartCleaned &&
+    existing.flooringAllCleaned === submitted.flooringAllCleaned &&
+    existing.houseCleaned === submitted.houseCleaned &&
+    existing.memo === submitted.memo
+  );
+}
 
 function getText(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -82,7 +102,7 @@ export async function saveCleaningMonth(formData: FormData) {
     cleaningRedirect(hamsterId, yearMonth, "future", includeInactive);
   }
 
-  const operations = editableDays.map((day) => {
+  const submittedDays = editableDays.map((day) => {
     const memo = getText(formData, `memo_${day.date}`) || null;
     const data = {
       toiletCleaned: getChecked(formData, `toilet_${day.date}`),
@@ -101,34 +121,82 @@ export async function saveCleaningMonth(formData: FormData) {
       data.houseCleaned ||
       Boolean(memo);
 
-    const recordDate = parseDateInput(day.date);
+    return {
+      date: day.date,
+      recordDate: parseDateInput(day.date),
+      data,
+      hasRecord
+    };
+  });
 
-    if (!hasRecord) {
+  const existingRecords = await prisma.cleaningRecord.findMany({
+    where: {
+      hamsterId,
+      recordDate: {
+        in: submittedDays.map((day) => day.recordDate)
+      }
+    },
+    select: {
+      id: true,
+      recordDate: true,
+      toiletCleaned: true,
+      bathCleaned: true,
+      flooringPartCleaned: true,
+      flooringAllCleaned: true,
+      houseCleaned: true,
+      memo: true
+    }
+  });
+  const existingByDate = new Map(existingRecords.map((record) => [toDateInputValue(record.recordDate), record]));
+
+  const operations = submittedDays.flatMap((day) => {
+    const existing = existingByDate.get(day.date);
+
+    if (!day.hasRecord) {
+      if (!existing) {
+        return [];
+      }
+
       // チェックもメモも空になった日は、空レコードを残さず未記録として扱う。
-      return prisma.cleaningRecord.deleteMany({
-        where: {
-          hamsterId,
-          recordDate
-        }
-      });
+      return [
+        prisma.cleaningRecord.delete({
+          where: {
+            id: existing.id
+          }
+        })
+      ];
     }
 
-    // ハムスターごとに1日1レコードへ集約するため、同じ日の入力は作成または更新で保存する。
-    return prisma.cleaningRecord.upsert({
-      where: {
-        hamsterId_recordDate: {
-          hamsterId,
-          recordDate
-        }
-      },
-      update: data,
-      create: {
-        hamsterId,
-        recordDate,
-        ...data
+    if (existing) {
+      if (isSameCleaningData(existing, day.data)) {
+        return [];
       }
-    });
+
+      return [
+        prisma.cleaningRecord.update({
+          where: {
+            id: existing.id
+          },
+          data: day.data
+        })
+      ];
+    }
+
+    // ハムスターごとに1日1レコードへ集約し、入力がある日だけ新規作成する。
+    return [
+      prisma.cleaningRecord.create({
+        data: {
+          hamsterId,
+          recordDate: day.recordDate,
+          ...day.data
+        }
+      })
+    ];
   });
+
+  if (operations.length === 0) {
+    cleaningRedirect(hamsterId, yearMonth, "unchanged", includeInactive);
+  }
 
   // 月の表全体を一括保存するため、日別の作成・更新・削除を同一トランザクションで確定する。
   await prisma.$transaction(operations);

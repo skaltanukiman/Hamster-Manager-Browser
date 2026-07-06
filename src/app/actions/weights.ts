@@ -147,6 +147,8 @@ async function getEditableWeightRecord(recordId: string, hamsterId: string, hist
     select: {
       id: true,
       hamsterId: true,
+      recordDate: true,
+      weightG: true,
       hamster: {
         select: {
           isActive: true
@@ -226,9 +228,13 @@ export async function updateWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
-  await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
-
+  const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
   const recordDate = parseDateInput(result.data.recordDate);
+
+  if (toDateInputValue(record.recordDate) === result.data.recordDate && record.weightG === result.data.weightG) {
+    weightRedirect(result.data.hamsterId, "unchanged", historyFilter);
+  }
+
   let status = "updated";
 
   // 編集で日付を移動した先に既存レコードがある場合は、DBの一意制約に任せて重複エラーとして返す。

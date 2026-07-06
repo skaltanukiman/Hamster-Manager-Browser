@@ -3,6 +3,7 @@ const messages: Record<string, string> = {
   updated: "更新しました。",
   deleted: "削除しました。",
   saved: "保存しました。",
+  unchanged: "変更はありません。",
   invalid: "入力内容を確認してください。",
   duplicate: "同じ日付の記録が既にあります。",
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
@@ -29,13 +30,15 @@ export function StatusMessage({ status }: { status?: string }) {
     status === "dashboardSelectionRequired" ||
     status === "future" ||
     status === "locked";
+  const isInfo = status === "unchanged";
+  const colorClass = isError
+    ? "border-red-200 bg-red-50 text-red-700"
+    : isInfo
+      ? "border-slate-200 bg-slate-50 text-slate-700"
+      : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
   return (
-    <p
-      className={`rounded-md border px-4 py-3 text-sm ${
-        isError ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
-      }`}
-    >
+    <p className={`rounded-md border px-4 py-3 text-sm ${colorClass}`}>
       {messages[status]}
     </p>
   );
