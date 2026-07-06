@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { deleteWeightRecords, updateWeightRecord } from "@/app/actions/weights";
+import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { SelectionActionBar } from "@/components/selection-action-bar";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 
@@ -147,14 +148,13 @@ export function WeightHistoryList({
                   disabled={isLocked}
                 />
               </label>
-              <button
-                type="submit"
+              <DirtySubmitButton
                 disabled={isLocked}
                 className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <Save className="h-4 w-4" aria-hidden />
                 保存
-              </button>
+              </DirtySubmitButton>
             </form>
           </article>
         ))}

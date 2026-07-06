@@ -1,9 +1,10 @@
 "use client";
 
 import { Save } from "lucide-react";
-import type { FormEvent, ReactNode } from "react";
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+
+import { useFormDirtyById } from "@/components/form-dirty-state";
 
 type MobileDirtySaveAreaProps = {
   children: ReactNode;
@@ -12,22 +13,7 @@ type MobileDirtySaveAreaProps = {
 };
 
 export function MobileDirtySaveArea({ children, disabled = false, formId }: MobileDirtySaveAreaProps) {
-  const [isDirty, setIsDirty] = useState(false);
-
-  function handleChangeCapture(event: FormEvent<HTMLDivElement>) {
-    const target = event.target;
-
-    if (
-      disabled ||
-      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) ||
-      target.type === "hidden" ||
-      target.disabled
-    ) {
-      return;
-    }
-
-    setIsDirty(true);
-  }
+  const isDirty = useFormDirtyById(formId, disabled);
 
   const fixedSaveButton =
     isDirty && !disabled ? (
@@ -45,7 +31,7 @@ export function MobileDirtySaveArea({ children, disabled = false, formId }: Mobi
     ) : null;
 
   return (
-    <div className="space-y-4" onChangeCapture={handleChangeCapture}>
+    <div className="space-y-4">
       {children}
 
       {typeof document !== "undefined" && fixedSaveButton ? createPortal(fixedSaveButton, document.body) : null}

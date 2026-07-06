@@ -13,6 +13,14 @@ import {
   updateHamsterSchema
 } from "@/lib/schemas";
 
+function isSameNullableDate(first: Date | null, second: Date | null) {
+  if (first === null || second === null) {
+    return first === second;
+  }
+
+  return first.getTime() === second.getTime();
+}
+
 // maxLengthをすり抜けて送信された場合でも、文字数超過は項目別のメッセージに分ける。
 function hamsterValidationStatus(issues: ZodIssue[]) {
   if (issues.some((issue) => issue.path[0] === "name" && issue.code === "too_big")) {
@@ -63,7 +71,13 @@ export async function updateHamster(formData: FormData) {
   let status = "updated";
   const hamster = await prisma.hamster.findUnique({
     where: { id },
-    select: { isActive: true }
+    select: {
+      name: true,
+      memo: true,
+      birthDate: true,
+      adoptionDate: true,
+      isActive: true
+    }
   });
 
   if (!hamster) {
@@ -73,6 +87,15 @@ export async function updateHamster(formData: FormData) {
   // 管理外のハムスターはプロフィールも含めてロックし、復活後だけ編集できるようにする。
   if (!hamster.isActive) {
     redirect("/hamsters?status=locked");
+  }
+
+  if (
+    hamster.name === data.name &&
+    hamster.memo === data.memo &&
+    isSameNullableDate(hamster.birthDate, data.birthDate) &&
+    isSameNullableDate(hamster.adoptionDate, data.adoptionDate)
+  ) {
+    redirect("/hamsters?status=unchanged");
   }
 
   // 名前変更でも同名の別ハムスターと衝突する可能性があるため、登録時と同じ重複エラーを返す。

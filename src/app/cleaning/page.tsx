@@ -2,6 +2,7 @@ import { Save } from "lucide-react";
 
 import { saveCleaningMonth } from "@/app/actions/cleaning";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
+import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { MobileDirtySaveArea } from "@/components/mobile-dirty-save-area";
@@ -193,14 +194,13 @@ export default async function CleaningPage({
                 </div>
 
                 <div className="flex justify-end">
-                  <button
-                    type="submit"
+                  <DirtySubmitButton
                     disabled={isLocked}
                     className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     <Save className="h-4 w-4" aria-hidden />
                     保存
-                  </button>
+                  </DirtySubmitButton>
                 </div>
               </form>
 
