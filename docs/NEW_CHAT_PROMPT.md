@@ -1,7 +1,5 @@
 # New Chat Prompt
 
-以下を新しい Codex チャットの最初に貼り付けてください。
-
 ```text
 Hamster Manager Browser の続きの作業をお願いします。
 
