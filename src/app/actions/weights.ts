@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
@@ -126,13 +127,18 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: Weight
   redirect(`/weights?${params.toString()}`);
 }
 
-async function ensureHamsterIsActive(hamsterId: string, historyFilter: WeightHistoryFilter = {}) {
+async function ensureHamsterIsActive(hamsterId: string, householdId: string, historyFilter: WeightHistoryFilter = {}) {
   const hamster = await prisma.hamster.findUnique({
     where: { id: hamsterId },
-    select: { isActive: true }
+    select: { householdId: true, isActive: true }
   });
 
   if (!hamster) {
+    redirect("/weights?status=invalid");
+  }
+
+  // 体重登録はhamsterIdだけで届くため、所属家庭を照合して横取り更新を防ぐ。
+  if (hamster.householdId !== householdId) {
     redirect("/weights?status=invalid");
   }
 
@@ -141,7 +147,12 @@ async function ensureHamsterIsActive(hamsterId: string, historyFilter: WeightHis
   }
 }
 
-async function getEditableWeightRecord(recordId: string, hamsterId: string, historyFilter: WeightHistoryFilter = {}) {
+async function getEditableWeightRecord(
+  recordId: string,
+  hamsterId: string,
+  householdId: string,
+  historyFilter: WeightHistoryFilter = {}
+) {
   const record = await prisma.weightRecord.findUnique({
     where: { id: recordId },
     select: {
@@ -151,13 +162,14 @@ async function getEditableWeightRecord(recordId: string, hamsterId: string, hist
       weightG: true,
       hamster: {
         select: {
+          householdId: true,
           isActive: true
         }
       }
     }
   });
 
-  if (!record || record.hamsterId !== hamsterId) {
+  if (!record || record.hamsterId !== hamsterId || record.hamster.householdId !== householdId) {
     redirect("/weights?status=invalid");
   }
 
@@ -170,6 +182,7 @@ async function getEditableWeightRecord(recordId: string, hamsterId: string, hist
 }
 
 export async function createWeightRecord(formData: FormData) {
+  const context = await getRequiredHouseholdContext();
   const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -182,7 +195,7 @@ export async function createWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
-  await ensureHamsterIsActive(result.data.hamsterId, historyFilter);
+  await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
 
   const recordDate = parseDateInput(result.data.recordDate);
 
@@ -220,6 +233,7 @@ export async function createWeightRecord(formData: FormData) {
 }
 
 export async function updateWeightRecord(formData: FormData) {
+  const context = await getRequiredHouseholdContext();
   const result = updateWeightRecordSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -232,7 +246,7 @@ export async function updateWeightRecord(formData: FormData) {
     weightRedirect(result.data.hamsterId, "future", historyFilter);
   }
 
-  const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
+  const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
   const recordDate = parseDateInput(result.data.recordDate);
 
   if (toDateInputValue(record.recordDate) === result.data.recordDate && record.weightG === result.data.weightG) {
@@ -260,6 +274,7 @@ export async function updateWeightRecord(formData: FormData) {
 }
 
 export async function deleteWeightRecord(formData: FormData) {
+  const context = await getRequiredHouseholdContext();
   const result = deleteWeightRecordSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -268,7 +283,7 @@ export async function deleteWeightRecord(formData: FormData) {
 
   const historyFilter = getWeightHistoryFilter(formData);
 
-  await getEditableWeightRecord(result.data.id, result.data.hamsterId, historyFilter);
+  await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
 
   await prisma.weightRecord.delete({
     where: { id: result.data.id }
@@ -280,6 +295,7 @@ export async function deleteWeightRecord(formData: FormData) {
 }
 
 export async function deleteWeightRecords(formData: FormData) {
+  const context = await getRequiredHouseholdContext();
   const result = deleteWeightRecordsSchema.safeParse({
     ids: formData.getAll("ids"),
     hamsterId: formData.get("hamsterId")
@@ -291,7 +307,7 @@ export async function deleteWeightRecords(formData: FormData) {
 
   const historyFilter = getWeightHistoryFilter(formData);
 
-  await ensureHamsterIsActive(result.data.hamsterId, historyFilter);
+  await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
 
   // 選択中のハムスターに紐づく体重履歴だけを削除対象にし、別ハムスターのID混入を弾く。
   const targetCount = await prisma.weightRecord.count({
@@ -321,6 +337,7 @@ export async function importWeightRecordsCsv(
   _previousState: WeightCsvImportState,
   formData: FormData
 ): Promise<WeightCsvImportState> {
+  const context = await getRequiredHouseholdContext();
   const csvFile = formData.get("csvFile");
 
   if (!(csvFile instanceof File) || csvFile.size === 0) {
@@ -341,6 +358,7 @@ export async function importWeightRecordsCsv(
   }
 
   const hamsters = await prisma.hamster.findMany({
+    where: { householdId: context.household.id },
     select: {
       id: true,
       name: true,

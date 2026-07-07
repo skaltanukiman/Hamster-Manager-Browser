@@ -1,5 +1,5 @@
-// アプリ全体で共有する設定は、ユーザー別ではなく固定IDの1レコードとして扱う。
-export const APP_SETTING_ID = "default";
+// 認証導入前の固定設定ID。既存データ移行スクリプトで旧設定を読み取るために残す。
+export const LEGACY_APP_SETTING_ID = "default";
 export const DEFAULT_DASHBOARD_BOARD_COUNT = 6;
 export const MIN_DASHBOARD_BOARD_COUNT = 1;
 export const MAX_DASHBOARD_BOARD_COUNT = 30;

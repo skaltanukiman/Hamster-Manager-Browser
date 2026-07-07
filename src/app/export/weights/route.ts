@@ -1,17 +1,23 @@
 import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { toCsv } from "@/lib/csv";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
-import { toCsv } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const context = await getRequiredHouseholdContext();
   const searchParams = request.nextUrl.searchParams;
   const hamsterId = searchParams.get("hamsterId") || undefined;
   const month = searchParams.get("month") || undefined;
-  const where: Prisma.WeightRecordWhereInput = {};
+  const where: Prisma.WeightRecordWhereInput = {
+    hamster: {
+      householdId: context.household.id
+    }
+  };
 
   // CSVエクスポートは画面と同じ絞り込み条件を受け取り、指定がなければ全ハムスター・全期間を対象にする。
   if (hamsterId) {

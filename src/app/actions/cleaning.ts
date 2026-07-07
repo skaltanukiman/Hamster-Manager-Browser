@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { cleaningMonthSchema } from "@/lib/schemas";
@@ -51,6 +52,7 @@ function cleaningRedirect(hamsterId: string, yearMonth: string, status: string, 
 }
 
 export async function saveCleaningMonth(formData: FormData) {
+  const context = await getRequiredHouseholdContext();
   const result = cleaningMonthSchema.safeParse(Object.fromEntries(formData));
   const includeInactive = formData.get("includeInactive") === "1";
 
@@ -61,10 +63,15 @@ export async function saveCleaningMonth(formData: FormData) {
   const { hamsterId, yearMonth } = result.data;
   const hamster = await prisma.hamster.findUnique({
     where: { id: hamsterId },
-    select: { isActive: true }
+    select: { householdId: true, isActive: true }
   });
 
   if (!hamster) {
+    redirect("/cleaning?status=invalid");
+  }
+
+  // 月次フォームは大量の行を保存するため、最初に対象ハムスターの所属家庭を必ず確認する。
+  if (hamster.householdId !== context.household.id) {
     redirect("/cleaning?status=invalid");
   }
 

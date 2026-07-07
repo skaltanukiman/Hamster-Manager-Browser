@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
-import { APP_SETTING_ID, normalizeDashboardBoardCount, normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { normalizeDashboardBoardCount, normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
 import { monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
@@ -32,9 +33,11 @@ function latestRecordByHamster<T extends { hamsterId: string }>(records: T[]) {
 }
 
 export async function getDashboardData() {
+  const context = await getRequiredHouseholdContext();
   const [hamsters, setting] = await Promise.all([
     // 一覧カードで使う最新体重だけを取得し、不要な体重履歴全体は読み込まない。
     prisma.hamster.findMany({
+      where: { householdId: context.household.id },
       orderBy: { createdAt: "asc" },
       include: {
         weightRecords: {
@@ -44,7 +47,12 @@ export async function getDashboardData() {
       }
     }),
     prisma.appSetting.findUnique({
-      where: { id: APP_SETTING_ID },
+      where: {
+        userId_householdId: {
+          userId: context.user.id,
+          householdId: context.household.id
+        }
+      },
       include: {
         dashboardHamsters: {
           orderBy: { sortOrder: "asc" }
@@ -107,7 +115,10 @@ export async function getDashboardData() {
 }
 
 export async function getHamsterManagementData() {
+  const context = await getRequiredHouseholdContext();
+
   return prisma.hamster.findMany({
+    where: { householdId: context.household.id },
     orderBy: { createdAt: "asc" },
     include: {
       _count: {
@@ -121,14 +132,23 @@ export async function getHamsterManagementData() {
 }
 
 export async function getHamsterOptions() {
+  const context = await getRequiredHouseholdContext();
+
   return prisma.hamster.findMany({
+    where: { householdId: context.household.id },
     orderBy: { createdAt: "asc" }
   });
 }
 
 export async function getHamsterSelectorMode() {
+  const context = await getRequiredHouseholdContext();
   const setting = await prisma.appSetting.findUnique({
-    where: { id: APP_SETTING_ID },
+    where: {
+      userId_householdId: {
+        userId: context.user.id,
+        householdId: context.household.id
+      }
+    },
     select: { hamsterSelectorMode: true }
   });
 
@@ -151,7 +171,23 @@ function pickSelectedHamster<T extends { id: string; isActive: boolean }>(
 }
 
 export async function getCleaningPageData(selectedHamsterId: string | undefined, yearMonth: string, includeInactive: boolean) {
-  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
+  const context = await getRequiredHouseholdContext();
+  const [hamsters, setting] = await Promise.all([
+    prisma.hamster.findMany({
+      where: { householdId: context.household.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.appSetting.findUnique({
+      where: {
+        userId_householdId: {
+          userId: context.user.id,
+          householdId: context.household.id
+        }
+      },
+      select: { hamsterSelectorMode: true }
+    })
+  ]);
+  const hamsterSelectorMode = normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
   // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
@@ -231,7 +267,23 @@ export async function getWeightPageData({
   sortDirection: SortDirection;
   includeInactive: boolean;
 }) {
-  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
+  const context = await getRequiredHouseholdContext();
+  const [hamsters, setting] = await Promise.all([
+    prisma.hamster.findMany({
+      where: { householdId: context.household.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.appSetting.findUnique({
+      where: {
+        userId_householdId: {
+          userId: context.user.id,
+          householdId: context.household.id
+        }
+      },
+      select: { hamsterSelectorMode: true }
+    })
+  ]);
+  const hamsterSelectorMode = normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
   const selectableHamsters = getSelectableHamsters(hamsters, includeInactive);
   // 初期表示では自動選択せず、URLで明示されたハムスターだけを表示対象にする。
   const selectedHamster = pickSelectedHamster(selectableHamsters, selectedHamsterId);
@@ -301,8 +353,10 @@ export async function getWeightPageData({
 }
 
 export async function getDashboardSettingsPageData() {
+  const context = await getRequiredHouseholdContext();
   const [hamsters, setting] = await Promise.all([
     prisma.hamster.findMany({
+      where: { householdId: context.household.id },
       orderBy: { createdAt: "asc" },
       select: {
         id: true,
@@ -312,7 +366,12 @@ export async function getDashboardSettingsPageData() {
       }
     }),
     prisma.appSetting.findUnique({
-      where: { id: APP_SETTING_ID },
+      where: {
+        userId_householdId: {
+          userId: context.user.id,
+          householdId: context.household.id
+        }
+      },
       include: {
         dashboardHamsters: {
           orderBy: { sortOrder: "asc" }

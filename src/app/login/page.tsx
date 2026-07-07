@@ -1,0 +1,57 @@
+import { LogIn } from "lucide-react";
+
+import { signIn } from "@/auth";
+
+export const dynamic = "force-dynamic";
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function safeCallbackUrl(value: FormDataEntryValue | string | undefined | null) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  return value;
+}
+
+async function signInWithGoogle(formData: FormData) {
+  "use server";
+
+  await signIn("google", {
+    redirectTo: safeCallbackUrl(formData.get("callbackUrl"))
+  });
+}
+
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ callbackUrl?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const callbackUrl = safeCallbackUrl(getParam(params.callbackUrl));
+
+  return (
+    <div className="mx-auto flex min-h-[60vh] max-w-md items-center">
+      <section className="w-full rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wide text-persimmon">Hamster Manager</p>
+        <h2 className="mt-2 text-2xl font-bold text-ink">ログイン</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          ハムスター管理を利用するには Google アカウントでログインしてください。
+        </p>
+
+        <form action={signInWithGoogle} className="mt-6">
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
+          <button
+            type="submit"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90"
+          >
+            <LogIn className="h-4 w-4" aria-hidden />
+            Googleでログイン
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}

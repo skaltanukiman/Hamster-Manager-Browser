@@ -17,7 +17,12 @@ const messages: Record<string, string> = {
   dashboardLimitExceeded: "表示数を超えてハムスターを選択しています。",
   dashboardSelectionRequired: "表示対象のハムスター数を表示ボード数に合わせてください。",
   future: "未来日には記録できません。",
-  locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。"
+  locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。",
+  invitationCreated: "招待リンクを作成しました。",
+  joined: "家族共有に参加しました。",
+  forbidden: "この操作を実行する権限がありません。",
+  invitationExpired: "招待リンクの有効期限が切れています。",
+  invitationUsed: "この招待リンクは既に使用されています。"
 };
 
 const errorStatuses = new Set([
@@ -29,7 +34,10 @@ const errorStatuses = new Set([
   "dashboardLimitExceeded",
   "dashboardSelectionRequired",
   "future",
-  "locked"
+  "locked",
+  "forbidden",
+  "invitationExpired",
+  "invitationUsed"
 ]);
 
 const AUTO_DISMISS_MS = 3500;

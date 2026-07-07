@@ -17,18 +17,23 @@ C:\Users\sound\source\repos\Hamster-Manager-Browser
 - READMEだけ、コメントだけ、特定ファイルだけ、など範囲指定がある場合は、その範囲以外を変更しないでください。
 - UI文言は日本語にしてください。
 - スマホ実機での見え方、レスポンシブ崩れ、横はみ出し、固定ボタンの被りに注意してください。
+- 認証・認可やデータ取得を触る場合は、必ず現在の Household で絞り込み、Server Action / Route Handler 側でも権限確認してください。
 - 変更後は原則 npm.cmd run lint と npm.cmd run build を確認してください。
 - Docker反映を依頼した場合は、ENV_FILE=.env.development 相当で docker compose build app → docker compose up -d → docker compose ps まで確認してください。
 
 アプリ概要:
 - GAS / Googleスプレッドシートで管理していたハムスターの衛生管理・体重管理をWebアプリ化したものです。
-- Next.js / TypeScript / Prisma / PostgreSQL / Tailwind CSS / Recharts / Docker Compose 構成です。
+- Next.js / TypeScript / Prisma / PostgreSQL / Auth.js / Tailwind CSS / Recharts / Docker Compose 構成です。
 - SQLiteではなくPostgreSQL前提です。
 - Docker Composeのappコンテナは hamster-manager-web、dbコンテナは hamster-manager-db です。
 - appはホスト3001→コンテナ3000、dbは127.0.0.1:5433→コンテナ5432です。
 - 既存PM2アプリとは分離し、このアプリではPM2を使いません。
 
 現在の主な仕様:
+- Google OAuthログイン必須です。未ログイン時は /login へリダイレクトします。
+- データは Household 単位で分離します。初回ログイン時に個人用 Household を自動作成します。
+- /settings/members でメンバー一覧と招待リンク作成、/invitations/accept で家族参加ができます。
+- 既存データ移行が必要な場合は、Googleログイン後に npm run migrate:assign-owner -- --email example@gmail.com を使います。
 - ダッシュボードは設定画面で選んだハムスターカードを表示します。
 - 表示ボード数は1〜30件です。
 - 掃除項目はトイレ掃除、砂場掃除、床材全交換、ハウス掃除をカードに表示します。

@@ -9,8 +9,10 @@ datasource db {
 
 model Hamster {
   id              String           @id @default(cuid())
-  // 画面上ではハムスター名を識別子として扱うため、同名登録を避ける。
-  name            String           @unique
+  householdId     String?          @map("household_id")
+  household       Household?       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  // ハムスター名は家庭内だけで重複を避け、別家庭なら同名を許可する。
+  name            String
   memo            String?
   // カード表示にはまだ使わず、プロフィール情報として保存しておく日付。
   birthDate       DateTime?        @db.Date
@@ -23,6 +25,8 @@ model Hamster {
   weightRecords   WeightRecord[]
   dashboardEntries DashboardHamster[]
 
+  @@unique([householdId, name])
+  @@index([householdId])
   @@map("hamsters")
 }
 
@@ -62,8 +66,11 @@ model WeightRecord {
 }
 
 model AppSetting {
-  // 認証なしの個人運用アプリなので、設定は固定IDの1レコードに集約する。
-  id                  String             @id
+  id                  String             @id @default(cuid())
+  userId              String?            @map("user_id")
+  householdId         String?            @map("household_id")
+  user                User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household           Household?         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   dashboardBoardCount Int                @default(6)
   // ハムスター選択UIを、検索入力できるコンボボックス式か従来のプルダウン式かで切り替える。
   hamsterSelectorMode String             @default("combobox")
@@ -71,6 +78,7 @@ model AppSetting {
   updatedAt           DateTime           @updatedAt
   dashboardHamsters   DashboardHamster[]
 
+  @@unique([userId, householdId])
   @@map("app_settings")
 }
 
@@ -88,4 +96,105 @@ model DashboardHamster {
   @@unique([settingId, hamsterId])
   @@index([hamsterId])
   @@map("dashboard_hamsters")
+}
+
+model User {
+  id            String            @id @default(cuid())
+  name          String?
+  email         String?           @unique
+  emailVerified DateTime?         @map("email_verified")
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   HouseholdMember[]
+  appSettings   AppSetting[]
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Household {
+  id          String                  @id @default(cuid())
+  name        String
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  members     HouseholdMember[]
+  hamsters    Hamster[]
+  appSettings AppSetting[]
+  invitations HouseholdInvitation[]
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id          String        @id @default(cuid())
+  householdId String        @map("household_id")
+  userId      String        @map("user_id")
+  role        HouseholdRole @default(MEMBER)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, userId])
+  @@index([userId])
+  @@map("household_members")
+}
+
+model HouseholdInvitation {
+  id          String     @id @default(cuid())
+  householdId String     @map("household_id")
+  tokenHash   String     @unique @map("token_hash")
+  expiresAt   DateTime   @map("expires_at")
+  acceptedAt  DateTime?  @map("accepted_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@map("household_invitations")
+}
+
+enum HouseholdRole {
+  OWNER
+  ADMIN
+  MEMBER
 }

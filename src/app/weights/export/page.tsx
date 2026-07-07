@@ -18,7 +18,8 @@ export default async function WeightExportPage({
   searchParams: Promise<{ hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] }>;
 }) {
   const query = await searchParams;
-  const [hamsters, hamsterSelectorMode] = await Promise.all([getHamsterOptions(), getHamsterSelectorMode()]);
+  const hamsters = await getHamsterOptions();
+  const hamsterSelectorMode = await getHamsterSelectorMode();
   const selectedHamsterId = getParam(query.hamsterId) ?? "";
   const month = getParam(query.month) ?? "";
   const normalizedMonth = month ? normalizeYearMonth(month) : "";

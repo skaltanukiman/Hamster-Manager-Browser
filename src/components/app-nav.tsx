@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, Users } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/hamsters", label: "ハムスター", icon: PawPrint },
   { href: "/cleaning", label: "衛生管理", icon: ClipboardCheck },
   { href: "/weights", label: "体重管理", icon: LineChart },
-  { href: "/settings", label: "設定", icon: Settings }
+  { href: "/settings", label: "設定", icon: Settings },
+  { href: "/settings/members", label: "家族共有", icon: Users }
 ];
 
 export function AppNav() {
