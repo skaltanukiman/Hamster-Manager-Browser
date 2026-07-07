@@ -1,3 +1,8 @@
+"use client";
+
+import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+
 const messages: Record<string, string> = {
   created: "登録しました。",
   updated: "更新しました。",
@@ -15,21 +20,25 @@ const messages: Record<string, string> = {
   locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。"
 };
 
-export function StatusMessage({ status }: { status?: string }) {
-  if (!status || !messages[status]) {
-    return null;
-  }
+const errorStatuses = new Set([
+  "invalid",
+  "duplicate",
+  "hamsterDuplicate",
+  "hamsterNameTooLong",
+  "hamsterMemoTooLong",
+  "dashboardLimitExceeded",
+  "dashboardSelectionRequired",
+  "future",
+  "locked"
+]);
 
-  const isError =
-    status === "invalid" ||
-    status === "duplicate" ||
-    status === "hamsterDuplicate" ||
-    status === "hamsterNameTooLong" ||
-    status === "hamsterMemoTooLong" ||
-    status === "dashboardLimitExceeded" ||
-    status === "dashboardSelectionRequired" ||
-    status === "future" ||
-    status === "locked";
+const AUTO_DISMISS_MS = 3500;
+const LEAVE_ANIMATION_MS = 450;
+
+function AnimatedStatusMessage({ status, message }: { status: string; message: string }) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const isError = errorStatuses.has(status);
   const isInfo = status === "unchanged";
   const colorClass = isError
     ? "border-red-200 bg-red-50 text-red-700"
@@ -37,9 +46,61 @@ export function StatusMessage({ status }: { status?: string }) {
       ? "border-slate-200 bg-slate-50 text-slate-700"
       : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
+  useEffect(() => {
+    if (isError) {
+      return;
+    }
+
+    const leaveTimer = window.setTimeout(() => {
+      setIsLeaving(true);
+    }, AUTO_DISMISS_MS);
+    const removeTimer = window.setTimeout(() => {
+      setIsVisible(false);
+    }, AUTO_DISMISS_MS + LEAVE_ANIMATION_MS);
+
+    return () => {
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(removeTimer);
+    };
+  }, [isError]);
+
+  function handleClose() {
+    setIsLeaving(true);
+    window.setTimeout(() => {
+      setIsVisible(false);
+    }, LEAVE_ANIMATION_MS);
+  }
+
+  if (!isVisible) {
+    return null;
+  }
+
   return (
-    <p className={`rounded-md border px-4 py-3 text-sm ${colorClass}`}>
-      {messages[status]}
-    </p>
+    <div
+      role={isError ? "alert" : "status"}
+      className={`flex items-start justify-between gap-3 overflow-hidden rounded-md border px-4 py-3 text-sm transition-all duration-500 ease-out ${
+        isLeaving ? "-translate-y-1 opacity-0" : "translate-y-0 opacity-100"
+      } ${colorClass}`}
+    >
+      <p className="min-w-0 flex-1">{message}</p>
+      {isError ? (
+        <button
+          type="button"
+          onClick={handleClose}
+          aria-label="メッセージを閉じる"
+          className="-mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-current opacity-75 hover:bg-white/60 hover:opacity-100"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      ) : null}
+    </div>
   );
+}
+
+export function StatusMessage({ status }: { status?: string }) {
+  if (!status || !messages[status]) {
+    return null;
+  }
+
+  return <AnimatedStatusMessage key={status} status={status} message={messages[status]} />;
 }
