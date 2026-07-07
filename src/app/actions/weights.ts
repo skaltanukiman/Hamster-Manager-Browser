@@ -186,18 +186,22 @@ export async function createWeightRecord(formData: FormData) {
 
   const recordDate = parseDateInput(result.data.recordDate);
 
-  // 体重はハムスターごとに1日1件として扱い、同じ日の再登録は最新入力で上書きする。
-  await prisma.weightRecord.upsert({
+  const existingRecord = await prisma.weightRecord.findUnique({
     where: {
       hamsterId_recordDate: {
         hamsterId: result.data.hamsterId,
         recordDate
       }
     },
-    update: {
-      weightG: result.data.weightG
-    },
-    create: {
+    select: { id: true }
+  });
+
+  if (existingRecord) {
+    weightRedirect(result.data.hamsterId, "duplicate", historyFilter);
+  }
+
+  await prisma.weightRecord.create({
+    data: {
       hamsterId: result.data.hamsterId,
       recordDate,
       weightG: result.data.weightG

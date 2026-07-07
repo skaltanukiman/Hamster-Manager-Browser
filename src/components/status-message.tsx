@@ -10,7 +10,7 @@ const messages: Record<string, string> = {
   saved: "保存しました。",
   unchanged: "変更はありません。",
   invalid: "入力内容を確認してください。",
-  duplicate: "同じ日付の記録が既にあります。",
+  duplicate: "同じ日付の記録が既に存在します。",
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
   hamsterNameTooLong: "名前は15文字以内で入力してください。",
   hamsterMemoTooLong: "メモは2000文字以内で入力してください。",
