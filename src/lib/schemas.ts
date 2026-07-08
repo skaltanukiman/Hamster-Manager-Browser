@@ -93,3 +93,7 @@ export const dashboardSettingsSchema = z.object({
   hamsterSelectorMode: z.enum(HAMSTER_SELECTOR_MODES),
   hamsterIds: z.array(idSchema)
 });
+
+export const updateUserProfileSchema = z.object({
+  name: z.string().trim().min(1).max(50)
+});

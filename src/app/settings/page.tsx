@@ -1,4 +1,5 @@
 import { DashboardSettingsForm } from "@/components/dashboard-settings-form";
+import { ProfileSettingsForm } from "@/components/profile-settings-form";
 import { StatusMessage } from "@/components/status-message";
 import { getDashboardSettingsPageData } from "@/lib/queries";
 
@@ -14,16 +15,18 @@ export default async function SettingsPage({
   searchParams: Promise<{ status?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const { boardCount, hamsterSelectorMode, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
+  const { user, boardCount, hamsterSelectorMode, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-ink">設定</h2>
-        <p className="mt-1 text-sm text-slate-600">ダッシュボードの表示数と表示対象を管理します。</p>
+        <p className="mt-1 text-sm text-slate-600">プロフィール、ダッシュボードの表示数と表示対象を管理します。</p>
       </div>
 
       <StatusMessage status={getParam(params.status)} />
+
+      <ProfileSettingsForm name={user.name} email={user.email} />
 
       <DashboardSettingsForm
         boardCount={boardCount}

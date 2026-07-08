@@ -3,9 +3,46 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { getRequiredHouseholdContext, getRequiredSessionUser } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
-import { dashboardSettingsSchema } from "@/lib/schemas";
+import { dashboardSettingsSchema, updateUserProfileSchema } from "@/lib/schemas";
+
+export async function updateUserProfile(formData: FormData) {
+  const sessionUser = await getRequiredSessionUser();
+  const result = updateUserProfileSchema.safeParse({
+    name: formData.get("name")
+  });
+
+  if (!result.success) {
+    const isNameTooLong = result.error.issues.some((issue) => issue.path[0] === "name" && issue.code === "too_big");
+    redirect(isNameTooLong ? "/settings?status=profileNameTooLong" : "/settings?status=invalid");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, name: true }
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if ((user.name ?? "") === result.data.name) {
+    redirect("/settings?status=unchanged");
+  }
+
+  // 表示名は本人のプロフィール情報だけを更新し、FormData由来のuserIdでは更新対象を決めない。
+  await prisma.user.update({
+    where: { id: sessionUser.id },
+    data: { name: result.data.name }
+  });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/settings");
+  revalidatePath("/settings/members");
+  revalidatePath("/admin");
+  redirect("/settings?status=profileUpdated");
+}
 
 export async function saveDashboardSettings(formData: FormData) {
   const context = await getRequiredHouseholdContext();

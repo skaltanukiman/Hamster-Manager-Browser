@@ -386,6 +386,7 @@ export async function getDashboardSettingsPageData() {
   const selectedHamsterIds = pickDashboardHamsters(hamsters, boardCount, selectedIds).map((hamster) => hamster.id);
 
   return {
+    user: context.user,
     boardCount,
     hamsterSelectorMode,
     hamsters,
