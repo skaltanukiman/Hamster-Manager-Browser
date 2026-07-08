@@ -18,6 +18,7 @@ import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/
 import { prisma } from "@/lib/prisma";
 
 const INVITATION_MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
+const MEMBER_REMOVE_ROLES = ["OWNER"] as const;
 
 export async function createHouseholdInvitation() {
   const context = await getRequiredHouseholdContext();
@@ -131,4 +132,66 @@ export async function acceptHouseholdInvitation(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/settings/members");
   redirect("/settings/members?status=joined");
+}
+
+export async function removeHouseholdMember(formData: FormData) {
+  const memberId = formData.get("memberId");
+
+  if (typeof memberId !== "string" || !memberId) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  const context = await getRequiredHouseholdContext();
+
+  if (!hasHouseholdRole(context.membership.role, [...MEMBER_REMOVE_ROLES])) {
+    redirect("/settings/members?status=forbidden");
+  }
+
+  const targetMember = await prisma.householdMember.findFirst({
+    where: {
+      id: memberId,
+      householdId: context.household.id
+    },
+    select: {
+      id: true,
+      userId: true,
+      role: true
+    }
+  });
+
+  if (!targetMember) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  if (targetMember.userId === context.user.id) {
+    redirect("/settings/members?status=cannotRemoveSelf");
+  }
+
+  if (targetMember.role === "OWNER") {
+    const ownerCount = await prisma.householdMember.count({
+      where: {
+        householdId: context.household.id,
+        role: "OWNER"
+      }
+    });
+
+    if (ownerCount <= 1) {
+      redirect("/settings/members?status=cannotRemoveLastOwner");
+    }
+  }
+
+  // FormDataは改ざんできるため、現在のHouseholdに属するmembershipだけを削除対象にする。
+  const deleteResult = await prisma.householdMember.deleteMany({
+    where: {
+      id: targetMember.id,
+      householdId: context.household.id
+    }
+  });
+
+  if (deleteResult.count !== 1) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  revalidatePath("/settings/members");
+  redirect("/settings/members?status=memberRemoved");
 }

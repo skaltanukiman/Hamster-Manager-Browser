@@ -6,6 +6,7 @@ import { getRequiredHouseholdContext, hasHouseholdRole } from "@/lib/auth-contex
 import { formatDateJp } from "@/lib/date";
 import { INVITATION_TTL_DAYS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
+import { MemberRemoveForm } from "@/components/member-remove-form";
 import { StatusMessage } from "@/components/status-message";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,7 @@ export default async function MembersPage({
   const inviteUrl = await getInviteUrl(getParam(params.inviteToken));
   const { context, members } = await getMembersPageData();
   const canManageInvitations = hasHouseholdRole(context.membership.role, ["OWNER", "ADMIN"]);
+  const canRemoveMembers = hasHouseholdRole(context.membership.role, ["OWNER"]);
 
   return (
     <div className="space-y-6">
@@ -124,36 +126,59 @@ export default async function MembersPage({
                 <th>メールアドレス</th>
                 <th>権限</th>
                 <th>参加日</th>
+                {canRemoveMembers ? <th>操作</th> : null}
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
-                <tr key={member.id}>
-                  <td className="font-semibold text-ink">{member.user.name || "未設定"}</td>
-                  <td>{member.user.email || "未設定"}</td>
-                  <td>{roleLabels[member.role]}</td>
-                  <td>{formatDateJp(member.createdAt)}</td>
-                </tr>
-              ))}
+              {members.map((member) => {
+                const memberDisplayName = member.user.name || member.user.email || "未設定";
+                const canRemoveThisMember = canRemoveMembers && member.userId !== context.user.id;
+
+                return (
+                  <tr key={member.id}>
+                    <td className="font-semibold text-ink">{member.user.name || "未設定"}</td>
+                    <td>{member.user.email || "未設定"}</td>
+                    <td>{roleLabels[member.role]}</td>
+                    <td>{formatDateJp(member.createdAt)}</td>
+                    {canRemoveMembers ? (
+                      <td>
+                        {canRemoveThisMember ? (
+                          <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} />
+                        ) : (
+                          <span className="text-sm text-slate-400">解除不可</span>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         <div className="grid gap-3 md:hidden">
-          {members.map((member) => (
-            <article key={member.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h4 className="break-words font-bold text-ink">{member.user.name || "未設定"}</h4>
-                  <p className="mt-1 break-words text-slate-600">{member.user.email || "未設定"}</p>
+          {members.map((member) => {
+            const memberDisplayName = member.user.name || member.user.email || "未設定";
+            const canRemoveThisMember = canRemoveMembers && member.userId !== context.user.id;
+
+            return (
+              <article key={member.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="break-words font-bold text-ink">{member.user.name || "未設定"}</h4>
+                    <p className="mt-1 break-words text-slate-600">{member.user.email || "未設定"}</p>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-straw/40 px-2 py-1 text-xs font-semibold text-slate-700">
+                    {roleLabels[member.role]}
+                  </span>
                 </div>
-                <span className="shrink-0 rounded-md bg-straw/40 px-2 py-1 text-xs font-semibold text-slate-700">
-                  {roleLabels[member.role]}
-                </span>
-              </div>
-              <p className="mt-3 text-xs text-slate-500">参加日: {formatDateJp(member.createdAt)}</p>
-            </article>
-          ))}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-slate-500">参加日: {formatDateJp(member.createdAt)}</p>
+                  {canRemoveThisMember ? <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} /> : null}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>
