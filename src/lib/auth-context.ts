@@ -7,6 +7,7 @@ import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/
 import { prisma } from "@/lib/prisma";
 
 export const CURRENT_HOUSEHOLD_COOKIE = "hamster_current_household";
+export const DEFAULT_HOUSEHOLD_NAME_SUFFIX = "のハムスター管理";
 
 type SessionUser = {
   id: string;
@@ -37,9 +38,9 @@ export type HouseholdOption = {
   hamsterCount: number;
 };
 
-function defaultHouseholdName(user: SessionUser) {
+export function defaultHouseholdName(user: Pick<SessionUser, "name" | "email">) {
   const ownerName = user.name || user.email || "あなた";
-  return `${ownerName}のハムスター管理`;
+  return `${ownerName}${DEFAULT_HOUSEHOLD_NAME_SUFFIX}`;
 }
 
 async function getPreferredHouseholdId() {

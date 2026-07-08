@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getRequiredHouseholdContext, getRequiredSessionUser } from "@/lib/auth-context";
+import {
+  DEFAULT_HOUSEHOLD_NAME_SUFFIX,
+  defaultHouseholdName,
+  getRequiredHouseholdContext,
+  getRequiredSessionUser
+} from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
 import { dashboardSettingsSchema, updateUserProfileSchema } from "@/lib/schemas";
 
@@ -20,7 +25,7 @@ export async function updateUserProfile(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { id: true, name: true }
+    select: { id: true, name: true, email: true }
   });
 
   if (!user) {
@@ -31,10 +36,28 @@ export async function updateUserProfile(formData: FormData) {
     redirect("/settings?status=unchanged");
   }
 
-  // 表示名は本人のプロフィール情報だけを更新し、FormData由来のuserIdでは更新対象を決めない。
-  await prisma.user.update({
-    where: { id: sessionUser.id },
-    data: { name: result.data.name }
+  const nextHouseholdName = defaultHouseholdName({ name: result.data.name, email: user.email });
+
+  await prisma.$transaction(async (tx) => {
+    // 表示名は本人のプロフィール情報だけを更新し、FormData由来のuserIdでは更新対象を決めない。
+    await tx.user.update({
+      where: { id: sessionUser.id },
+      data: { name: result.data.name }
+    });
+
+    // 個人用Household名は作成時の表示名を含むため、表示名変更時に自動生成名だけ同期する。
+    await tx.household.updateMany({
+      where: {
+        name: { endsWith: DEFAULT_HOUSEHOLD_NAME_SUFFIX },
+        members: {
+          some: {
+            userId: sessionUser.id,
+            role: "OWNER"
+          }
+        }
+      },
+      data: { name: nextHouseholdName }
+    });
   });
 
   revalidatePath("/", "layout");
