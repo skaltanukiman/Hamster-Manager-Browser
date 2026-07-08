@@ -1,16 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { getRequiredSessionUser, setCurrentHouseholdCookie } from "@/lib/auth-context";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 
+function getRedirectPath(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  return value;
+}
+
 export async function switchCurrentHousehold(formData: FormData) {
   const householdId = formData.get("householdId");
+  const redirectTo = getRedirectPath(formData.get("redirectTo"));
 
   if (typeof householdId !== "string" || !householdId) {
-    return;
+    redirect(redirectTo);
   }
 
   const user = await getRequiredSessionUser();
@@ -23,7 +33,7 @@ export async function switchCurrentHousehold(formData: FormData) {
   });
 
   if (!membership) {
-    return;
+    redirect(redirectTo);
   }
 
   await prisma.appSetting.upsert({
@@ -44,4 +54,5 @@ export async function switchCurrentHousehold(formData: FormData) {
 
   await setCurrentHouseholdCookie(householdId);
   revalidatePath("/", "layout");
+  redirect(redirectTo);
 }
