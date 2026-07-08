@@ -10,7 +10,7 @@ const navItems = [
   { href: "/cleaning", label: "衛生管理", icon: ClipboardCheck },
   { href: "/weights", label: "体重管理", icon: LineChart },
   { href: "/settings", label: "設定", icon: Settings },
-  { href: "/settings/members", label: "家族共有", icon: Users }
+  { href: "/settings/members", label: "共有", icon: Users }
 ];
 
 export function AppNav() {

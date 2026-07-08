@@ -66,7 +66,7 @@ export default async function MembersPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-ink">家族共有</h2>
+        <h2 className="text-xl font-bold text-ink">共有</h2>
         <p className="mt-1 text-sm text-slate-600">{context.household.name} のメンバーを管理します。</p>
       </div>
 
@@ -94,7 +94,7 @@ export default async function MembersPage({
         {canManageInvitations ? (
           inviteUrl ? (
             <label className="mt-4 grid gap-1 text-sm font-medium text-slate-700">
-              家族に共有するリンク
+              招待相手に共有するリンク
               <span className="relative block">
                 <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                 <input readOnly value={inviteUrl} className="pl-9" />

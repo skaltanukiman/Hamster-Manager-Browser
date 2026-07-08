@@ -34,7 +34,7 @@ export function HouseholdSwitcher({ currentHouseholdId, households, action }: Ho
         id="household-switcher"
         name="householdId"
         value={currentHouseholdId}
-        aria-label="操作対象の家族共有を切り替える"
+        aria-label="操作対象の共有を切り替える"
         className="h-9 w-auto max-w-[min(100%,18rem)] bg-white py-1.5 pl-3 pr-8 text-sm"
       >
         {households.map((household) => (

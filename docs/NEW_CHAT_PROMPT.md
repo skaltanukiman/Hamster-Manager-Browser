@@ -32,7 +32,7 @@ C:\Users\sound\source\repos\Hamster-Manager-Browser
 現在の主な仕様:
 - Google OAuthログイン必須です。未ログイン時は /login へリダイレクトします。
 - データは Household 単位で分離します。初回ログイン時に個人用 Household を自動作成します。
-- /settings/members でメンバー一覧と招待リンク作成、/invitations/accept で家族参加ができます。
+- /settings/members でメンバー一覧と招待リンク作成、/invitations/accept で共有への参加ができます。
 - 既存データ移行が必要な場合は、Googleログイン後に npm run migrate:assign-owner -- --email example@gmail.com を使います。
 - ダッシュボードは設定画面で選んだハムスターカードを表示します。
 - 表示ボード数は1〜30件です。

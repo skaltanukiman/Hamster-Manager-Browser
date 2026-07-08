@@ -19,7 +19,7 @@ const messages: Record<string, string> = {
   future: "未来日には記録できません。",
   locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。",
   invitationCreated: "招待リンクを作成しました。",
-  joined: "家族共有に参加しました。",
+  joined: "共有に参加しました。",
   memberRemoved: "メンバーの共有を解除しました。",
   cannotRemoveSelf: "自分自身の共有は解除できません。",
   cannotRemoveLastOwner: "最後のオーナーは共有解除できません。",
