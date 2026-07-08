@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { HouseholdRole } from "@prisma/client";
+import type { AppRole, HouseholdRole } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
@@ -10,6 +10,7 @@ export const CURRENT_HOUSEHOLD_COOKIE = "hamster_current_household";
 
 type SessionUser = {
   id: string;
+  appRole: AppRole;
   name?: string | null;
   email?: string | null;
   image?: string | null;
@@ -56,6 +57,7 @@ export async function getRequiredSessionUser(): Promise<SessionUser> {
 
   return {
     id: user.id,
+    appRole: user.appRole ?? "USER",
     name: user.name,
     email: user.email,
     image: user.image
@@ -201,4 +203,28 @@ export async function setCurrentHouseholdCookie(householdId: string) {
 
 export function hasHouseholdRole(role: HouseholdRole, allowedRoles: HouseholdRole[]) {
   return allowedRoles.includes(role);
+}
+
+export function hasAppRole(role: AppRole, allowedRoles: AppRole[]) {
+  return allowedRoles.includes(role);
+}
+
+export async function getRequiredAppAdminUser(allowedRoles: AppRole[] = ["ADMIN", "SUPER_ADMIN"]) {
+  const sessionUser = await getRequiredSessionUser();
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      appRole: true
+    }
+  });
+
+  if (!user || !hasAppRole(user.appRole, allowedRoles)) {
+    redirect("/");
+  }
+
+  return user;
 }

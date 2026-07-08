@@ -21,8 +21,12 @@ const messages: Record<string, string> = {
   invitationCreated: "招待リンクを作成しました。",
   joined: "共有に参加しました。",
   memberRemoved: "メンバーの共有を解除しました。",
+  roleUpdated: "権限を更新しました。",
+  adminTargetInvalid: "対象ユーザーまたは権限を確認してください。",
   cannotRemoveSelf: "自分自身の共有は解除できません。",
   cannotRemoveLastOwner: "最後のオーナーは共有解除できません。",
+  cannotChangeOwnRole: "自分自身のアプリ全体権限は変更できません。",
+  cannotRemoveLastSuperAdmin: "最後のスーパー管理者は降格できません。",
   forbidden: "この操作を実行する権限がありません。",
   invitationExpired: "招待リンクの有効期限が切れています。",
   invitationUsed: "この招待リンクは既に使用されています。"
@@ -39,8 +43,11 @@ const errorStatuses = new Set([
   "future",
   "locked",
   "forbidden",
+  "adminTargetInvalid",
   "cannotRemoveSelf",
   "cannotRemoveLastOwner",
+  "cannotChangeOwnRole",
+  "cannotRemoveLastSuperAdmin",
   "invitationExpired",
   "invitationUsed"
 ]);

@@ -104,6 +104,7 @@ model User {
   email         String?           @unique
   emailVerified DateTime?         @map("email_verified")
   image         String?
+  appRole       AppRole           @default(USER) @map("app_role")
   accounts      Account[]
   sessions      Session[]
   memberships   HouseholdMember[]
@@ -197,4 +198,10 @@ enum HouseholdRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum AppRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
 }

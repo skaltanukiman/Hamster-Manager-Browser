@@ -1,0 +1,3 @@
+CREATE TYPE "AppRole" AS ENUM ('USER', 'ADMIN', 'SUPER_ADMIN');
+
+ALTER TABLE "users" ADD COLUMN "app_role" "AppRole" NOT NULL DEFAULT 'USER';

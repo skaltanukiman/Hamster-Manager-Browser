@@ -23,6 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await auth();
   const currentUserLabel = session?.user?.name || session?.user?.email;
   const householdSwitcherData = session?.user ? await getCurrentHouseholdSwitcherData() : null;
+  const isAppAdmin = session?.user?.appRole === "ADMIN" || session?.user?.appRole === "SUPER_ADMIN";
 
   return (
     <html lang="ja">
@@ -56,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     </form>
                   </div>
                 </div>
-                <AppNav />
+                <AppNav isAppAdmin={isAppAdmin} />
               </div>
             </header>
           ) : null}

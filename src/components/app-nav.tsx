@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, Users } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, ShieldCheck, Users } from "lucide-react";
 
-const navItems = [
+const baseNavItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/hamsters", label: "ハムスター", icon: PawPrint },
   { href: "/cleaning", label: "衛生管理", icon: ClipboardCheck },
@@ -13,8 +13,9 @@ const navItems = [
   { href: "/settings/members", label: "共有", icon: Users }
 ];
 
-export function AppNav() {
+export function AppNav({ isAppAdmin = false }: { isAppAdmin?: boolean }) {
   const pathname = usePathname();
+  const navItems = isAppAdmin ? [...baseNavItems, { href: "/admin", label: "管理", icon: ShieldCheck }] : baseNavItems;
   const activeHref = navItems
     .filter((item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
