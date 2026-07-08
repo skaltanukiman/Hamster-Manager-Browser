@@ -28,6 +28,14 @@ export type CurrentHouseholdContext = {
   };
 };
 
+export type HouseholdOption = {
+  id: string;
+  name: string;
+  role: HouseholdRole;
+  memberCount: number;
+  hamsterCount: number;
+};
+
 function defaultHouseholdName(user: SessionUser) {
   const ownerName = user.name || user.email || "あなた";
   return `${ownerName}のハムスター管理`;
@@ -55,29 +63,37 @@ export async function getRequiredSessionUser(): Promise<SessionUser> {
 }
 
 async function findMembership(userId: string, preferredHouseholdId?: string) {
-  if (preferredHouseholdId) {
-    const preferredMembership = await prisma.householdMember.findFirst({
-      where: {
-        userId,
-        householdId: preferredHouseholdId
-      },
-      include: {
-        household: true
+  const memberships = await prisma.householdMember.findMany({
+    where: { userId },
+    include: {
+      household: {
+        include: {
+          _count: {
+            select: {
+              members: true
+            }
+          }
+        }
       }
-    });
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  if (preferredHouseholdId) {
+    const preferredMembership = memberships.find((membership) => membership.householdId === preferredHouseholdId);
 
     if (preferredMembership) {
       return preferredMembership;
     }
   }
 
-  return prisma.householdMember.findFirst({
-    where: { userId },
-    include: {
-      household: true
-    },
-    orderBy: { createdAt: "asc" }
-  });
+  const invitedSharedMembership = memberships.find(
+    (membership) => membership.role !== "OWNER" && membership.household._count.members > 1
+  );
+  const sharedMembership = memberships.find((membership) => membership.household._count.members > 1);
+
+  // 招待されたユーザーは個人用Householdも持つため、cookie未設定時は共有中のHouseholdを優先する。
+  return invitedSharedMembership ?? sharedMembership ?? memberships[0] ?? null;
 }
 
 async function createInitialHousehold(user: SessionUser) {
@@ -137,6 +153,39 @@ export async function getRequiredHouseholdContext(): Promise<CurrentHouseholdCon
       role: membership.role,
       createdAt: membership.createdAt
     }
+  };
+}
+
+export async function getCurrentHouseholdSwitcherData() {
+  const context = await getRequiredHouseholdContext();
+  const memberships = await prisma.householdMember.findMany({
+    where: { userId: context.user.id },
+    include: {
+      household: {
+        include: {
+          _count: {
+            select: {
+              hamsters: true,
+              members: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  return {
+    context,
+    households: memberships.map(
+      (membership): HouseholdOption => ({
+        id: membership.householdId,
+        name: membership.household.name,
+        role: membership.role,
+        memberCount: membership.household._count.members,
+        hamsterCount: membership.household._count.hamsters
+      })
+    )
   };
 }
 

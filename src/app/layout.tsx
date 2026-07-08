@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
 
+import { switchCurrentHousehold } from "@/app/actions/households";
 import { auth, signOut } from "@/auth";
 import { AppNav } from "@/components/app-nav";
+import { HouseholdSwitcher } from "@/components/household-switcher";
+import { getCurrentHouseholdSwitcherData } from "@/lib/auth-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,6 +22,7 @@ async function signOutAction() {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const currentUserLabel = session?.user?.name || session?.user?.email;
+  const householdSwitcherData = session?.user ? await getCurrentHouseholdSwitcherData() : null;
 
   return (
     <html lang="ja">
@@ -33,6 +37,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     <h1 className="text-2xl font-bold text-ink">ハムスター管理</h1>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    {householdSwitcherData ? (
+                      <HouseholdSwitcher
+                        currentHouseholdId={householdSwitcherData.context.household.id}
+                        households={householdSwitcherData.households}
+                        action={switchCurrentHousehold}
+                      />
+                    ) : null}
                     {currentUserLabel ? <span className="font-medium text-ink">{currentUserLabel}</span> : null}
                     <form action={signOutAction}>
                       <button
