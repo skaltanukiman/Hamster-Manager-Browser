@@ -16,12 +16,12 @@ import {
 } from "@/lib/invitations";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
-import { notifyHouseholdChange } from "@/lib/realtime";
+import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
 
 const INVITATION_MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
 const MEMBER_REMOVE_ROLES = ["OWNER"] as const;
 
-export async function createHouseholdInvitation() {
+export async function createHouseholdInvitation(formData?: FormData) {
   const context = await getRequiredHouseholdContext();
 
   if (!hasHouseholdRole(context.membership.role, [...INVITATION_MANAGE_ROLES])) {
@@ -39,7 +39,7 @@ export async function createHouseholdInvitation() {
   });
 
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(context.household.id, "member");
+  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData));
 
   const params = new URLSearchParams({
     status: "invitationCreated",
@@ -133,7 +133,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
   await setCurrentHouseholdCookie(invitation.householdId);
   revalidatePath("/");
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(invitation.householdId, "member");
+  await notifyHouseholdChange(invitation.householdId, "member", getRealtimeActorId(formData));
   redirect("/settings/members?status=joined");
 }
 
@@ -196,6 +196,6 @@ export async function removeHouseholdMember(formData: FormData) {
   }
 
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(context.household.id, "member");
+  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData));
   redirect("/settings/members?status=memberRemoved");
 }

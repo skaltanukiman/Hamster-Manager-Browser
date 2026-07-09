@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
-
-import { REALTIME_CLIENT_COOKIE } from "@/lib/realtime-constants";
+import { REALTIME_ACTOR_FIELD } from "@/lib/realtime-constants";
+import { prisma } from "@/lib/prisma";
 
 export type HouseholdChangeSource =
   | "hamster"
@@ -15,6 +14,7 @@ export type HouseholdChangeEvent = {
   householdId: string;
   source: HouseholdChangeSource;
   actorClientId: string | null;
+  revision: string;
   createdAt: string;
 };
 
@@ -54,11 +54,13 @@ export function subscribeHouseholdChanges(listener: HouseholdChangeListener) {
 export function publishHouseholdChange({
   householdId,
   source,
-  actorClientId
+  actorClientId,
+  revision
 }: {
   householdId: string;
   source: HouseholdChangeSource;
   actorClientId?: string | null;
+  revision: string;
 }) {
   const bus = getRealtimeBus();
   const event: HouseholdChangeEvent = {
@@ -66,6 +68,7 @@ export function publishHouseholdChange({
     householdId,
     source,
     actorClientId: actorClientId ?? null,
+    revision,
     createdAt: new Date().toISOString()
   };
 
@@ -76,19 +79,40 @@ export function publishHouseholdChange({
   }
 }
 
-export async function notifyHouseholdChange(householdId: string, source: HouseholdChangeSource) {
-  const cookieStore = await cookies();
-  const actorClientId = cookieStore.get(REALTIME_CLIENT_COOKIE)?.value ?? null;
-
-  publishHouseholdChange({ householdId, source, actorClientId });
+export function getRealtimeActorId(formData: FormData | undefined) {
+  const actorId = formData?.get(REALTIME_ACTOR_FIELD);
+  return typeof actorId === "string" && actorId.length > 0 ? actorId : null;
 }
 
-export async function notifyHouseholdChanges(householdIds: string[], source: HouseholdChangeSource) {
+export async function notifyHouseholdChange(
+  householdId: string,
+  source: HouseholdChangeSource,
+  actorClientId?: string | null
+) {
+  const revisionDate = new Date();
+
+  await prisma.household.updateMany({
+    where: { id: householdId },
+    data: { updatedAt: revisionDate }
+  });
+
+  publishHouseholdChange({ householdId, source, actorClientId, revision: revisionDate.toISOString() });
+}
+
+export async function notifyHouseholdChanges(
+  householdIds: string[],
+  source: HouseholdChangeSource,
+  actorClientId?: string | null
+) {
   const uniqueHouseholdIds = [...new Set(householdIds)];
-  const cookieStore = await cookies();
-  const actorClientId = cookieStore.get(REALTIME_CLIENT_COOKIE)?.value ?? null;
+  const revisionDate = new Date();
+
+  await prisma.household.updateMany({
+    where: { id: { in: uniqueHouseholdIds } },
+    data: { updatedAt: revisionDate }
+  });
 
   for (const householdId of uniqueHouseholdIds) {
-    publishHouseholdChange({ householdId, source, actorClientId });
+    publishHouseholdChange({ householdId, source, actorClientId, revision: revisionDate.toISOString() });
   }
 }

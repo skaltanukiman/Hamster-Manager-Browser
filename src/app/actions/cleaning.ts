@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
-import { notifyHouseholdChange } from "@/lib/realtime";
+import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
 import { cleaningMonthSchema } from "@/lib/schemas";
 
 type CleaningDayData = {
@@ -211,6 +211,6 @@ export async function saveCleaningMonth(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/cleaning");
-  await notifyHouseholdChange(context.household.id, "cleaning");
+  await notifyHouseholdChange(context.household.id, "cleaning", getRealtimeActorId(formData));
   cleaningRedirect(hamsterId, yearMonth, "saved", includeInactive);
 }

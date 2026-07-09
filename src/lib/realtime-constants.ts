@@ -1,1 +1,1 @@
-export const REALTIME_CLIENT_COOKIE = "hamster_realtime_client";
+export const REALTIME_ACTOR_FIELD = "realtimeActorId";

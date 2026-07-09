@@ -10,7 +10,7 @@ import {
   getRequiredSessionUser
 } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
-import { notifyHouseholdChange, notifyHouseholdChanges } from "@/lib/realtime";
+import { getRealtimeActorId, notifyHouseholdChange, notifyHouseholdChanges } from "@/lib/realtime";
 import { dashboardSettingsSchema, updateUserProfileSchema } from "@/lib/schemas";
 
 export async function updateUserProfile(formData: FormData) {
@@ -72,7 +72,8 @@ export async function updateUserProfile(formData: FormData) {
   revalidatePath("/admin");
   await notifyHouseholdChanges(
     membershipHouseholdIds.map((membership) => membership.householdId),
-    "profile"
+    "profile",
+    getRealtimeActorId(formData)
   );
   redirect("/settings?status=profileUpdated");
 }
@@ -152,6 +153,6 @@ export async function saveDashboardSettings(formData: FormData) {
   revalidatePath("/settings");
   revalidatePath("/weights");
   revalidatePath("/weights/export");
-  await notifyHouseholdChange(context.household.id, "settings");
+  await notifyHouseholdChange(context.household.id, "settings", getRealtimeActorId(formData));
   redirect("/settings?status=saved");
 }

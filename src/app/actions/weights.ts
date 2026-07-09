@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
-import { notifyHouseholdChange } from "@/lib/realtime";
+import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
 import {
   createWeightRecordSchema,
   deleteWeightRecordsSchema,
@@ -224,7 +224,7 @@ export async function createWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight");
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
   weightRedirect(result.data.hamsterId, "saved", {
     filter: historyFilter.filter,
     month: historyFilter.month,
@@ -273,7 +273,7 @@ export async function updateWeightRecord(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/weights");
   if (status === "updated") {
-    await notifyHouseholdChange(context.household.id, "weight");
+    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
   }
   weightRedirect(result.data.hamsterId, status, historyFilter);
 }
@@ -296,7 +296,7 @@ export async function deleteWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight");
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
   weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
@@ -336,7 +336,7 @@ export async function deleteWeightRecords(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight");
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
   weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
@@ -458,7 +458,7 @@ export async function importWeightRecordsCsv(
   revalidatePath("/");
   revalidatePath("/weights");
   if (createResult.count > 0) {
-    await notifyHouseholdChange(context.household.id, "weight");
+    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
   }
 
   return weightCsvImportState({
