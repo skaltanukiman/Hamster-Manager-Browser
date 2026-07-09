@@ -206,7 +206,7 @@ export default async function WeightsPage({
               ) : null}
 
           <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
-            <form action={createWeightRecord} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <form action={createWeightRecord} data-dirty-watch className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <input type="hidden" name="hamsterId" value={selectedHamster.id} />
               <input type="hidden" name="filter" value={filterMode} />
               {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}

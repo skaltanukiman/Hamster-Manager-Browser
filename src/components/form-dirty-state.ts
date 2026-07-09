@@ -24,6 +24,23 @@ function normalizeInputValue(input: HTMLInputElement) {
   return input.value;
 }
 
+function normalizeInputDefaultValue(input: HTMLInputElement) {
+  if (input.type === "checkbox" || input.type === "radio") {
+    return input.defaultChecked ? "checked" : "unchecked";
+  }
+
+  if (input.type === "number") {
+    const value = input.defaultValue.trim();
+    return value.length > 0 && Number.isFinite(Number(value)) ? String(Number(value)) : value;
+  }
+
+  if (input.type === "text" || input.type === "search") {
+    return input.defaultValue.trim();
+  }
+
+  return input.defaultValue;
+}
+
 function normalizeControlValue(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
   if (control instanceof HTMLInputElement) {
     return normalizeInputValue(control);
@@ -36,6 +53,21 @@ function normalizeControlValue(control: HTMLInputElement | HTMLSelectElement | H
   }
 
   return control.value.trim();
+}
+
+function normalizeControlDefaultValue(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
+  if (control instanceof HTMLInputElement) {
+    return normalizeInputDefaultValue(control);
+  }
+
+  if (control instanceof HTMLSelectElement) {
+    return Array.from(control.options)
+      .filter((option) => option.defaultSelected)
+      .map((option) => option.value)
+      .join(",");
+  }
+
+  return control.defaultValue.trim();
 }
 
 function shouldTrackControl(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
@@ -57,6 +89,23 @@ function getFormSnapshot(form: HTMLFormElement) {
     })
     .map((control) => `${control.name}:${control.type}:${normalizeControlValue(control)}`)
     .join("\n");
+}
+
+function getFormDefaultSnapshot(form: HTMLFormElement) {
+  return Array.from(form.elements)
+    .filter((element): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement => {
+      return isSubmittableControl(element) && shouldTrackControl(element);
+    })
+    .map((control) => `${control.name}:${control.type}:${normalizeControlDefaultValue(control)}`)
+    .join("\n");
+}
+
+export function isFormDirty(form: HTMLFormElement) {
+  return getFormSnapshot(form) !== getFormDefaultSnapshot(form);
+}
+
+export function hasDirtyForms() {
+  return Array.from(document.querySelectorAll<HTMLFormElement>("form[data-dirty-watch]")).some(isFormDirty);
 }
 
 function subscribeToFormDirty(form: HTMLFormElement, onDirtyChange: (isDirty: boolean) => void) {

@@ -10,6 +10,7 @@ import {
   getRequiredSessionUser
 } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
+import { notifyHouseholdChange, notifyHouseholdChanges } from "@/lib/realtime";
 import { dashboardSettingsSchema, updateUserProfileSchema } from "@/lib/schemas";
 
 export async function updateUserProfile(formData: FormData) {
@@ -60,10 +61,19 @@ export async function updateUserProfile(formData: FormData) {
     });
   });
 
+  const membershipHouseholdIds = await prisma.householdMember.findMany({
+    where: { userId: sessionUser.id },
+    select: { householdId: true }
+  });
+
   revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/settings/members");
   revalidatePath("/admin");
+  await notifyHouseholdChanges(
+    membershipHouseholdIds.map((membership) => membership.householdId),
+    "profile"
+  );
   redirect("/settings?status=profileUpdated");
 }
 
@@ -142,5 +152,6 @@ export async function saveDashboardSettings(formData: FormData) {
   revalidatePath("/settings");
   revalidatePath("/weights");
   revalidatePath("/weights/export");
+  await notifyHouseholdChange(context.household.id, "settings");
   redirect("/settings?status=saved");
 }

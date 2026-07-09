@@ -105,7 +105,7 @@ export function DashboardSettingsForm({
         <ChevronDown className="h-7 w-7 stroke-[3] sm:h-8 sm:w-8 xl:h-9 xl:w-9" aria-hidden />
       </button>
 
-      <form action={saveDashboardSettings} className="space-y-5 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
+      <form action={saveDashboardSettings} data-dirty-watch className="space-y-5 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
       <div className="grid gap-4 md:grid-cols-[220px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示ボード数

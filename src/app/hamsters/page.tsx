@@ -44,7 +44,7 @@ export default async function HamstersPage({
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
-        <form action={createHamster} className="mt-4 grid gap-4 lg:grid-cols-[minmax(150px,200px)_160px_160px_1fr_auto]">
+        <form action={createHamster} data-dirty-watch className="mt-4 grid gap-4 lg:grid-cols-[minmax(150px,200px)_160px_160px_1fr_auto]">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             名前
             <input name="name" required maxLength={15} placeholder="例: きなこ" />

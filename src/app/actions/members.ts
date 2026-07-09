@@ -16,6 +16,7 @@ import {
 } from "@/lib/invitations";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
+import { notifyHouseholdChange } from "@/lib/realtime";
 
 const INVITATION_MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
 const MEMBER_REMOVE_ROLES = ["OWNER"] as const;
@@ -38,6 +39,7 @@ export async function createHouseholdInvitation() {
   });
 
   revalidatePath("/settings/members");
+  await notifyHouseholdChange(context.household.id, "member");
 
   const params = new URLSearchParams({
     status: "invitationCreated",
@@ -131,6 +133,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
   await setCurrentHouseholdCookie(invitation.householdId);
   revalidatePath("/");
   revalidatePath("/settings/members");
+  await notifyHouseholdChange(invitation.householdId, "member");
   redirect("/settings/members?status=joined");
 }
 
@@ -193,5 +196,6 @@ export async function removeHouseholdMember(formData: FormData) {
   }
 
   revalidatePath("/settings/members");
+  await notifyHouseholdChange(context.household.id, "member");
   redirect("/settings/members?status=memberRemoved");
 }

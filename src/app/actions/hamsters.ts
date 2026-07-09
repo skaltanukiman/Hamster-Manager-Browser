@@ -6,6 +6,7 @@ import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
+import { notifyHouseholdChange } from "@/lib/realtime";
 import {
   createHamsterSchema,
   deleteHamstersSchema,
@@ -64,6 +65,9 @@ export async function createHamster(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/hamsters");
+  if (status === "created") {
+    await notifyHouseholdChange(context.household.id, "hamster");
+  }
   redirect(`/hamsters?status=${status}`);
 }
 
@@ -124,6 +128,9 @@ export async function updateHamster(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/hamsters");
+  if (status === "updated") {
+    await notifyHouseholdChange(context.household.id, "hamster");
+  }
   redirect(`/hamsters?status=${status}`);
 }
 
@@ -156,6 +163,7 @@ export async function updateHamsterActiveStatus(formData: FormData) {
   revalidatePath("/cleaning");
   revalidatePath("/weights");
   revalidatePath("/settings");
+  await notifyHouseholdChange(context.household.id, "hamster");
   redirect("/hamsters?status=updated");
 }
 
@@ -184,6 +192,7 @@ export async function deleteHamster(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/hamsters");
+  await notifyHouseholdChange(context.household.id, "hamster");
   redirect("/hamsters?status=deleted");
 }
 
@@ -221,5 +230,6 @@ export async function deleteHamsters(formData: FormData) {
   revalidatePath("/cleaning");
   revalidatePath("/weights");
   revalidatePath("/settings");
+  await notifyHouseholdChange(context.household.id, "hamster");
   redirect("/hamsters?status=deleted");
 }

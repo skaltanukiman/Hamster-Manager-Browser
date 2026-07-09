@@ -12,7 +12,7 @@ type ProfileSettingsFormProps = {
 
 export function ProfileSettingsForm({ name, email }: ProfileSettingsFormProps) {
   return (
-    <form action={updateUserProfile} className="space-y-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <form action={updateUserProfile} data-dirty-watch className="space-y-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <UserRound className="h-5 w-5 text-moss" aria-hidden />
         <h3 className="text-base font-bold text-ink">プロフィール</h3>
