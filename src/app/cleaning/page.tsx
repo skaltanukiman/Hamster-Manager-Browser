@@ -41,6 +41,21 @@ export default async function CleaningPage({
   const currentMonth = currentMonthInputJst();
   const today = todayInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
+  const cleaningRecordsVersion = JSON.stringify(
+    days.map((day) => {
+      const record = recordsByDate.get(day.date);
+
+      return [
+        day.date,
+        record?.toiletCleaned ? "1" : "0",
+        record?.bathCleaned ? "1" : "0",
+        record?.flooringPartCleaned ? "1" : "0",
+        record?.flooringAllCleaned ? "1" : "0",
+        record?.houseCleaned ? "1" : "0",
+        record?.memo ?? ""
+      ];
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -98,7 +113,12 @@ export default async function CleaningPage({
                 ) : null}
 
                 {/* レスポンシブ表示で同名入力を重複送信しないよう、PC用とスマホ用は別フォームにする。 */}
-                <form action={saveCleaningMonth} data-dirty-watch className="hidden space-y-4 md:block">
+                <form
+                  key={`cleaning-table-${selectedHamster.id}-${yearMonth}-${cleaningRecordsVersion}`}
+                  action={saveCleaningMonth}
+                  data-dirty-watch
+                  className="hidden space-y-4 md:block"
+                >
                   <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                   <input type="hidden" name="yearMonth" value={yearMonth} />
                   {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
@@ -135,7 +155,7 @@ export default async function CleaningPage({
                               </td>
                               <td className="weekday-cell text-slate-500">{day.weekday}</td>
                               <td className="checkbox-cell">
-                                <input
+                                <AutoSubmitInput
                                   aria-label={`${day.date} トイレ掃除`}
                                   type="checkbox"
                                   name={`toilet_${day.date}`}
@@ -144,7 +164,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <input
+                                <AutoSubmitInput
                                   aria-label={`${day.date} 砂場掃除`}
                                   type="checkbox"
                                   name={`bath_${day.date}`}
@@ -153,7 +173,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <input
+                                <AutoSubmitInput
                                   aria-label={`${day.date} 床材一部交換`}
                                   type="checkbox"
                                   name={`flooring_part_${day.date}`}
@@ -162,7 +182,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <input
+                                <AutoSubmitInput
                                   aria-label={`${day.date} 床材全交換`}
                                   type="checkbox"
                                   name={`flooring_all_${day.date}`}
@@ -171,7 +191,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <input
+                                <AutoSubmitInput
                                   aria-label={`${day.date} ハウス掃除`}
                                   type="checkbox"
                                   name={`house_${day.date}`}
@@ -229,6 +249,7 @@ export default async function CleaningPage({
                   hamsterId={selectedHamster.id}
                   includeInactive={includeInactive}
                   isLocked={isLocked}
+                  recordsVersion={cleaningRecordsVersion}
                   yearMonth={yearMonth}
                 />
               </div>

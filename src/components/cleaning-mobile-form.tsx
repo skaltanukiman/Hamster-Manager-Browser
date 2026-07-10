@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { saveCleaningMonth } from "@/app/actions/cleaning";
+import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { MobileDirtySaveArea } from "@/components/mobile-dirty-save-area";
 
 type CleaningMobileDayRecord = {
@@ -34,6 +35,7 @@ type CleaningMobileFormProps = {
   hamsterId: string;
   includeInactive: boolean;
   isLocked: boolean;
+  recordsVersion: string;
   yearMonth: string;
 };
 
@@ -62,7 +64,14 @@ export function CleaningMobileDayFilter({ days }: { days: CleaningMobileDayOptio
   );
 }
 
-export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked, yearMonth }: CleaningMobileFormProps) {
+export function CleaningMobileForm({
+  days,
+  hamsterId,
+  includeInactive,
+  isLocked,
+  recordsVersion,
+  yearMonth
+}: CleaningMobileFormProps) {
   const [selectedDate, setSelectedDate] = useState("all");
 
   useEffect(() => {
@@ -81,7 +90,13 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
 
   return (
     <div className="space-y-4 md:hidden">
-      <form id="cleaning-mobile-form" action={saveCleaningMonth} data-dirty-watch className="space-y-4">
+      <form
+        key={`cleaning-mobile-${hamsterId}-${yearMonth}-${recordsVersion}`}
+        id="cleaning-mobile-form"
+        action={saveCleaningMonth}
+        data-dirty-watch
+        className="space-y-4"
+      >
         <input type="hidden" name="hamsterId" value={hamsterId} />
         <input type="hidden" name="yearMonth" value={yearMonth} />
         {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
@@ -118,7 +133,7 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
 
                   <div className="mt-4 grid gap-2 min-[380px]:grid-cols-2">
                     <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-                      <input
+                      <AutoSubmitInput
                         aria-label={`${day.date} トイレ掃除`}
                         type="checkbox"
                         name={`toilet_${day.date}`}
@@ -128,7 +143,7 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
                       トイレ掃除
                     </label>
                     <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-                      <input
+                      <AutoSubmitInput
                         aria-label={`${day.date} 砂場掃除`}
                         type="checkbox"
                         name={`bath_${day.date}`}
@@ -138,7 +153,7 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
                       砂場掃除
                     </label>
                     <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-                      <input
+                      <AutoSubmitInput
                         aria-label={`${day.date} 床材一部交換`}
                         type="checkbox"
                         name={`flooring_part_${day.date}`}
@@ -148,7 +163,7 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
                       床材一部交換
                     </label>
                     <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-                      <input
+                      <AutoSubmitInput
                         aria-label={`${day.date} 床材全交換`}
                         type="checkbox"
                         name={`flooring_all_${day.date}`}
@@ -158,7 +173,7 @@ export function CleaningMobileForm({ days, hamsterId, includeInactive, isLocked,
                       床材全交換
                     </label>
                     <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 min-[380px]:col-span-2">
-                      <input
+                      <AutoSubmitInput
                         aria-label={`${day.date} ハウス掃除`}
                         type="checkbox"
                         name={`house_${day.date}`}

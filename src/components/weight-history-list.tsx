@@ -123,7 +123,12 @@ export function WeightHistoryList({
               <span className="sr-only">{record.recordDate}の体重履歴を選択</span>
             </label>
 
-            <form action={updateWeightRecord} data-dirty-watch className="grid gap-3 md:grid-cols-[180px_160px_auto]">
+            <form
+              key={`${record.id}:${record.recordDate}:${record.weightG}`}
+              action={updateWeightRecord}
+              data-dirty-watch
+              className="grid gap-3 md:grid-cols-[180px_160px_auto]"
+            >
               <input type="hidden" name="id" value={record.id} />
               <input type="hidden" name="hamsterId" value={selectedHamsterId} />
               <input type="hidden" name="filter" value={filterMode} />

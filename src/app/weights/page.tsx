@@ -324,7 +324,9 @@ export default async function WeightsPage({
                   sortTarget,
                   sortDirection,
                   pagination.currentPage,
-                  records.map((record) => record.id).join(",")
+                  records
+                    .map((record) => `${record.id}:${toDateInputValue(record.recordDate)}:${record.weightG}`)
+                    .join(",")
                 ].join(":")}
                 records={records.map((record) => ({
                   id: record.id,
