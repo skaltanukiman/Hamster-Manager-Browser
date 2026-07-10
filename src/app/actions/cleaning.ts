@@ -211,6 +211,6 @@ export async function saveCleaningMonth(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/cleaning");
-  await notifyHouseholdChange(context.household.id, "cleaning", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "cleaning", getRealtimeActorId(formData), context.user.id);
   cleaningRedirect(hamsterId, yearMonth, "saved", includeInactive);
 }

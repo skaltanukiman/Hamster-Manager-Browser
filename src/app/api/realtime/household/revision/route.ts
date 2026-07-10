@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getLatestHouseholdChange } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,8 +42,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
+  const revision = membership.household.updatedAt.toISOString();
+  const latestChange = getLatestHouseholdChange(householdId);
+  const latestMatchingChange = latestChange?.revision === revision ? latestChange : null;
+
   return NextResponse.json({
     householdId,
-    revision: membership.household.updatedAt.toISOString()
+    revision,
+    actorClientId: latestMatchingChange?.actorClientId ?? null,
+    actorUserId: latestMatchingChange?.actorUserId ?? null
   });
 }

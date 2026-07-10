@@ -66,7 +66,7 @@ export async function createHamster(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/hamsters");
   if (status === "created") {
-    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData));
+    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
   }
   redirect(`/hamsters?status=${status}`);
 }
@@ -129,7 +129,7 @@ export async function updateHamster(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/hamsters");
   if (status === "updated") {
-    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData));
+    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
   }
   redirect(`/hamsters?status=${status}`);
 }
@@ -163,7 +163,7 @@ export async function updateHamsterActiveStatus(formData: FormData) {
   revalidatePath("/cleaning");
   revalidatePath("/weights");
   revalidatePath("/settings");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
   redirect("/hamsters?status=updated");
 }
 
@@ -192,7 +192,7 @@ export async function deleteHamster(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/hamsters");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
   redirect("/hamsters?status=deleted");
 }
 
@@ -230,6 +230,6 @@ export async function deleteHamsters(formData: FormData) {
   revalidatePath("/cleaning");
   revalidatePath("/weights");
   revalidatePath("/settings");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
   redirect("/hamsters?status=deleted");
 }

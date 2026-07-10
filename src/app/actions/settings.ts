@@ -73,7 +73,8 @@ export async function updateUserProfile(formData: FormData) {
   await notifyHouseholdChanges(
     membershipHouseholdIds.map((membership) => membership.householdId),
     "profile",
-    getRealtimeActorId(formData)
+    getRealtimeActorId(formData),
+    sessionUser.id
   );
   redirect("/settings?status=profileUpdated");
 }
@@ -153,6 +154,6 @@ export async function saveDashboardSettings(formData: FormData) {
   revalidatePath("/settings");
   revalidatePath("/weights");
   revalidatePath("/weights/export");
-  await notifyHouseholdChange(context.household.id, "settings", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "settings", getRealtimeActorId(formData), context.user.id);
   redirect("/settings?status=saved");
 }

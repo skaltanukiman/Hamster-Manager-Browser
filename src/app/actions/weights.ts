@@ -224,7 +224,7 @@ export async function createWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
   weightRedirect(result.data.hamsterId, "saved", {
     filter: historyFilter.filter,
     month: historyFilter.month,
@@ -273,7 +273,7 @@ export async function updateWeightRecord(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/weights");
   if (status === "updated") {
-    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
+    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
   }
   weightRedirect(result.data.hamsterId, status, historyFilter);
 }
@@ -296,7 +296,7 @@ export async function deleteWeightRecord(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
   weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
@@ -336,7 +336,7 @@ export async function deleteWeightRecords(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
   weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
@@ -458,7 +458,7 @@ export async function importWeightRecordsCsv(
   revalidatePath("/");
   revalidatePath("/weights");
   if (createResult.count > 0) {
-    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData));
+    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
   }
 
   return weightCsvImportState({

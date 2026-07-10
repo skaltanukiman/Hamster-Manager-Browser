@@ -14,6 +14,7 @@ export type HouseholdChangeEvent = {
   householdId: string;
   source: HouseholdChangeSource;
   actorClientId: string | null;
+  actorUserId: string | null;
   revision: string;
   createdAt: string;
 };
@@ -23,6 +24,7 @@ type HouseholdChangeListener = (event: HouseholdChangeEvent) => void;
 type RealtimeBus = {
   nextId: number;
   listeners: Set<HouseholdChangeListener>;
+  latestEventsByHouseholdId: Map<string, HouseholdChangeEvent>;
 };
 
 type RealtimeGlobal = typeof globalThis & {
@@ -35,7 +37,8 @@ function getRealtimeBus() {
   if (!globalForRealtime.__hamsterRealtimeBus) {
     globalForRealtime.__hamsterRealtimeBus = {
       nextId: 1,
-      listeners: new Set()
+      listeners: new Set(),
+      latestEventsByHouseholdId: new Map()
     };
   }
 
@@ -55,11 +58,13 @@ export function publishHouseholdChange({
   householdId,
   source,
   actorClientId,
+  actorUserId,
   revision
 }: {
   householdId: string;
   source: HouseholdChangeSource;
   actorClientId?: string | null;
+  actorUserId?: string | null;
   revision: string;
 }) {
   const bus = getRealtimeBus();
@@ -68,15 +73,21 @@ export function publishHouseholdChange({
     householdId,
     source,
     actorClientId: actorClientId ?? null,
+    actorUserId: actorUserId ?? null,
     revision,
     createdAt: new Date().toISOString()
   };
 
   bus.nextId += 1;
+  bus.latestEventsByHouseholdId.set(householdId, event);
 
   for (const listener of bus.listeners) {
     listener(event);
   }
+}
+
+export function getLatestHouseholdChange(householdId: string) {
+  return getRealtimeBus().latestEventsByHouseholdId.get(householdId) ?? null;
 }
 
 export function getRealtimeActorId(formData: FormData | undefined) {
@@ -87,7 +98,8 @@ export function getRealtimeActorId(formData: FormData | undefined) {
 export async function notifyHouseholdChange(
   householdId: string,
   source: HouseholdChangeSource,
-  actorClientId?: string | null
+  actorClientId?: string | null,
+  actorUserId?: string | null
 ) {
   const revisionDate = new Date();
 
@@ -96,13 +108,14 @@ export async function notifyHouseholdChange(
     data: { updatedAt: revisionDate }
   });
 
-  publishHouseholdChange({ householdId, source, actorClientId, revision: revisionDate.toISOString() });
+  publishHouseholdChange({ householdId, source, actorClientId, actorUserId, revision: revisionDate.toISOString() });
 }
 
 export async function notifyHouseholdChanges(
   householdIds: string[],
   source: HouseholdChangeSource,
-  actorClientId?: string | null
+  actorClientId?: string | null,
+  actorUserId?: string | null
 ) {
   const uniqueHouseholdIds = [...new Set(householdIds)];
   const revisionDate = new Date();
@@ -113,6 +126,6 @@ export async function notifyHouseholdChanges(
   });
 
   for (const householdId of uniqueHouseholdIds) {
-    publishHouseholdChange({ householdId, source, actorClientId, revision: revisionDate.toISOString() });
+    publishHouseholdChange({ householdId, source, actorClientId, actorUserId, revision: revisionDate.toISOString() });
   }
 }

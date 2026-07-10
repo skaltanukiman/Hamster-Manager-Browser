@@ -39,7 +39,7 @@ export async function createHouseholdInvitation(formData?: FormData) {
   });
 
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData), context.user.id);
 
   const params = new URLSearchParams({
     status: "invitationCreated",
@@ -133,7 +133,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
   await setCurrentHouseholdCookie(invitation.householdId);
   revalidatePath("/");
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(invitation.householdId, "member", getRealtimeActorId(formData));
+  await notifyHouseholdChange(invitation.householdId, "member", getRealtimeActorId(formData), user.id);
   redirect("/settings/members?status=joined");
 }
 
@@ -196,6 +196,6 @@ export async function removeHouseholdMember(formData: FormData) {
   }
 
   revalidatePath("/settings/members");
-  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData));
+  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData), context.user.id);
   redirect("/settings/members?status=memberRemoved");
 }
