@@ -27,7 +27,7 @@ export function MemberRoleForm({ memberId, memberName, currentRole }: MemberRole
   }
 
   return (
-    <form action={updateHouseholdMemberRole} onSubmit={handleSubmit} className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+    <form action={updateHouseholdMemberRole} onSubmit={handleSubmit} className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
       <input type="hidden" name="memberId" value={memberId} />
       <select
         name="role"
@@ -43,7 +43,7 @@ export function MemberRoleForm({ memberId, memberName, currentRole }: MemberRole
       </select>
       <button
         type="submit"
-        className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-36"
       >
         <ShieldCheck className="h-4 w-4" aria-hidden />
         権限更新

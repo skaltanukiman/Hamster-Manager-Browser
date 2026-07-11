@@ -203,7 +203,7 @@ export default async function MembersPage({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-slate-500">参加日: {formatDateJp(member.createdAt)}</p>
                   {canUpdateThisMemberRole || canRemoveThisMember ? (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-col gap-2">
                       {canUpdateThisMemberRole ? (
                         manageableMemberRole ? (
                           <MemberRoleForm memberId={member.id} memberName={memberDisplayName} currentRole={manageableMemberRole} />
