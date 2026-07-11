@@ -155,7 +155,7 @@ export default async function CleaningPage({
                               </td>
                               <td className="weekday-cell text-slate-500">{day.weekday}</td>
                               <td className="checkbox-cell">
-                                <AutoSubmitInput
+                                <input
                                   aria-label={`${day.date} トイレ掃除`}
                                   type="checkbox"
                                   name={`toilet_${day.date}`}
@@ -164,7 +164,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <AutoSubmitInput
+                                <input
                                   aria-label={`${day.date} 砂場掃除`}
                                   type="checkbox"
                                   name={`bath_${day.date}`}
@@ -173,7 +173,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <AutoSubmitInput
+                                <input
                                   aria-label={`${day.date} 床材一部交換`}
                                   type="checkbox"
                                   name={`flooring_part_${day.date}`}
@@ -182,7 +182,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <AutoSubmitInput
+                                <input
                                   aria-label={`${day.date} 床材全交換`}
                                   type="checkbox"
                                   name={`flooring_all_${day.date}`}
@@ -191,7 +191,7 @@ export default async function CleaningPage({
                                 />
                               </td>
                               <td className="checkbox-cell">
-                                <AutoSubmitInput
+                                <input
                                   aria-label={`${day.date} ハウス掃除`}
                                   type="checkbox"
                                   name={`house_${day.date}`}
