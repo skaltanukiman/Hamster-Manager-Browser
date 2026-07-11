@@ -99,6 +99,7 @@ export default async function WeightsPage({
   searchParams: Promise<{
     hamsterId?: string | string[];
     status?: string | string[];
+    errorId?: string | string[];
     filter?: string | string[];
     month?: string | string[];
     page?: string | string[];
@@ -162,7 +163,7 @@ export default async function WeightsPage({
         </div>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {hamsters.length === 0 ? (
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />

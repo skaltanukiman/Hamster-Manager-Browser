@@ -11,7 +11,8 @@ const INITIAL_IMPORT_STATE: WeightCsvImportState = {
   skippedCount: 0,
   errorCount: 0,
   errors: [],
-  message: ""
+  message: "",
+  errorType: null
 };
 
 export function WeightCsvImportForm() {
@@ -43,6 +44,9 @@ export function WeightCsvImportForm() {
           }`}
         >
           <p className="font-semibold">{state.message}</p>
+          {state.errorType === "system" && state.errorId ? (
+            <p className="mt-1 break-all text-xs">エラーID: {state.errorId}</p>
+          ) : null}
           <dl className="mt-3 grid gap-2 sm:grid-cols-3">
             <div className="rounded-md bg-white/70 px-3 py-2">
               <dt className="text-xs">登録成功</dt>

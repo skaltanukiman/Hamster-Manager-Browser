@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { subscribeHouseholdChanges } from "@/lib/realtime";
+import { logUnexpectedError } from "@/lib/server-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,37 +14,30 @@ function encodeSse(event: string, data: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
   const householdId = request.nextUrl.searchParams.get("householdId");
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
 
-  if (!householdId) {
-    return NextResponse.json({ message: "Bad Request" }, { status: 400 });
-  }
+    if (!userId) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!householdId) return NextResponse.json({ message: "Bad Request" }, { status: 400 });
 
-  const membership = await prisma.householdMember.findUnique({
-    where: {
-      householdId_userId: {
-        householdId,
-        userId
-      }
-    },
-    select: { id: true }
-  });
+    const membership = await prisma.householdMember.findUnique({
+      where: {
+        householdId_userId: {
+          householdId,
+          userId
+        }
+      },
+      select: { id: true }
+    });
 
-  if (!membership) {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
+    if (!membership) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-  const encoder = new TextEncoder();
-  let cleanup = () => {};
+    const encoder = new TextEncoder();
+    let cleanup = () => {};
 
-  const stream = new ReadableStream<Uint8Array>({
+    const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let isClosed = false;
 
@@ -56,6 +50,7 @@ export async function GET(request: NextRequest) {
           controller.enqueue(encoder.encode(payload));
         } catch {
           isClosed = true;
+          cleanup();
         }
       }
 
@@ -84,14 +79,21 @@ export async function GET(request: NextRequest) {
     cancel() {
       cleanup();
     }
-  });
+    });
 
-  return new Response(stream, {
-    headers: {
-      "Cache-Control": "no-cache, no-transform",
-      "Content-Type": "text/event-stream; charset=utf-8",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no"
-    }
-  });
+    return new Response(stream, {
+      headers: {
+        "Cache-Control": "no-cache, no-transform",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no"
+      }
+    });
+  } catch (error) {
+    const errorId = logUnexpectedError(error, {
+      operation: "realtime.sse.connect",
+      context: { householdId }
+    });
+    return NextResponse.json({ message: "同期接続を開始できませんでした。", errorId }, { status: 500 });
+  }
 }

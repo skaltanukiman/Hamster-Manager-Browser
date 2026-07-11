@@ -33,7 +33,8 @@ const messages: Record<string, string> = {
   cannotRemoveLastSuperAdmin: "最後のスーパー管理者は降格できません。",
   forbidden: "この操作を実行する権限がありません。",
   invitationExpired: "招待リンクの有効期限が切れています。",
-  invitationUsed: "この招待リンクは既に使用されています。"
+  invitationUsed: "この招待リンクは既に使用されています。",
+  systemError: "処理中に予期しないエラーが発生しました。時間をおいて再度お試しください。"
 };
 
 const errorStatuses = new Set([
@@ -56,13 +57,14 @@ const errorStatuses = new Set([
   "cannotChangeOwnRole",
   "cannotRemoveLastSuperAdmin",
   "invitationExpired",
-  "invitationUsed"
+  "invitationUsed",
+  "systemError"
 ]);
 
 const AUTO_DISMISS_MS = 3500;
 const LEAVE_ANIMATION_MS = 450;
 
-function AnimatedStatusMessage({ status, message }: { status: string; message: string }) {
+function AnimatedStatusMessage({ status, message, errorId }: { status: string; message: string; errorId?: string }) {
   const [isVisible, setIsVisible] = useState(true);
   const [isLeaving, setIsLeaving] = useState(false);
   const isError = errorStatuses.has(status);
@@ -109,7 +111,10 @@ function AnimatedStatusMessage({ status, message }: { status: string; message: s
         isLeaving ? "-translate-y-1 opacity-0" : "translate-y-0 opacity-100"
       } ${colorClass}`}
     >
-      <p className="min-w-0 flex-1">{message}</p>
+      <div className="min-w-0 flex-1">
+        <p>{message}</p>
+        {status === "systemError" && errorId ? <p className="mt-1 break-all text-xs">エラーID: {errorId}</p> : null}
+      </div>
       {isError ? (
         <button
           type="button"
@@ -124,10 +129,11 @@ function AnimatedStatusMessage({ status, message }: { status: string; message: s
   );
 }
 
-export function StatusMessage({ status }: { status?: string }) {
+export function StatusMessage({ status, errorId }: { status?: string; errorId?: string }) {
   if (!status || !messages[status]) {
     return null;
   }
 
-  return <AnimatedStatusMessage key={status} status={status} message={messages[status]} />;
+  const safeErrorId = errorId && /^[A-Za-z0-9-]{6,128}$/.test(errorId) ? errorId : undefined;
+  return <AnimatedStatusMessage key={`${status}-${safeErrorId ?? ""}`} status={status} message={messages[status]} errorId={safeErrorId} />;
 }

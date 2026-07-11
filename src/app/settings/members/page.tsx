@@ -56,7 +56,7 @@ async function getMembersPageData() {
 export default async function MembersPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string | string[]; inviteToken?: string | string[] }>;
+  searchParams: Promise<{ status?: string | string[]; inviteToken?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
   const inviteUrl = await getInviteUrl(getParam(params.inviteToken));
@@ -73,7 +73,7 @@ export default async function MembersPage({
         <p className="mt-1 text-sm text-slate-600">{context.household.name} のメンバーを管理します。</p>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">

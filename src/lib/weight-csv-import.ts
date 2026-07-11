@@ -1,3 +1,6 @@
+import { parseDateInput, todayInputJst } from "@/lib/date";
+import { MAX_WEIGHT_CSV_ROWS, MAX_WEIGHT_G } from "@/lib/weight-rules";
+
 export type WeightCsvImportIssue = {
   lineNumber: number;
   message: string;
@@ -133,7 +136,7 @@ function parseCsvDate(value: string) {
   };
 }
 
-export function parseWeightCsvImport(text: string) {
+export function parseWeightCsvImport(text: string, todayInput = todayInputJst()) {
   const { records, errors: parseErrors } = parseCsvRecords(text);
   const rows: ParsedWeightCsvImportRow[] = [];
   const errors: WeightCsvImportIssue[] = [...parseErrors];
@@ -146,6 +149,13 @@ export function parseWeightCsvImport(text: string) {
     return {
       rows,
       errors: [{ lineNumber: 1, message: "CSVにヘッダー行がありません。" }]
+    };
+  }
+
+  if (records.length - 1 > MAX_WEIGHT_CSV_ROWS) {
+    return {
+      rows,
+      errors: [{ lineNumber: 0, message: `CSVは${MAX_WEIGHT_CSV_ROWS.toLocaleString("ja-JP")}件以内にしてください。` }]
     };
   }
 
@@ -172,6 +182,8 @@ export function parseWeightCsvImport(text: string) {
 
     if (!parsedDate) {
       rowErrors.push("dateはYYYY/MM/DD形式の日付で入力してください。");
+    } else if (parsedDate.date.getTime() > parseDateInput(todayInput).getTime()) {
+      rowErrors.push("未来日には記録できません。");
     }
 
     if (hamsterName.length === 0) {
@@ -182,6 +194,8 @@ export function parseWeightCsvImport(text: string) {
       rowErrors.push("weightは数値で入力してください。");
     } else if (weightG <= 0) {
       rowErrors.push("weightは0より大きい数値で入力してください。");
+    } else if (weightG > MAX_WEIGHT_G) {
+      rowErrors.push(`weightは${MAX_WEIGHT_G}g以下で入力してください。`);
     }
 
     if (unitValue.length > 0 && unitValue !== "g") {

@@ -12,7 +12,7 @@ function getParam(value: string | string[] | undefined) {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
   const { user, boardCount, hamsterSelectorMode, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
@@ -24,7 +24,7 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-slate-600">プロフィール、ダッシュボードの表示数と表示対象を管理します。</p>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       <ProfileSettingsForm name={user.name} email={user.email} />
 

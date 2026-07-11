@@ -1,11 +1,18 @@
 "use client";
 
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw, WifiOff, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { hasDirtyForms } from "@/components/form-dirty-state";
 import { REALTIME_ACTOR_FIELD, REALTIME_LOCAL_SUBMIT_EVENT } from "@/lib/realtime-constants";
+import {
+  createRealtimeHealthState,
+  getRealtimeRetryDelay,
+  recordRealtimeFailure,
+  recordRealtimeSuccess,
+  shouldShowRealtimeWarning
+} from "@/lib/realtime-health";
 
 type RealtimeRefreshListenerProps = {
   householdId: string;
@@ -26,7 +33,6 @@ type HouseholdRevisionPayload = {
   actorUserId: string | null;
 };
 
-const REVISION_POLL_INTERVAL_MS = 4000;
 const REMOTE_REFRESH_DEBOUNCE_MS = 150;
 const CLIENT_STORAGE_KEY = "hamster-manager-realtime-client-id";
 
@@ -75,6 +81,7 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
   const clientIdRef = useRef<string>(createClientId());
   const lastRevisionRef = useRef<string | null>(null);
   const [hasPendingChange, setHasPendingChange] = useState(false);
+  const [hasSyncWarning, setHasSyncWarning] = useState(false);
 
   useEffect(() => {
     const clientId = ensureClientId();
@@ -83,6 +90,8 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
     let isMounted = true;
     let isRevisionCheckInFlight = false;
     let refreshTimer: number | null = null;
+    let revisionPollTimer: number | null = null;
+    let healthState = createRealtimeHealthState(Date.now());
 
     const eventSource = new EventSource(`/api/realtime/household?householdId=${encodeURIComponent(householdId)}`);
 
@@ -138,6 +147,16 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       window.history.replaceState(window.history.state, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
     }
 
+    function markSyncSuccess() {
+      healthState = recordRealtimeSuccess(healthState, Date.now());
+      setHasSyncWarning(false);
+    }
+
+    function markSyncFailure() {
+      healthState = recordRealtimeFailure(healthState);
+      setHasSyncWarning(shouldShowRealtimeWarning(healthState, Date.now()));
+    }
+
     async function fetchRevision() {
       try {
         const response = await fetch(`/api/realtime/household/revision?householdId=${encodeURIComponent(householdId)}`, {
@@ -145,13 +164,15 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
         });
 
         if (!response.ok) {
-          return null;
+          return { ok: false as const };
         }
 
         const payload = (await response.json()) as HouseholdRevisionPayload;
-        return payload.householdId === householdId ? payload : null;
+        return payload.householdId === householdId && /^\d+$/.test(payload.revision)
+          ? { ok: true as const, payload }
+          : { ok: false as const };
       } catch {
-        return null;
+        return { ok: false as const };
       }
     }
 
@@ -173,19 +194,37 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       }, REMOTE_REFRESH_DEBOUNCE_MS);
     }
 
-    async function checkRevision() {
+    function scheduleRevisionCheck() {
+      if (!isMounted) return;
+      if (revisionPollTimer !== null) window.clearTimeout(revisionPollTimer);
+      revisionPollTimer = window.setTimeout(() => {
+        revisionPollTimer = null;
+        void checkRevision(true);
+      }, getRealtimeRetryDelay(healthState.consecutiveFailures));
+    }
+
+    async function checkRevision(scheduleNext = false) {
       if (isRevisionCheckInFlight) {
+        if (scheduleNext) scheduleRevisionCheck();
         return;
       }
 
       isRevisionCheckInFlight = true;
 
       try {
-        const revisionPayload = await fetchRevision();
+        const revisionResult = await fetchRevision();
 
-        if (!revisionPayload || !isMounted) {
+        if (!isMounted) {
           return;
         }
+
+        if (!revisionResult.ok) {
+          markSyncFailure();
+          return;
+        }
+
+        markSyncSuccess();
+        const revisionPayload = revisionResult.payload;
 
         const { actorClientId, actorUserId, revision } = revisionPayload;
 
@@ -208,6 +247,7 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
         applyRemoteChange();
       } finally {
         isRevisionCheckInFlight = false;
+        if (scheduleNext) scheduleRevisionCheck();
       }
     }
 
@@ -262,6 +302,8 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
         return;
       }
 
+      markSyncSuccess();
+
       lastRevisionRef.current = payload.revision;
 
       if (isSelfAuthored(payload.actorClientId, payload.actorUserId)) {
@@ -274,33 +316,36 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
 
     cleanupRealtimeQueryParam();
     syncActorFields();
-    void checkRevision();
+    void checkRevision(true);
 
     const observer = new MutationObserver(syncActorFields);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    const revisionPoll = window.setInterval(() => {
-      void checkRevision();
-    }, REVISION_POLL_INTERVAL_MS);
-
-    window.addEventListener("focus", checkRevision);
+    const handleEventSourceReady = () => markSyncSuccess();
+    const handleEventSourceError = () => markSyncFailure();
+    const handleWindowFocus = () => void checkRevision(false);
+    window.addEventListener("focus", handleWindowFocus);
     window.addEventListener(REALTIME_LOCAL_SUBMIT_EVENT, handleLocalSubmitEvent);
     document.addEventListener("submit", handleSubmitCapture, true);
     document.addEventListener("formdata", handleFormData, true);
     eventSource.addEventListener("household-change", handleHouseholdChange);
+    eventSource.addEventListener("ready", handleEventSourceReady);
+    eventSource.addEventListener("error", handleEventSourceError);
 
     return () => {
       isMounted = false;
       observer.disconnect();
-      window.clearInterval(revisionPoll);
+      if (revisionPollTimer !== null) window.clearTimeout(revisionPollTimer);
       if (refreshTimer !== null) {
         window.clearTimeout(refreshTimer);
       }
-      window.removeEventListener("focus", checkRevision);
+      window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener(REALTIME_LOCAL_SUBMIT_EVENT, handleLocalSubmitEvent);
       document.removeEventListener("submit", handleSubmitCapture, true);
       document.removeEventListener("formdata", handleFormData, true);
       eventSource.removeEventListener("household-change", handleHouseholdChange);
+      eventSource.removeEventListener("ready", handleEventSourceReady);
+      eventSource.removeEventListener("error", handleEventSourceError);
       eventSource.close();
     };
   }, [currentUserId, householdId, router]);
@@ -310,12 +355,25 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
     router.refresh();
   }
 
-  if (!hasPendingChange) {
+  if (!hasPendingChange && !hasSyncWarning) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg shadow-slate-300/40 sm:left-auto sm:max-w-sm">
+    <>
+      {hasSyncWarning ? (
+        <div className="fixed left-4 right-4 top-4 z-50 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-lg shadow-slate-300/40 sm:left-auto sm:max-w-sm" role="alert">
+          <div className="flex items-start gap-3">
+            <WifiOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div>
+              <p className="font-semibold">同期が停止しています。</p>
+              <p className="mt-1 text-red-700">最新情報を取得できていません。入力内容は保持したまま自動再接続しています。</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {hasPendingChange ? (
+        <div className="fixed bottom-4 left-4 right-4 z-50 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg shadow-slate-300/40 sm:left-auto sm:max-w-sm">
       <div className="flex items-start gap-3">
         <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
@@ -339,6 +397,8 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
-    </div>
+        </div>
+      ) : null}
+    </>
   );
 }

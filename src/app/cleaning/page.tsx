@@ -24,6 +24,7 @@ export default async function CleaningPage({
     hamsterId?: string | string[];
     month?: string | string[];
     status?: string | string[];
+    errorId?: string | string[];
     includeInactive?: string | string[];
   }>;
 }) {
@@ -64,7 +65,7 @@ export default async function CleaningPage({
         <p className="mt-1 text-sm text-slate-600">月ごとの掃除記録を表形式で入力します。</p>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {hamsters.length === 0 ? (
         <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />

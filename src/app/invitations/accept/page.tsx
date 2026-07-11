@@ -13,7 +13,7 @@ function getParam(value: string | string[] | undefined) {
 export default async function AcceptInvitationPage({
   searchParams
 }: {
-  searchParams: Promise<{ token?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{ token?: string | string[]; status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
   const token = getParam(params.token);
@@ -26,7 +26,7 @@ export default async function AcceptInvitationPage({
         <p className="mt-1 text-sm text-slate-600">招待リンクを確認し、現在のGoogleアカウントで参加します。</p>
       </div>
 
-      <StatusMessage status={status} />
+      <StatusMessage status={status} errorId={getParam(params.errorId)} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         {token ? (

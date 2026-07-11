@@ -1,12 +1,17 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
-import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
+import {
+  commitHouseholdMutation,
+  getRealtimeActorId,
+  publishHouseholdChangeSafely,
+  updateHouseholdRevision
+} from "@/lib/realtime";
+import { revalidatePathsSafely } from "@/lib/safe-side-effects";
 import {
   createWeightRecordSchema,
   deleteWeightRecordsSchema,
@@ -14,6 +19,8 @@ import {
   updateWeightRecordSchema
 } from "@/lib/schemas";
 import { parseWeightCsvImport, type WeightCsvImportIssue } from "@/lib/weight-csv-import";
+import { handleServerActionError, isPrismaUniqueConstraintError, logUnexpectedError } from "@/lib/server-errors";
+import { getWeightCsvFileSizeError } from "@/lib/weight-rules";
 
 const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const WEIGHT_SORT_TARGETS = new Set(["registered", "date", "weight"]);
@@ -35,18 +42,24 @@ export type WeightCsvImportState = {
   errorCount: number;
   errors: WeightCsvImportIssue[];
   message: string;
+  errorType: "validation" | "system" | null;
+  errorId?: string;
 };
 
 function weightCsvImportState({
   successCount = 0,
   skippedCount = 0,
   errors = [],
-  message
+  message,
+  errorType,
+  errorId
 }: {
   successCount?: number;
   skippedCount?: number;
   errors?: WeightCsvImportIssue[];
   message: string;
+  errorType?: "validation" | "system" | null;
+  errorId?: string;
 }): WeightCsvImportState {
   return {
     hasResult: true,
@@ -54,7 +67,9 @@ function weightCsvImportState({
     skippedCount,
     errorCount: errors.length,
     errors,
-    message
+    message,
+    errorType: errorType ?? (errors.length > 0 ? "validation" : null),
+    errorId
   };
 }
 
@@ -183,288 +198,287 @@ async function getEditableWeightRecord(
 }
 
 export async function createWeightRecord(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
+    if (!result.success) redirect("/weights?status=invalid");
 
-  if (!result.success) {
-    redirect("/weights?status=invalid");
-  }
+    const historyFilter = getWeightHistoryFilter(formData);
+    if (isFutureDateInput(result.data.recordDate)) weightRedirect(result.data.hamsterId, "future", historyFilter);
+    await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
 
-  const historyFilter = getWeightHistoryFilter(formData);
+    const recordDate = parseDateInput(result.data.recordDate);
+    const existingRecord = await prisma.weightRecord.findUnique({
+      where: { hamsterId_recordDate: { hamsterId: result.data.hamsterId, recordDate } },
+      select: { id: true }
+    });
+    if (existingRecord) weightRedirect(result.data.hamsterId, "duplicate", historyFilter);
 
-  if (isFutureDateInput(result.data.recordDate)) {
-    weightRedirect(result.data.hamsterId, "future", historyFilter);
-  }
-
-  await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
-
-  const recordDate = parseDateInput(result.data.recordDate);
-
-  const existingRecord = await prisma.weightRecord.findUnique({
-    where: {
-      hamsterId_recordDate: {
-        hamsterId: result.data.hamsterId,
-        recordDate
-      }
-    },
-    select: { id: true }
-  });
-
-  if (existingRecord) {
-    weightRedirect(result.data.hamsterId, "duplicate", historyFilter);
-  }
-
-  await prisma.weightRecord.create({
-    data: {
-      hamsterId: result.data.hamsterId,
-      recordDate,
-      weightG: result.data.weightG
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "weight",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: (tx) =>
+        tx.weightRecord.create({
+          data: { hamsterId: result.data.hamsterId, recordDate, weightG: result.data.weightG }
+        })
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.create.revalidate", {
+      householdId: context.household.id,
+      hamsterId: result.data.hamsterId
+    });
+    weightRedirect(result.data.hamsterId, "saved", {
+      filter: historyFilter.filter,
+      month: historyFilter.month,
+      sort: "registered",
+      direction: "desc",
+      includeInactive: historyFilter.includeInactive
+    });
+  } catch (error) {
+    const hamsterId = formData.get("hamsterId");
+    if (isPrismaUniqueConstraintError(error) && typeof hamsterId === "string") {
+      weightRedirect(hamsterId, "duplicate", getWeightHistoryFilter(formData));
     }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
-  weightRedirect(result.data.hamsterId, "saved", {
-    filter: historyFilter.filter,
-    month: historyFilter.month,
-    sort: "registered",
-    direction: "desc",
-    includeInactive: historyFilter.includeInactive
-  });
+    const params = new URLSearchParams();
+    if (typeof hamsterId === "string") params.set("hamsterId", hamsterId);
+    handleServerActionError(error, { operation: "weights.create", pathname: "/weights", searchParams: params });
+  }
 }
 
 export async function updateWeightRecord(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = updateWeightRecordSchema.safeParse(Object.fromEntries(formData));
-
-  if (!result.success) {
-    redirect("/weights?status=invalid");
-  }
-
-  const historyFilter = getWeightHistoryFilter(formData);
-
-  if (isFutureDateInput(result.data.recordDate)) {
-    weightRedirect(result.data.hamsterId, "future", historyFilter);
-  }
-
-  const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
-  const recordDate = parseDateInput(result.data.recordDate);
-
-  if (toDateInputValue(record.recordDate) === result.data.recordDate && record.weightG === result.data.weightG) {
-    weightRedirect(result.data.hamsterId, "unchanged", historyFilter);
-  }
-
-  let status = "updated";
-
-  // 編集で日付を移動した先に既存レコードがある場合は、DBの一意制約に任せて重複エラーとして返す。
   try {
-    await prisma.weightRecord.update({
-      where: { id: result.data.id },
-      data: {
-        recordDate,
-        weightG: result.data.weightG
-      }
-    });
-  } catch {
-    status = "duplicate";
-  }
+    const context = await getRequiredHouseholdContext();
+    const result = updateWeightRecordSchema.safeParse(Object.fromEntries(formData));
+    if (!result.success) redirect("/weights?status=invalid");
 
-  revalidatePath("/");
-  revalidatePath("/weights");
-  if (status === "updated") {
-    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
+    const historyFilter = getWeightHistoryFilter(formData);
+    if (isFutureDateInput(result.data.recordDate)) weightRedirect(result.data.hamsterId, "future", historyFilter);
+
+    const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
+    const recordDate = parseDateInput(result.data.recordDate);
+    if (toDateInputValue(record.recordDate) === result.data.recordDate && record.weightG === result.data.weightG) {
+      weightRedirect(result.data.hamsterId, "unchanged", historyFilter);
+    }
+
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "weight",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: (tx) =>
+        tx.weightRecord.update({
+          where: { id: result.data.id },
+          data: { recordDate, weightG: result.data.weightG }
+        })
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.update.revalidate", {
+      householdId: context.household.id,
+      hamsterId: result.data.hamsterId
+    });
+    weightRedirect(result.data.hamsterId, "updated", historyFilter);
+  } catch (error) {
+    const hamsterId = formData.get("hamsterId");
+    if (isPrismaUniqueConstraintError(error) && typeof hamsterId === "string") {
+      weightRedirect(hamsterId, "duplicate", getWeightHistoryFilter(formData));
+    }
+    const params = new URLSearchParams();
+    if (typeof hamsterId === "string") params.set("hamsterId", hamsterId);
+    handleServerActionError(error, { operation: "weights.update", pathname: "/weights", searchParams: params });
   }
-  weightRedirect(result.data.hamsterId, status, historyFilter);
 }
 
 export async function deleteWeightRecord(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = deleteWeightRecordSchema.safeParse(Object.fromEntries(formData));
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = deleteWeightRecordSchema.safeParse(Object.fromEntries(formData));
+    if (!result.success) redirect("/weights?status=invalid");
+    const historyFilter = getWeightHistoryFilter(formData);
+    await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
 
-  if (!result.success) {
-    redirect("/weights?status=invalid");
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "weight",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: async (tx) => {
+        const deleted = await tx.weightRecord.deleteMany({
+          where: { id: result.data.id, hamsterId: result.data.hamsterId }
+        });
+        if (deleted.count !== 1) redirect("/weights?status=invalid");
+      }
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.delete.revalidate", {
+      householdId: context.household.id,
+      hamsterId: result.data.hamsterId
+    });
+    weightRedirect(result.data.hamsterId, "deleted", historyFilter);
+  } catch (error) {
+    const hamsterId = formData.get("hamsterId");
+    const params = new URLSearchParams();
+    if (typeof hamsterId === "string") params.set("hamsterId", hamsterId);
+    handleServerActionError(error, { operation: "weights.delete", pathname: "/weights", searchParams: params });
   }
-
-  const historyFilter = getWeightHistoryFilter(formData);
-
-  await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
-
-  await prisma.weightRecord.delete({
-    where: { id: result.data.id }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
-  weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
 export async function deleteWeightRecords(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = deleteWeightRecordsSchema.safeParse({
-    ids: formData.getAll("ids"),
-    hamsterId: formData.get("hamsterId")
-  });
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = deleteWeightRecordsSchema.safeParse({
+      ids: formData.getAll("ids"),
+      hamsterId: formData.get("hamsterId")
+    });
+    if (!result.success) redirect("/weights?status=invalid");
 
-  if (!result.success) {
-    redirect("/weights?status=invalid");
+    const historyFilter = getWeightHistoryFilter(formData);
+    await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "weight",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: async (tx) => {
+        const deleted = await tx.weightRecord.deleteMany({
+          where: { id: { in: result.data.ids }, hamsterId: result.data.hamsterId }
+        });
+        if (deleted.count !== result.data.ids.length) redirect("/weights?status=invalid");
+      }
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.deleteMany.revalidate", {
+      householdId: context.household.id,
+      hamsterId: result.data.hamsterId,
+      targetCount: result.data.ids.length
+    });
+    weightRedirect(result.data.hamsterId, "deleted", historyFilter);
+  } catch (error) {
+    const hamsterId = formData.get("hamsterId");
+    const params = new URLSearchParams();
+    if (typeof hamsterId === "string") params.set("hamsterId", hamsterId);
+    handleServerActionError(error, { operation: "weights.deleteMany", pathname: "/weights", searchParams: params });
   }
-
-  const historyFilter = getWeightHistoryFilter(formData);
-
-  await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
-
-  // 選択中のハムスターに紐づく体重履歴だけを削除対象にし、別ハムスターのID混入を弾く。
-  const targetCount = await prisma.weightRecord.count({
-    where: {
-      id: { in: result.data.ids },
-      hamsterId: result.data.hamsterId
-    }
-  });
-
-  if (targetCount !== result.data.ids.length) {
-    redirect("/weights?status=invalid");
-  }
-
-  await prisma.weightRecord.deleteMany({
-    where: {
-      id: { in: result.data.ids },
-      hamsterId: result.data.hamsterId
-    }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/weights");
-  await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
-  weightRedirect(result.data.hamsterId, "deleted", historyFilter);
 }
 
 export async function importWeightRecordsCsv(
   _previousState: WeightCsvImportState,
   formData: FormData
 ): Promise<WeightCsvImportState> {
-  const context = await getRequiredHouseholdContext();
-  const csvFile = formData.get("csvFile");
+  let householdId: string | undefined;
+  try {
+    const context = await getRequiredHouseholdContext();
+    householdId = context.household.id;
+    const csvFile = formData.get("csvFile");
+    if (!(csvFile instanceof File) || csvFile.size === 0) {
+      return weightCsvImportState({
+        errors: [{ lineNumber: 0, message: "CSVファイルを選択してください。" }],
+        message: "CSVインポートに失敗しました。"
+      });
+    }
+    const fileSizeError = getWeightCsvFileSizeError(csvFile.size);
+    if (fileSizeError) {
+      return weightCsvImportState({
+        errors: [{ lineNumber: 0, message: fileSizeError }],
+        message: "CSVインポートに失敗しました。"
+      });
+    }
 
-  if (!(csvFile instanceof File) || csvFile.size === 0) {
-    return weightCsvImportState({
-      errors: [{ lineNumber: 0, message: "CSVファイルを選択してください。" }],
-      message: "CSVインポートに失敗しました。"
+    const parsed = parseWeightCsvImport(await csvFile.text());
+    const errors: WeightCsvImportIssue[] = [...parsed.errors];
+    if (parsed.rows.length === 0) {
+      return weightCsvImportState({
+        errors,
+        message: errors.length > 0 ? "登録できる行がありませんでした。" : "CSVに登録対象の行がありませんでした。"
+      });
+    }
+
+    const hamsters = await prisma.hamster.findMany({
+      where: { householdId: context.household.id },
+      select: { id: true, name: true, isActive: true }
     });
-  }
+    const hamsterByName = new Map(hamsters.map((hamster) => [hamster.name, hamster]));
+    const importCandidates: Array<{
+      hamsterId: string;
+      recordDate: Date;
+      recordDateInput: string;
+      weightG: number;
+    }> = [];
+    for (const row of parsed.rows) {
+      const hamster = hamsterByName.get(row.hamsterName);
+      if (!hamster) {
+        errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」が登録されていません。` });
+      } else if (!hamster.isActive) {
+        errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」は管理外のため登録できません。` });
+      } else {
+        importCandidates.push({
+          hamsterId: hamster.id,
+          recordDate: row.recordDate,
+          recordDateInput: row.recordDateInput,
+          weightG: row.weightG
+        });
+      }
+    }
+    if (importCandidates.length === 0) {
+      return weightCsvImportState({ errors, message: "登録できる行がありませんでした。" });
+    }
 
-  const parsed = parseWeightCsvImport(await csvFile.text());
-  const errors: WeightCsvImportIssue[] = [...parsed.errors];
+    const actorClientId = getRealtimeActorId(formData);
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      const hamsterIds = [...new Set(importCandidates.map((row) => row.hamsterId))];
+      const recordDates = [...new Set(importCandidates.map((row) => row.recordDateInput))].map(parseDateInput);
+      const existingRecords = await tx.weightRecord.findMany({
+        where: { hamsterId: { in: hamsterIds }, recordDate: { in: recordDates } },
+        select: { hamsterId: true, recordDate: true }
+      });
+      const existingKeys = new Set(
+        existingRecords.map((record) => `${record.hamsterId}:${toDateInputValue(record.recordDate)}`)
+      );
+      const csvKeys = new Set<string>();
+      const createRows: Array<{ hamsterId: string; recordDate: Date; weightG: number }> = [];
+      let skippedCount = 0;
+      for (const row of importCandidates) {
+        const key = `${row.hamsterId}:${row.recordDateInput}`;
+        if (existingKeys.has(key) || csvKeys.has(key)) {
+          skippedCount++;
+        } else {
+          csvKeys.add(key);
+          createRows.push({ hamsterId: row.hamsterId, recordDate: row.recordDate, weightG: row.weightG });
+        }
+      }
+      const created =
+        createRows.length > 0
+          ? await tx.weightRecord.createMany({ data: createRows, skipDuplicates: true })
+          : { count: 0 };
+      skippedCount += createRows.length - created.count;
+      const change =
+        created.count > 0
+          ? await updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id)
+          : null;
+      return { successCount: created.count, skippedCount, change };
+    });
 
-  if (parsed.rows.length === 0) {
+    if (transactionResult.change) publishHouseholdChangeSafely(transactionResult.change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.importCsv.revalidate", {
+      householdId: context.household.id
+    });
     return weightCsvImportState({
+      successCount: transactionResult.successCount,
+      skippedCount: transactionResult.skippedCount,
       errors,
-      message: errors.length > 0 ? "登録できる行がありませんでした。" : "CSVに登録対象の行がありませんでした。"
+      message: "CSVインポートが完了しました。"
     });
-  }
-
-  const hamsters = await prisma.hamster.findMany({
-    where: { householdId: context.household.id },
-    select: {
-      id: true,
-      name: true,
-      isActive: true
-    }
-  });
-  const hamsterByName = new Map(hamsters.map((hamster) => [hamster.name, hamster]));
-  const importCandidates: Array<{
-    hamsterId: string;
-    recordDate: Date;
-    recordDateInput: string;
-    weightG: number;
-  }> = [];
-
-  for (const row of parsed.rows) {
-    const hamster = hamsterByName.get(row.hamsterName);
-
-    if (!hamster) {
-      errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」が登録されていません。` });
-      continue;
-    }
-
-    if (!hamster.isActive) {
-      errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」は管理外のため登録できません。` });
-      continue;
-    }
-
-    importCandidates.push({
-      hamsterId: hamster.id,
-      recordDate: row.recordDate,
-      recordDateInput: row.recordDateInput,
-      weightG: row.weightG
+  } catch (error) {
+    const errorId = logUnexpectedError(error, {
+      operation: "weights.importCsv",
+      context: { householdId }
     });
-  }
-
-  if (importCandidates.length === 0) {
     return weightCsvImportState({
-      errors,
-      message: "登録できる行がありませんでした。"
+      errors: [{ lineNumber: 0, message: "システムエラーのためCSVを取り込めませんでした。" }],
+      message: "CSVインポートに失敗しました。",
+      errorType: "system",
+      errorId
     });
   }
-
-  const hamsterIds = [...new Set(importCandidates.map((row) => row.hamsterId))];
-  const recordDates = [...new Set(importCandidates.map((row) => row.recordDateInput))].map(parseDateInput);
-  const existingRecords = await prisma.weightRecord.findMany({
-    where: {
-      hamsterId: { in: hamsterIds },
-      recordDate: { in: recordDates }
-    },
-    select: {
-      hamsterId: true,
-      recordDate: true
-    }
-  });
-  const existingKeys = new Set(existingRecords.map((record) => `${record.hamsterId}:${toDateInputValue(record.recordDate)}`));
-  const csvKeys = new Set<string>();
-  const createRows: Array<{
-    hamsterId: string;
-    recordDate: Date;
-    weightG: number;
-  }> = [];
-  let skippedCount = 0;
-
-  for (const row of importCandidates) {
-    const key = `${row.hamsterId}:${row.recordDateInput}`;
-
-    if (existingKeys.has(key) || csvKeys.has(key)) {
-      skippedCount++;
-      continue;
-    }
-
-    csvKeys.add(key);
-    createRows.push({
-      hamsterId: row.hamsterId,
-      recordDate: row.recordDate,
-      weightG: row.weightG
-    });
-  }
-
-  const createResult =
-    createRows.length > 0
-      ? await prisma.weightRecord.createMany({
-          data: createRows,
-          skipDuplicates: true
-        })
-      : { count: 0 };
-
-  skippedCount += createRows.length - createResult.count;
-
-  revalidatePath("/");
-  revalidatePath("/weights");
-  if (createResult.count > 0) {
-    await notifyHouseholdChange(context.household.id, "weight", getRealtimeActorId(formData), context.user.id);
-  }
-
-  return weightCsvImportState({
-    successCount: createResult.count,
-    skippedCount,
-    errors,
-    message: "CSVインポートが完了しました。"
-  });
 }

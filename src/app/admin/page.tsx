@@ -115,7 +115,7 @@ function RoleSelect({
 export default async function AdminPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
   const currentUser = await getRequiredAppAdminUser();
@@ -130,7 +130,7 @@ export default async function AdminPage({
         <p className="mt-1 text-sm text-slate-600">ユーザー、共有、招待状況、アプリ全体権限を確認します。</p>
       </div>
 
-      <StatusMessage status={getParam(params.status)} />
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">

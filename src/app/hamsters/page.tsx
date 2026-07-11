@@ -15,7 +15,7 @@ function getParam(value: string | string[] | undefined) {
 export default async function HamstersPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
   const status = getParam(params.status);
@@ -40,7 +40,7 @@ export default async function HamstersPage({
         <p className="mt-1 text-sm text-slate-600">名前、メモ、誕生日、お迎え日を管理します。</p>
       </div>
 
-      <StatusMessage status={status} />
+      <StatusMessage status={status} errorId={getParam(params.errorId)} />
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>

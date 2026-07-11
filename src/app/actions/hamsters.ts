@@ -1,12 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
-import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
+import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
+import { revalidatePathsSafely } from "@/lib/safe-side-effects";
+import { handleServerActionError, isPrismaUniqueConstraintError } from "@/lib/server-errors";
 import {
   createHamsterSchema,
   deleteHamstersSchema,
@@ -42,194 +43,187 @@ function hamsterValidationStatus(issues: ZodIssue[]) {
 }
 
 export async function createHamster(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = createHamsterSchema.safeParse(Object.fromEntries(formData));
-
-  if (!result.success) {
-    redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
-  }
-
-  let status = "created";
-
-  // ハムスター名は一意制約を持つため、同名登録時は管理画面専用の重複エラーへ遷移する。
   try {
-    await prisma.hamster.create({
-      data: {
-        ...result.data,
-        householdId: context.household.id
-      }
-    });
-  } catch {
-    status = "hamsterDuplicate";
-  }
+    const context = await getRequiredHouseholdContext();
+    const result = createHamsterSchema.safeParse(Object.fromEntries(formData));
 
-  revalidatePath("/");
-  revalidatePath("/hamsters");
-  if (status === "created") {
-    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
+    if (!result.success) {
+      redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
+    }
+
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "hamster",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: (tx) =>
+        tx.hamster.create({
+          data: {
+            ...result.data,
+            householdId: context.household.id
+          }
+        })
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.create.revalidate", {
+      householdId: context.household.id
+    });
+    redirect("/hamsters?status=created");
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      redirect("/hamsters?status=hamsterDuplicate");
+    }
+
+    handleServerActionError(error, { operation: "hamsters.create", pathname: "/hamsters" });
   }
-  redirect(`/hamsters?status=${status}`);
 }
 
 export async function updateHamster(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = updateHamsterSchema.safeParse(Object.fromEntries(formData));
-
-  if (!result.success) {
-    redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
-  }
-
-  const { id, ...data } = result.data;
-  let status = "updated";
-  const hamster = await prisma.hamster.findUnique({
-    where: { id },
-    select: {
-      householdId: true,
-      name: true,
-      memo: true,
-      birthDate: true,
-      adoptionDate: true,
-      isActive: true
-    }
-  });
-
-  if (!hamster) {
-    redirect("/hamsters?status=invalid");
-  }
-
-  // FormDataのid差し替えで別家庭のハムスターを更新できないよう、DB更新前に所属を照合する。
-  if (hamster.householdId !== context.household.id) {
-    redirect("/hamsters?status=invalid");
-  }
-
-  // 管理外のハムスターはプロフィールも含めてロックし、復活後だけ編集できるようにする。
-  if (!hamster.isActive) {
-    redirect("/hamsters?status=locked");
-  }
-
-  if (
-    hamster.name === data.name &&
-    hamster.memo === data.memo &&
-    isSameNullableDate(hamster.birthDate, data.birthDate) &&
-    isSameNullableDate(hamster.adoptionDate, data.adoptionDate)
-  ) {
-    redirect("/hamsters?status=unchanged");
-  }
-
-  // 名前変更でも同名の別ハムスターと衝突する可能性があるため、登録時と同じ重複エラーを返す。
   try {
-    await prisma.hamster.update({
-      where: { id },
-      data
-    });
-  } catch {
-    status = "hamsterDuplicate";
-  }
+    const context = await getRequiredHouseholdContext();
+    const result = updateHamsterSchema.safeParse(Object.fromEntries(formData));
 
-  revalidatePath("/");
-  revalidatePath("/hamsters");
-  if (status === "updated") {
-    await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
+    if (!result.success) {
+      redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
+    }
+
+    const { id, ...data } = result.data;
+    const hamster = await prisma.hamster.findUnique({
+      where: { id },
+      select: {
+        householdId: true,
+        name: true,
+        memo: true,
+        birthDate: true,
+        adoptionDate: true,
+        isActive: true
+      }
+    });
+
+    if (!hamster || hamster.householdId !== context.household.id) {
+      redirect("/hamsters?status=invalid");
+    }
+
+    if (!hamster.isActive) {
+      redirect("/hamsters?status=locked");
+    }
+
+    if (
+      hamster.name === data.name &&
+      hamster.memo === data.memo &&
+      isSameNullableDate(hamster.birthDate, data.birthDate) &&
+      isSameNullableDate(hamster.adoptionDate, data.adoptionDate)
+    ) {
+      redirect("/hamsters?status=unchanged");
+    }
+
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "hamster",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: (tx) => tx.hamster.update({ where: { id }, data })
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.update.revalidate", {
+      householdId: context.household.id,
+      hamsterId: id
+    });
+    redirect("/hamsters?status=updated");
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      redirect("/hamsters?status=hamsterDuplicate");
+    }
+
+    handleServerActionError(error, { operation: "hamsters.update", pathname: "/hamsters" });
   }
-  redirect(`/hamsters?status=${status}`);
 }
 
 export async function updateHamsterActiveStatus(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = updateHamsterActiveStatusSchema.safeParse(Object.fromEntries(formData));
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = updateHamsterActiveStatusSchema.safeParse(Object.fromEntries(formData));
 
-  if (!result.success) {
-    redirect("/hamsters?status=invalid");
+    if (!result.success) redirect("/hamsters?status=invalid");
+
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "hamster",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: async (tx) => {
+        const updated = await tx.hamster.updateMany({
+          where: { id: result.data.id, householdId: context.household.id },
+          data: { isActive: result.data.isActive }
+        });
+        if (updated.count !== 1) redirect("/hamsters?status=invalid");
+      }
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely(
+      ["/", "/hamsters", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
+      "hamsters.activeStatus.revalidate",
+      { householdId: context.household.id, hamsterId: result.data.id }
+    );
+    redirect("/hamsters?status=updated");
+  } catch (error) {
+    handleServerActionError(error, { operation: "hamsters.activeStatus", pathname: "/hamsters" });
   }
-
-  const targetCount = await prisma.hamster.count({
-    where: {
-      id: result.data.id,
-      householdId: context.household.id
-    }
-  });
-
-  if (targetCount !== 1) {
-    redirect("/hamsters?status=invalid");
-  }
-
-  await prisma.hamster.update({
-    where: { id: result.data.id },
-    data: { isActive: result.data.isActive }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/hamsters");
-  revalidatePath("/cleaning");
-  revalidatePath("/weights");
-  revalidatePath("/settings");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
-  redirect("/hamsters?status=updated");
 }
 
 export async function deleteHamster(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = deleteHamsterSchema.safeParse(Object.fromEntries(formData));
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = deleteHamsterSchema.safeParse(Object.fromEntries(formData));
+    if (!result.success) redirect("/hamsters?status=invalid");
 
-  if (!result.success) {
-    redirect("/hamsters?status=invalid");
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "hamster",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: async (tx) => {
+        const deleted = await tx.hamster.deleteMany({ where: { id: result.data.id, householdId: context.household.id } });
+        if (deleted.count !== 1) redirect("/hamsters?status=invalid");
+      }
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.delete.revalidate", {
+      householdId: context.household.id,
+      hamsterId: result.data.id
+    });
+    redirect("/hamsters?status=deleted");
+  } catch (error) {
+    handleServerActionError(error, { operation: "hamsters.delete", pathname: "/hamsters" });
   }
-
-  const targetCount = await prisma.hamster.count({
-    where: {
-      id: result.data.id,
-      householdId: context.household.id
-    }
-  });
-
-  if (targetCount !== 1) {
-    redirect("/hamsters?status=invalid");
-  }
-
-  await prisma.hamster.delete({
-    where: { id: result.data.id }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/hamsters");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
-  redirect("/hamsters?status=deleted");
 }
 
 export async function deleteHamsters(formData: FormData) {
-  const context = await getRequiredHouseholdContext();
-  const result = deleteHamstersSchema.safeParse({
-    ids: formData.getAll("ids")
-  });
+  try {
+    const context = await getRequiredHouseholdContext();
+    const result = deleteHamstersSchema.safeParse({ ids: formData.getAll("ids") });
+    if (!result.success) redirect("/hamsters?status=invalid");
 
-  if (!result.success) {
-    redirect("/hamsters?status=invalid");
+    const { change } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "hamster",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: async (tx) => {
+        const deleted = await tx.hamster.deleteMany({
+          where: { id: { in: result.data.ids }, householdId: context.household.id }
+        });
+        if (deleted.count !== result.data.ids.length) redirect("/hamsters?status=invalid");
+      }
+    });
+    publishHouseholdChangeSafely(change);
+    revalidatePathsSafely(
+      ["/", "/hamsters", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
+      "hamsters.deleteMany.revalidate",
+      { householdId: context.household.id, targetCount: result.data.ids.length }
+    );
+    redirect("/hamsters?status=deleted");
+  } catch (error) {
+    handleServerActionError(error, { operation: "hamsters.deleteMany", pathname: "/hamsters" });
   }
-
-  // 送信されたIDの一部だけが存在する場合に、意図しない部分削除にならないよう全件一致を確認する。
-  const targetCount = await prisma.hamster.count({
-    where: {
-      id: { in: result.data.ids },
-      householdId: context.household.id
-    }
-  });
-
-  if (targetCount !== result.data.ids.length) {
-    redirect("/hamsters?status=invalid");
-  }
-
-  await prisma.hamster.deleteMany({
-    where: {
-      id: { in: result.data.ids },
-      householdId: context.household.id
-    }
-  });
-
-  revalidatePath("/");
-  revalidatePath("/hamsters");
-  revalidatePath("/cleaning");
-  revalidatePath("/weights");
-  revalidatePath("/settings");
-  await notifyHouseholdChange(context.household.id, "hamster", getRealtimeActorId(formData), context.user.id);
-  redirect("/hamsters?status=deleted");
 }

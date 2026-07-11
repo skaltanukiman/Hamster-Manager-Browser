@@ -15,7 +15,12 @@ function getParam(value: string | string[] | undefined) {
 export default async function WeightExportPage({
   searchParams
 }: {
-  searchParams: Promise<{ hamsterId?: string | string[]; month?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{
+    hamsterId?: string | string[];
+    month?: string | string[];
+    status?: string | string[];
+    errorId?: string | string[];
+  }>;
 }) {
   const query = await searchParams;
   const hamsters = await getHamsterOptions();
@@ -50,7 +55,7 @@ export default async function WeightExportPage({
         </Link>
       </div>
 
-      <StatusMessage status={getParam(query.status)} />
+      <StatusMessage status={getParam(query.status)} errorId={getParam(query.errorId)} />
 
       <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">

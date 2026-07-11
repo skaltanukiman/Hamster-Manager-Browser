@@ -1,5 +1,8 @@
+import type { Prisma } from "@prisma/client";
+
 import { REALTIME_ACTOR_FIELD } from "@/lib/realtime-constants";
 import { prisma } from "@/lib/prisma";
+import { logUnexpectedError } from "@/lib/server-errors";
 
 export type HouseholdChangeSource =
   | "hamster"
@@ -20,6 +23,10 @@ export type HouseholdChangeEvent = {
 };
 
 type HouseholdChangeListener = (event: HouseholdChangeEvent) => void;
+
+export type CommittedHouseholdChange = Omit<HouseholdChangeEvent, "createdAt" | "id">;
+
+export type TransactionExecutor = <T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>;
 
 type RealtimeBus = {
   nextId: number;
@@ -90,13 +97,16 @@ export function getRealtimeActorId(formData: FormData | undefined) {
   return typeof actorId === "string" && REALTIME_ACTOR_ID_PATTERN.test(actorId) ? actorId : null;
 }
 
-export async function notifyHouseholdChange(
+const executeTransaction: TransactionExecutor = (operation) => prisma.$transaction(operation);
+
+export async function updateHouseholdRevision(
+  tx: Prisma.TransactionClient,
   householdId: string,
   source: HouseholdChangeSource,
   actorClientId?: string | null,
   actorUserId?: string | null
-) {
-  const household = await prisma.household.update({
+): Promise<CommittedHouseholdChange> {
+  const household = await tx.household.update({
     where: { id: householdId },
     data: {
       realtimeRevision: { increment: 1 },
@@ -106,43 +116,75 @@ export async function notifyHouseholdChange(
     select: { realtimeRevision: true }
   });
 
-  publishHouseholdChange({
+  return {
     householdId,
     source,
-    actorClientId,
-    actorUserId,
+    actorClientId: actorClientId ?? null,
+    actorUserId: actorUserId ?? null,
     revision: household.realtimeRevision.toString()
-  });
+  };
 }
 
-export async function notifyHouseholdChanges(
+export async function updateHouseholdRevisions(
+  tx: Prisma.TransactionClient,
   householdIds: string[],
   source: HouseholdChangeSource,
   actorClientId?: string | null,
   actorUserId?: string | null
 ) {
   const uniqueHouseholdIds = [...new Set(householdIds)];
-  const households = await prisma.$transaction(
+  return Promise.all(
     uniqueHouseholdIds.map((householdId) =>
-      prisma.household.update({
-        where: { id: householdId },
-        data: {
-          realtimeRevision: { increment: 1 },
-          realtimeActorClientId: actorClientId ?? null,
-          realtimeActorUserId: actorUserId ?? null
-        },
-        select: { id: true, realtimeRevision: true }
-      })
+      updateHouseholdRevision(tx, householdId, source, actorClientId, actorUserId)
     )
   );
+}
 
-  for (const household of households) {
-    publishHouseholdChange({
-      householdId: household.id,
-      source,
-      actorClientId,
-      actorUserId,
-      revision: household.realtimeRevision.toString()
+export async function commitHouseholdMutation<T>(
+  {
+    householdId,
+    source,
+    actorClientId,
+    actorUserId,
+    mutate
+  }: {
+    householdId: string;
+    source: HouseholdChangeSource;
+    actorClientId?: string | null;
+    actorUserId?: string | null;
+    mutate: (tx: Prisma.TransactionClient) => Promise<T>;
+  },
+  transactionExecutor: TransactionExecutor = executeTransaction
+) {
+  return transactionExecutor(async (tx) => {
+    const result = await mutate(tx);
+    const change = await updateHouseholdRevision(tx, householdId, source, actorClientId, actorUserId);
+    return { result, change };
+  });
+}
+
+export function publishHouseholdChangeSafely(
+  change: CommittedHouseholdChange,
+  publisher: (change: CommittedHouseholdChange) => void = publishHouseholdChange
+) {
+  try {
+    publisher(change);
+    return true;
+  } catch (error) {
+    logUnexpectedError(error, {
+      operation: "realtime.publishHouseholdChange",
+      context: {
+        householdId: change.householdId,
+        source: change.source,
+        revision: change.revision
+      }
     });
+    return false;
+  }
+}
+
+export function publishHouseholdChangesSafely(changes: CommittedHouseholdChange[]) {
+  for (const change of changes) {
+    publishHouseholdChangeSafely(change);
   }
 }

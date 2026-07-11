@@ -27,10 +27,11 @@ async function signInWithGoogle(formData: FormData) {
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ callbackUrl?: string | string[] }>;
+  searchParams: Promise<{ callbackUrl?: string | string[]; error?: string | string[] }>;
 }) {
   const params = await searchParams;
   const callbackUrl = safeCallbackUrl(getParam(params.callbackUrl));
+  const hasAuthError = Boolean(getParam(params.error));
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md items-center">
@@ -40,6 +41,11 @@ export default async function LoginPage({
         <p className="mt-3 text-sm leading-6 text-slate-600">
           ハムスター管理を利用するには Google アカウントでログインしてください。
         </p>
+        {hasAuthError ? (
+          <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Googleログインに失敗しました。時間をおいて再度お試しください。
+          </p>
+        ) : null}
 
         <form action={signInWithGoogle} className="mt-6">
           <input type="hidden" name="callbackUrl" value={callbackUrl} />
