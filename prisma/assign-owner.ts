@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 const LEGACY_APP_SETTING_ID = "default";
 const DEFAULT_DASHBOARD_BOARD_COUNT = 6;
-const DEFAULT_HAMSTER_SELECTOR_MODE = "combobox";
+const DEFAULT_HAMSTER_SELECTOR_MODE = "select";
 
 function getEmailArgument() {
   const emailFlagIndex = process.argv.indexOf("--email");

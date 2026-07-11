@@ -73,7 +73,7 @@ model AppSetting {
   household           Household?         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   dashboardBoardCount Int                @default(6)
   // ハムスター選択UIを、検索入力できるコンボボックス式か従来のプルダウン式かで切り替える。
-  hamsterSelectorMode String             @default("combobox")
+  hamsterSelectorMode String             @default("select")
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   dashboardHamsters   DashboardHamster[]

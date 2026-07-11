@@ -4,7 +4,7 @@ export const DEFAULT_DASHBOARD_BOARD_COUNT = 6;
 export const MIN_DASHBOARD_BOARD_COUNT = 1;
 export const MAX_DASHBOARD_BOARD_COUNT = 30;
 export const HAMSTER_SELECTOR_MODES = ["combobox", "select"] as const;
-export const DEFAULT_HAMSTER_SELECTOR_MODE: HamsterSelectorMode = "combobox";
+export const DEFAULT_HAMSTER_SELECTOR_MODE: HamsterSelectorMode = "select";
 
 export type HamsterSelectorMode = (typeof HAMSTER_SELECTOR_MODES)[number];
 

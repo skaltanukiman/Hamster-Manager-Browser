@@ -33,7 +33,7 @@ async function main() {
         create: {
           userId: sampleUser.id,
           dashboardBoardCount: 6,
-          hamsterSelectorMode: "combobox"
+          hamsterSelectorMode: "select"
         }
       }
     }

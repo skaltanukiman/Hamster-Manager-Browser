@@ -160,7 +160,7 @@ export function DashboardSettingsForm({
             />
             <span>
               <span className="block font-semibold text-ink">プルダウン式</span>
-              <span className="mt-1 block text-xs text-slate-500">従来の一覧から選択する形式で表示します。</span>
+              <span className="mt-1 block text-xs text-slate-500">一覧から選択する形式で表示します。</span>
             </span>
           </label>
         </div>
