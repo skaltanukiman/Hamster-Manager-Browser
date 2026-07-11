@@ -33,7 +33,7 @@ export function MemberRoleForm({ memberId, memberName, currentRole }: MemberRole
         name="role"
         defaultValue={currentRole}
         aria-label={`${memberName} さんの権限`}
-        className="h-9 w-full min-w-0 py-1.5 text-sm sm:w-36 sm:shrink-0"
+        className="h-9 w-full min-w-0 py-1.5 text-center text-sm [text-align-last:center] sm:w-36 sm:shrink-0 sm:text-left sm:[text-align-last:left]"
       >
         {Object.entries(roleLabels).map(([value, label]) => (
           <option key={value} value={value}>
