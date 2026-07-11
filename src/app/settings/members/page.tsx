@@ -7,6 +7,7 @@ import { formatDateJp } from "@/lib/date";
 import { INVITATION_TTL_DAYS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
 import { MemberRemoveForm } from "@/components/member-remove-form";
+import { MemberRoleForm } from "@/components/member-role-form";
 import { StatusMessage } from "@/components/status-message";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,9 @@ export default async function MembersPage({
   const inviteUrl = await getInviteUrl(getParam(params.inviteToken));
   const { context, members } = await getMembersPageData();
   const canManageInvitations = hasHouseholdRole(context.membership.role, ["OWNER", "ADMIN"]);
-  const canRemoveMembers = hasHouseholdRole(context.membership.role, ["OWNER"]);
+  const canManageMemberRoles = context.membership.role === "OWNER";
+  const canRemoveMembers = hasHouseholdRole(context.membership.role, ["OWNER", "ADMIN"]);
+  const hasMemberActions = canManageMemberRoles || canRemoveMembers;
 
   return (
     <div className="space-y-6">
@@ -126,13 +129,19 @@ export default async function MembersPage({
                 <th>メールアドレス</th>
                 <th>権限</th>
                 <th>参加日</th>
-                {canRemoveMembers ? <th>操作</th> : null}
+                {hasMemberActions ? <th>操作</th> : null}
               </tr>
             </thead>
             <tbody>
               {members.map((member) => {
                 const memberDisplayName = member.user.name || member.user.email || "未設定";
-                const canRemoveThisMember = canRemoveMembers && member.userId !== context.user.id;
+                const manageableMemberRole = member.role === "ADMIN" || member.role === "MEMBER" ? member.role : null;
+                const canUpdateThisMemberRole =
+                  canManageMemberRoles && member.userId !== context.user.id && manageableMemberRole !== null;
+                const canRemoveThisMember =
+                  canRemoveMembers &&
+                  member.userId !== context.user.id &&
+                  (context.membership.role === "OWNER" || member.role === "MEMBER");
 
                 return (
                   <tr key={member.id}>
@@ -140,10 +149,23 @@ export default async function MembersPage({
                     <td>{member.user.email || "未設定"}</td>
                     <td>{roleLabels[member.role]}</td>
                     <td>{formatDateJp(member.createdAt)}</td>
-                    {canRemoveMembers ? (
+                    {hasMemberActions ? (
                       <td>
-                        {canRemoveThisMember ? (
-                          <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} />
+                        {canUpdateThisMemberRole || canRemoveThisMember ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {canUpdateThisMemberRole ? (
+                              manageableMemberRole ? (
+                                <MemberRoleForm
+                                  memberId={member.id}
+                                  memberName={memberDisplayName}
+                                  currentRole={manageableMemberRole}
+                                />
+                              ) : null
+                            ) : null}
+                            {canRemoveThisMember ? (
+                              <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} />
+                            ) : null}
+                          </div>
                         ) : (
                           <span className="text-sm text-slate-400">解除不可</span>
                         )}
@@ -159,7 +181,13 @@ export default async function MembersPage({
         <div className="grid gap-3 md:hidden">
           {members.map((member) => {
             const memberDisplayName = member.user.name || member.user.email || "未設定";
-            const canRemoveThisMember = canRemoveMembers && member.userId !== context.user.id;
+            const manageableMemberRole = member.role === "ADMIN" || member.role === "MEMBER" ? member.role : null;
+            const canUpdateThisMemberRole =
+              canManageMemberRoles && member.userId !== context.user.id && manageableMemberRole !== null;
+            const canRemoveThisMember =
+              canRemoveMembers &&
+              member.userId !== context.user.id &&
+              (context.membership.role === "OWNER" || member.role === "MEMBER");
 
             return (
               <article key={member.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
@@ -174,7 +202,16 @@ export default async function MembersPage({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-slate-500">参加日: {formatDateJp(member.createdAt)}</p>
-                  {canRemoveThisMember ? <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} /> : null}
+                  {canUpdateThisMemberRole || canRemoveThisMember ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {canUpdateThisMemberRole ? (
+                        manageableMemberRole ? (
+                          <MemberRoleForm memberId={member.id} memberName={memberDisplayName} currentRole={manageableMemberRole} />
+                        ) : null
+                      ) : null}
+                      {canRemoveThisMember ? <MemberRemoveForm memberId={member.id} memberName={memberDisplayName} /> : null}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             );

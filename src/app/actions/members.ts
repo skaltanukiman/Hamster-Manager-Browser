@@ -19,7 +19,12 @@ import { prisma } from "@/lib/prisma";
 import { getRealtimeActorId, notifyHouseholdChange } from "@/lib/realtime";
 
 const INVITATION_MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
-const MEMBER_REMOVE_ROLES = ["OWNER"] as const;
+const MEMBER_REMOVE_ROLES = ["OWNER", "ADMIN"] as const;
+const MEMBER_ROLE_MANAGE_ROLES = ["OWNER"] as const;
+
+function parseManageableMemberRole(value: FormDataEntryValue | null) {
+  return value === "ADMIN" || value === "MEMBER" ? value : null;
+}
 
 export async function createHouseholdInvitation(formData?: FormData) {
   const context = await getRequiredHouseholdContext();
@@ -170,6 +175,10 @@ export async function removeHouseholdMember(formData: FormData) {
     redirect("/settings/members?status=cannotRemoveSelf");
   }
 
+  if (context.membership.role === "ADMIN" && targetMember.role !== "MEMBER") {
+    redirect("/settings/members?status=forbidden");
+  }
+
   if (targetMember.role === "OWNER") {
     const ownerCount = await prisma.householdMember.count({
       where: {
@@ -195,7 +204,69 @@ export async function removeHouseholdMember(formData: FormData) {
     redirect("/settings/members?status=invalid");
   }
 
+  revalidatePath("/", "layout");
   revalidatePath("/settings/members");
   await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData), context.user.id);
   redirect("/settings/members?status=memberRemoved");
+}
+
+export async function updateHouseholdMemberRole(formData: FormData) {
+  const memberId = formData.get("memberId");
+  const role = parseManageableMemberRole(formData.get("role"));
+
+  if (typeof memberId !== "string" || !memberId || !role) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  const context = await getRequiredHouseholdContext();
+
+  if (!hasHouseholdRole(context.membership.role, [...MEMBER_ROLE_MANAGE_ROLES])) {
+    redirect("/settings/members?status=forbidden");
+  }
+
+  const targetMember = await prisma.householdMember.findFirst({
+    where: {
+      id: memberId,
+      householdId: context.household.id
+    },
+    select: {
+      id: true,
+      userId: true,
+      role: true
+    }
+  });
+
+  if (!targetMember) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  if (targetMember.userId === context.user.id) {
+    redirect("/settings/members?status=cannotChangeOwnHouseholdRole");
+  }
+
+  if (targetMember.role !== "ADMIN" && targetMember.role !== "MEMBER") {
+    redirect("/settings/members?status=cannotChangeOwnerRole");
+  }
+
+  if (targetMember.role === role) {
+    redirect("/settings/members?status=unchanged");
+  }
+
+  const updateResult = await prisma.householdMember.updateMany({
+    where: {
+      id: targetMember.id,
+      householdId: context.household.id,
+      role: targetMember.role
+    },
+    data: { role }
+  });
+
+  if (updateResult.count !== 1) {
+    redirect("/settings/members?status=invalid");
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/settings/members");
+  await notifyHouseholdChange(context.household.id, "member", getRealtimeActorId(formData), context.user.id);
+  redirect("/settings/members?status=roleUpdated");
 }
