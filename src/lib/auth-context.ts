@@ -101,6 +101,9 @@ async function findMembership(userId: string, preferredHouseholdId?: string) {
 
 async function createInitialHousehold(user: SessionUser) {
   return prisma.$transaction(async (tx) => {
+    // 初回ログイン直後は複数の Server Component が並行して初期化へ入るため、ユーザー単位で作成処理を直列化する。
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${user.id}, 0))`;
+
     const existingMembership = await tx.householdMember.findFirst({
       where: { userId: user.id },
       include: { household: true },
