@@ -24,12 +24,13 @@ type HouseholdChangeListener = (event: HouseholdChangeEvent) => void;
 type RealtimeBus = {
   nextId: number;
   listeners: Set<HouseholdChangeListener>;
-  latestEventsByHouseholdId: Map<string, HouseholdChangeEvent>;
 };
 
 type RealtimeGlobal = typeof globalThis & {
   __hamsterRealtimeBus?: RealtimeBus;
 };
+
+const REALTIME_ACTOR_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/;
 
 function getRealtimeBus() {
   const globalForRealtime = globalThis as RealtimeGlobal;
@@ -37,8 +38,7 @@ function getRealtimeBus() {
   if (!globalForRealtime.__hamsterRealtimeBus) {
     globalForRealtime.__hamsterRealtimeBus = {
       nextId: 1,
-      listeners: new Set(),
-      latestEventsByHouseholdId: new Map()
+      listeners: new Set()
     };
   }
 
@@ -79,20 +79,15 @@ export function publishHouseholdChange({
   };
 
   bus.nextId += 1;
-  bus.latestEventsByHouseholdId.set(householdId, event);
 
   for (const listener of bus.listeners) {
     listener(event);
   }
 }
 
-export function getLatestHouseholdChange(householdId: string) {
-  return getRealtimeBus().latestEventsByHouseholdId.get(householdId) ?? null;
-}
-
 export function getRealtimeActorId(formData: FormData | undefined) {
   const actorId = formData?.get(REALTIME_ACTOR_FIELD);
-  return typeof actorId === "string" && actorId.length > 0 ? actorId : null;
+  return typeof actorId === "string" && REALTIME_ACTOR_ID_PATTERN.test(actorId) ? actorId : null;
 }
 
 export async function notifyHouseholdChange(
@@ -101,14 +96,23 @@ export async function notifyHouseholdChange(
   actorClientId?: string | null,
   actorUserId?: string | null
 ) {
-  const revisionDate = new Date();
-
-  await prisma.household.updateMany({
+  const household = await prisma.household.update({
     where: { id: householdId },
-    data: { updatedAt: revisionDate }
+    data: {
+      realtimeRevision: { increment: 1 },
+      realtimeActorClientId: actorClientId ?? null,
+      realtimeActorUserId: actorUserId ?? null
+    },
+    select: { realtimeRevision: true }
   });
 
-  publishHouseholdChange({ householdId, source, actorClientId, actorUserId, revision: revisionDate.toISOString() });
+  publishHouseholdChange({
+    householdId,
+    source,
+    actorClientId,
+    actorUserId,
+    revision: household.realtimeRevision.toString()
+  });
 }
 
 export async function notifyHouseholdChanges(
@@ -118,14 +122,27 @@ export async function notifyHouseholdChanges(
   actorUserId?: string | null
 ) {
   const uniqueHouseholdIds = [...new Set(householdIds)];
-  const revisionDate = new Date();
+  const households = await prisma.$transaction(
+    uniqueHouseholdIds.map((householdId) =>
+      prisma.household.update({
+        where: { id: householdId },
+        data: {
+          realtimeRevision: { increment: 1 },
+          realtimeActorClientId: actorClientId ?? null,
+          realtimeActorUserId: actorUserId ?? null
+        },
+        select: { id: true, realtimeRevision: true }
+      })
+    )
+  );
 
-  await prisma.household.updateMany({
-    where: { id: { in: uniqueHouseholdIds } },
-    data: { updatedAt: revisionDate }
-  });
-
-  for (const householdId of uniqueHouseholdIds) {
-    publishHouseholdChange({ householdId, source, actorClientId, actorUserId, revision: revisionDate.toISOString() });
+  for (const household of households) {
+    publishHouseholdChange({
+      householdId: household.id,
+      source,
+      actorClientId,
+      actorUserId,
+      revision: household.realtimeRevision.toString()
+    });
   }
 }

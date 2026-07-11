@@ -16,7 +16,7 @@ type HouseholdChangePayload = {
   householdId: string;
   actorClientId: string | null;
   actorUserId: string | null;
-  revision?: string;
+  revision: string;
 };
 
 type HouseholdRevisionPayload = {
@@ -27,9 +27,8 @@ type HouseholdRevisionPayload = {
 };
 
 const REVISION_POLL_INTERVAL_MS = 4000;
+const REMOTE_REFRESH_DEBOUNCE_MS = 150;
 const CLIENT_STORAGE_KEY = "hamster-manager-realtime-client-id";
-const LOCAL_SUBMIT_STORAGE_KEY_PREFIX = "hamster-manager-realtime-local-submit:";
-const LOCAL_SUBMIT_SUPPRESS_MS = 15000;
 
 function createClientId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -55,14 +54,6 @@ function writeSessionStorage(key: string, value: string) {
   }
 }
 
-function removeSessionStorage(key: string) {
-  try {
-    window.sessionStorage.removeItem(key);
-  } catch {
-    // Ignore storage cleanup failures for the same reason as writes.
-  }
-}
-
 function ensureClientId() {
   const existingClientId = readSessionStorage(CLIENT_STORAGE_KEY);
 
@@ -75,30 +66,6 @@ function ensureClientId() {
   return clientId;
 }
 
-function getLocalSubmitStorageKey(householdId: string) {
-  return `${LOCAL_SUBMIT_STORAGE_KEY_PREFIX}${householdId}`;
-}
-
-function markLocalSubmit(householdId: string) {
-  writeSessionStorage(getLocalSubmitStorageKey(householdId), String(Date.now()));
-}
-
-function hasRecentLocalSubmit(householdId: string) {
-  const storageKey = getLocalSubmitStorageKey(householdId);
-  const submittedAt = Number(readSessionStorage(storageKey));
-
-  if (!Number.isFinite(submittedAt)) {
-    return false;
-  }
-
-  if (Date.now() - submittedAt <= LOCAL_SUBMIT_SUPPRESS_MS) {
-    return true;
-  }
-
-  removeSessionStorage(storageKey);
-  return false;
-}
-
 function isGetForm(form: HTMLFormElement) {
   return form.method.toLowerCase() === "get" && !form.hasAttribute("data-dirty-watch");
 }
@@ -106,16 +73,16 @@ function isGetForm(form: HTMLFormElement) {
 export function RealtimeRefreshListener({ currentUserId, householdId }: RealtimeRefreshListenerProps) {
   const router = useRouter();
   const clientIdRef = useRef<string>(createClientId());
-  const isRefreshingRef = useRef(false);
   const lastRevisionRef = useRef<string | null>(null);
-  const localSubmitUntilRef = useRef(0);
-  const suppressedLocalRevisionRef = useRef<string | null>(null);
   const [hasPendingChange, setHasPendingChange] = useState(false);
 
   useEffect(() => {
     const clientId = ensureClientId();
     clientIdRef.current = clientId;
+    lastRevisionRef.current = null;
     let isMounted = true;
+    let isRevisionCheckInFlight = false;
+    let refreshTimer: number | null = null;
 
     const eventSource = new EventSource(`/api/realtime/household?householdId=${encodeURIComponent(householdId)}`);
 
@@ -142,17 +109,22 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       document.querySelectorAll<HTMLFormElement>("form").forEach(ensureActorField);
     }
 
-    function suppressRecentLocalSubmit(revision: string | null) {
-      if (Date.now() > localSubmitUntilRef.current && !hasRecentLocalSubmit(householdId)) {
+    function isNewerRevision(revision: string) {
+      if (!/^\d+$/.test(revision)) {
         return false;
       }
 
-      if (revision) {
-        suppressedLocalRevisionRef.current = revision;
+      const currentRevision = lastRevisionRef.current;
+
+      if (!currentRevision) {
+        return true;
       }
 
-      setHasPendingChange(false);
-      return true;
+      return BigInt(revision) > BigInt(currentRevision);
+    }
+
+    function isSelfAuthored(actorClientId: string | null, actorUserId: string | null) {
+      return actorClientId === clientIdRef.current || actorUserId === currentUserId;
     }
 
     function cleanupRealtimeQueryParam() {
@@ -189,57 +161,54 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
         return;
       }
 
-      if (isRefreshingRef.current) {
-        return;
+      setHasPendingChange(false);
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
       }
 
-      isRefreshingRef.current = true;
-      router.refresh();
-
-      window.setTimeout(() => {
-        isRefreshingRef.current = false;
-      }, 800);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        router.refresh();
+      }, REMOTE_REFRESH_DEBOUNCE_MS);
     }
 
     async function checkRevision() {
-      const revisionPayload = await fetchRevision();
-
-      if (!revisionPayload || !isMounted) {
+      if (isRevisionCheckInFlight) {
         return;
       }
 
-      const { actorClientId, actorUserId, revision } = revisionPayload;
+      isRevisionCheckInFlight = true;
 
-      if (!lastRevisionRef.current) {
+      try {
+        const revisionPayload = await fetchRevision();
+
+        if (!revisionPayload || !isMounted) {
+          return;
+        }
+
+        const { actorClientId, actorUserId, revision } = revisionPayload;
+
+        if (!lastRevisionRef.current) {
+          lastRevisionRef.current = revision;
+          return;
+        }
+
+        if (!isNewerRevision(revision)) {
+          return;
+        }
+
         lastRevisionRef.current = revision;
-        return;
-      }
 
-      if (revision === lastRevisionRef.current) {
-        return;
-      }
+        if (isSelfAuthored(actorClientId, actorUserId)) {
+          setHasPendingChange(false);
+          return;
+        }
 
-      if (actorUserId && actorUserId === currentUserId) {
-        lastRevisionRef.current = revision;
-        suppressedLocalRevisionRef.current = revision;
-        setHasPendingChange(false);
-        return;
+        applyRemoteChange();
+      } finally {
+        isRevisionCheckInFlight = false;
       }
-
-      if (actorClientId && actorClientId === clientIdRef.current) {
-        lastRevisionRef.current = revision;
-        suppressedLocalRevisionRef.current = revision;
-        setHasPendingChange(false);
-        return;
-      }
-
-      if (suppressRecentLocalSubmit(revision)) {
-        lastRevisionRef.current = revision;
-        return;
-      }
-
-      lastRevisionRef.current = revision;
-      applyRemoteChange();
     }
 
     function handleSubmitCapture(event: SubmitEvent) {
@@ -254,8 +223,6 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       }
 
       ensureActorField(form);
-      localSubmitUntilRef.current = Date.now() + LOCAL_SUBMIT_SUPPRESS_MS;
-      markLocalSubmit(householdId);
     }
 
     function handleLocalSubmitEvent(event: Event) {
@@ -270,8 +237,6 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       }
 
       ensureActorField(form);
-      localSubmitUntilRef.current = Date.now() + LOCAL_SUBMIT_SUPPRESS_MS;
-      markLocalSubmit(householdId);
     }
 
     function handleFormData(event: FormDataEvent) {
@@ -282,45 +247,28 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       }
 
       event.formData.set(REALTIME_ACTOR_FIELD, clientId);
-      localSubmitUntilRef.current = Date.now() + LOCAL_SUBMIT_SUPPRESS_MS;
-      markLocalSubmit(householdId);
     }
 
     function handleHouseholdChange(event: MessageEvent<string>) {
-      const payload = JSON.parse(event.data) as HouseholdChangePayload;
+      let payload: HouseholdChangePayload;
 
-      if (payload.householdId !== householdId) {
+      try {
+        payload = JSON.parse(event.data) as HouseholdChangePayload;
+      } catch {
         return;
       }
 
-      if (payload.actorUserId && payload.actorUserId === currentUserId) {
-        lastRevisionRef.current = payload.revision ?? lastRevisionRef.current;
-        suppressedLocalRevisionRef.current = payload.revision ?? suppressedLocalRevisionRef.current;
+      if (payload.householdId !== householdId || !isNewerRevision(payload.revision)) {
+        return;
+      }
+
+      lastRevisionRef.current = payload.revision;
+
+      if (isSelfAuthored(payload.actorClientId, payload.actorUserId)) {
         setHasPendingChange(false);
         return;
       }
 
-      if (suppressRecentLocalSubmit(payload.revision ?? null)) {
-        lastRevisionRef.current = payload.revision ?? lastRevisionRef.current;
-        return;
-      }
-
-      if (payload.actorClientId && payload.actorClientId === clientIdRef.current) {
-        lastRevisionRef.current = payload.revision ?? lastRevisionRef.current;
-        suppressedLocalRevisionRef.current = payload.revision ?? suppressedLocalRevisionRef.current;
-        setHasPendingChange(false);
-        return;
-      }
-
-      if (payload.revision && payload.revision === lastRevisionRef.current) {
-        return;
-      }
-
-      if (payload.revision && payload.revision === suppressedLocalRevisionRef.current) {
-        return;
-      }
-
-      lastRevisionRef.current = payload.revision ?? lastRevisionRef.current;
       applyRemoteChange();
     }
 
@@ -345,6 +293,9 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
       isMounted = false;
       observer.disconnect();
       window.clearInterval(revisionPoll);
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
       window.removeEventListener("focus", checkRevision);
       window.removeEventListener(REALTIME_LOCAL_SUBMIT_EVENT, handleLocalSubmitEvent);
       document.removeEventListener("submit", handleSubmitCapture, true);

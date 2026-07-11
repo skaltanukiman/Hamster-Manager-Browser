@@ -154,14 +154,17 @@ model VerificationToken {
 }
 
 model Household {
-  id          String                  @id @default(cuid())
-  name        String
-  createdAt   DateTime                @default(now()) @map("created_at")
-  updatedAt   DateTime                @updatedAt @map("updated_at")
-  members     HouseholdMember[]
-  hamsters    Hamster[]
-  appSettings AppSetting[]
-  invitations HouseholdInvitation[]
+  id                    String                @id @default(cuid())
+  name                  String
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  realtimeRevision      BigInt                @default(0) @map("realtime_revision")
+  realtimeActorClientId String?               @map("realtime_actor_client_id") @db.VarChar(128)
+  realtimeActorUserId   String?               @map("realtime_actor_user_id")
+  members               HouseholdMember[]
+  hamsters              Hamster[]
+  appSettings           AppSetting[]
+  invitations           HouseholdInvitation[]
 
   @@map("households")
 }

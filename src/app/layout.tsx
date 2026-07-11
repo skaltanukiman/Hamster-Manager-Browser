@@ -34,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <>
               {householdSwitcherData ? (
                 <RealtimeRefreshListener
+                  key={householdSwitcherData.context.household.id}
                   currentUserId={householdSwitcherData.context.user.id}
                   householdId={householdSwitcherData.context.household.id}
                 />
