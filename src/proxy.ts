@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 
-const PUBLIC_PATHS = ["/login", "/invitations/accept"];
+const PUBLIC_PATHS = ["/login", "/invitations/accept", "/api/health"];
 const PUBLIC_PREFIXES = ["/api/auth"];
 
 function isPublicPath(pathname: string) {

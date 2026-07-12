@@ -855,7 +855,7 @@ mkdir -p logs uploads/hamsters
 sudo chown -R 1001:1001 logs uploads
 chmod 750 logs uploads uploads/hamsters
 docker compose build
-docker compose up -d
+docker compose up -d --wait --wait-timeout 120
 ```
 
 ### 4. Prisma migrate を反映
@@ -901,8 +901,14 @@ VPS 上で更新する例です。
 cd ~/apps/hamster-manager-browser
 git pull
 docker compose build
-docker compose up -d
+docker compose up -d --wait --wait-timeout 120
 docker compose logs -f app
+```
+
+`--wait` はDBとappが `healthy` になるまで待機し、120秒以内に正常化しなければコマンドを失敗させます。デプロイ後は次でも状態を確認できます。
+
+```bash
+curl --fail http://127.0.0.1:3001/api/health
 ```
 
 Docker Compose v1 の `docker-compose` で `KeyError: 'ContainerConfig'` が出る場合は、壊れた作成途中コンテナを削除するか、可能なら Compose v2 の `docker compose` を使ってください。
