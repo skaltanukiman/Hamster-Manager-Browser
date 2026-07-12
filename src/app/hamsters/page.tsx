@@ -46,33 +46,37 @@ export default async function HamstersPage({
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
-        <form action={createHamster} data-dirty-watch className="mt-4 space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(150px,200px)_160px_160px_1fr_auto]">
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              名前
-              <input name="name" required maxLength={15} placeholder="例: きなこ" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              誕生日
-              <input type="date" name="birthDate" max={today} />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              お迎え日
-              <input type="date" name="adoptionDate" max={today} />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              メモ
-              <input name="memo" maxLength={2000} placeholder="性格、注意点など" />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90"
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              登録
-            </button>
+        <form
+          action={createHamster}
+          data-dirty-watch
+          className="mt-4 grid gap-4 lg:grid-cols-[minmax(150px,200px)_160px_160px_1fr_auto]"
+        >
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            名前
+            <input name="name" required maxLength={15} placeholder="例: きなこ" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            誕生日
+            <input type="date" name="birthDate" max={today} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            お迎え日
+            <input type="date" name="adoptionDate" max={today} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            メモ
+            <input name="memo" maxLength={2000} placeholder="性格、注意点など" />
+          </label>
+          <div className="min-w-0 lg:col-span-5 lg:row-start-2">
+            <HamsterImageField />
           </div>
-          <HamsterImageField />
+          <button
+            type="submit"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 self-end rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90 lg:col-start-5 lg:row-start-1 lg:w-auto"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            登録
+          </button>
         </form>
       </section>
 

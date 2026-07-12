@@ -233,48 +233,48 @@ export function HamsterList({
                   <form
                     action={updateHamster}
                     data-dirty-watch
-                    className="space-y-3"
+                    className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]"
                   >
                     <input type="hidden" name="id" value={hamster.id} />
-                    <div className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]">
-                      <label className="grid gap-1 text-sm font-medium text-slate-700">
-                        名前
-                        <input name="name" required maxLength={15} defaultValue={hamster.name} disabled={isLocked} />
-                      </label>
-                      <label className="grid gap-1 text-sm font-medium text-slate-700">
-                        誕生日
-                        <input type="date" name="birthDate" max={today} defaultValue={hamster.birthDate} disabled={isLocked} />
-                      </label>
-                      <label className="grid gap-1 text-sm font-medium text-slate-700">
-                        お迎え日
-                        <input type="date" name="adoptionDate" max={today} defaultValue={hamster.adoptionDate} disabled={isLocked} />
-                      </label>
-                      <label className="grid gap-1 text-sm font-medium text-slate-700">
-                        メモ
-                        <input name="memo" maxLength={2000} defaultValue={hamster.memo ?? ""} disabled={isLocked} />
-                      </label>
-                      <DirtySubmitButton
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      名前
+                      <input name="name" required maxLength={15} defaultValue={hamster.name} disabled={isLocked} />
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      誕生日
+                      <input type="date" name="birthDate" max={today} defaultValue={hamster.birthDate} disabled={isLocked} />
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      お迎え日
+                      <input type="date" name="adoptionDate" max={today} defaultValue={hamster.adoptionDate} disabled={isLocked} />
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium text-slate-700">
+                      メモ
+                      <input name="memo" maxLength={2000} defaultValue={hamster.memo ?? ""} disabled={isLocked} />
+                    </label>
+                    <div className="min-w-0 lg:col-span-5 lg:row-start-2">
+                      <HamsterImageField
+                        hamsterId={hamster.id}
+                        hamsterName={hamster.name}
+                        currentFileName={hamster.profileImageFileName}
                         disabled={isLocked}
-                        className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        <Save className="h-4 w-4" aria-hidden />
-                        保存
-                      </DirtySubmitButton>
+                      />
                     </div>
-                    <HamsterImageField
-                      hamsterId={hamster.id}
-                      hamsterName={hamster.name}
-                      currentFileName={hamster.profileImageFileName}
+                    <DirtySubmitButton
                       disabled={isLocked}
-                    />
+                      className="inline-flex h-10 w-full items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 lg:col-start-5 lg:row-start-1 lg:w-auto"
+                    >
+                      <Save className="h-4 w-4" aria-hidden />
+                      保存
+                    </DirtySubmitButton>
                   </form>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <form action={updateHamsterActiveStatus} className="flex items-end">
+                  <div className="flex w-full flex-wrap items-end gap-2 lg:w-auto">
+                    <form action={updateHamsterActiveStatus} className="flex w-full items-end lg:w-auto">
                       <input type="hidden" name="id" value={hamster.id} />
                       <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
                       <button
                         type="submit"
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 lg:w-auto"
                       >
                         {isLocked ? <RotateCcw className="h-4 w-4" aria-hidden /> : <Archive className="h-4 w-4" aria-hidden />}
                         {isLocked ? "管理中に戻す" : "管理外にする"}
