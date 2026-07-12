@@ -26,6 +26,8 @@ export type PreparedHamsterImage = {
   buffer: Buffer;
 };
 
+type HamsterImageInput = Pick<File, "size" | "type" | "arrayBuffer">;
+
 export function isSafeHamsterImageFileName(fileName: string) {
   return SAFE_FILE_NAME_PATTERN.test(fileName);
 }
@@ -80,7 +82,7 @@ export function getOptionalImageFile(value: FormDataEntryValue | null) {
   return value instanceof File && value.size > 0 ? value : null;
 }
 
-export async function prepareHamsterImage(file: File): Promise<PreparedHamsterImage> {
+export async function prepareHamsterImage(file: HamsterImageInput): Promise<PreparedHamsterImage> {
   if (file.size > MAX_HAMSTER_IMAGE_SIZE_BYTES) {
     throw new HamsterImageError("tooLarge");
   }
