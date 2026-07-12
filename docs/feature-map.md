@@ -30,7 +30,7 @@
 - **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredHouseholdContext` / `getCurrentHouseholdSwitcherData`、`Household`、`HouseholdMember`、`HouseholdInvitation`、参加時の `AppSetting`。
 - **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER を `hasHouseholdRole` と Action 内トランザクションで再確認する。
-- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）。
+- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）、`tests/audit-log.test.ts`（招待発行・メンバー削除・権限変更の成功監査ログ）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限。
 - **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
@@ -138,5 +138,5 @@
 
 - **対象:** `prisma/schema.prisma`、`prisma/migrations/`、`src/lib/prisma.ts`、`docker-compose.yml`、`Dockerfile`、`next.config.mjs`、`.env*.example`、`package.json`。
 - **役割:** PostgreSQL 接続と Prisma Client、migration、Docker の app / db 分離、standalone build、環境変数・依存ライブラリを定義する。app のホスト側ポートは `127.0.0.1:3001` に限定し、本番アクセスは Nginx / HTTPS を経由させる。
-- **関連テスト:** `tests/logger.test.ts`（ログ出力）、`scripts/log-smoke.ts`。変更内容に応じて `npm.cmd run lint`、`npm.cmd run build`、`npm.cmd test` を実行する。
+- **関連テスト:** `tests/logger.test.ts`（ログ出力）、`tests/audit-log.test.ts`（Household管理操作の成功監査ログ）、`scripts/log-smoke.ts`。変更内容に応じて `npm.cmd run lint`、`npm.cmd run build`、`npm.cmd test` を実行する。
 - **依存関係:** Prismaモデル変更は migration・生成 Client・関連 Action / query / schema の更新が必要。`Dockerfile` は Prisma generate と migrate deploy を行う。CSV 上限を変更する際は `next.config.mjs` の Action body size と整合させる。

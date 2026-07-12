@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { HOUSEHOLD_AUDIT_EVENTS, writeHouseholdAuditLog } from "@/lib/audit-log";
 import {
   getRequiredHouseholdContext,
   getRequiredSessionUser,
@@ -50,7 +51,7 @@ export async function createHouseholdInvitation(
     }
 
     const token = createInvitationToken();
-    const { change } = await commitHouseholdMutation({
+    const { change, result: invitation } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "member",
       actorClientId: getRealtimeActorId(formData),
@@ -63,6 +64,13 @@ export async function createHouseholdInvitation(
             expiresAt: invitationExpiresAt()
           }
         })
+    });
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.invitationCreated, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: context.membership.role,
+      householdId: context.household.id,
+      invitationId: invitation.id,
+      expiresAt: invitation.expiresAt.toISOString()
     });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely([{ path: "/settings/members" }], "members.createInvitation.revalidate", {
@@ -172,7 +180,7 @@ export async function removeHouseholdMember(formData: FormData) {
       redirect("/settings/members?status=forbidden");
     }
 
-    const { change } = await commitHouseholdMutation({
+    const { change, result: removedMember } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "member",
       actorClientId: getRealtimeActorId(formData),
@@ -198,9 +206,18 @@ export async function removeHouseholdMember(formData: FormData) {
           where: { id: targetMember.id, householdId: context.household.id }
         });
         if (deleted.count !== 1) redirect("/settings/members?status=invalid");
+        return targetMember;
       }
     });
 
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.memberRemoved, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: context.membership.role,
+      householdId: context.household.id,
+      targetMemberId: removedMember.id,
+      targetUserId: removedMember.userId,
+      removedRole: removedMember.role
+    });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely(
       [{ path: "/", type: "layout" }, { path: "/settings/members" }],
@@ -223,7 +240,7 @@ export async function updateHouseholdMemberRole(formData: FormData) {
       redirect("/settings/members?status=forbidden");
     }
 
-    const { change } = await commitHouseholdMutation({
+    const { change, result: updatedMember } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "member",
       actorClientId: getRealtimeActorId(formData),
@@ -246,9 +263,19 @@ export async function updateHouseholdMemberRole(formData: FormData) {
           data: { role }
         });
         if (updated.count !== 1) redirect("/settings/members?status=invalid");
+        return { ...targetMember, newRole: role };
       }
     });
 
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.memberRoleUpdated, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: context.membership.role,
+      householdId: context.household.id,
+      targetMemberId: updatedMember.id,
+      targetUserId: updatedMember.userId,
+      previousRole: updatedMember.role,
+      newRole: updatedMember.newRole
+    });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely(
       [{ path: "/", type: "layout" }, { path: "/settings/members" }],
