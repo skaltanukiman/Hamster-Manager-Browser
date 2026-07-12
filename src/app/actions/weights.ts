@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
-import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
+import { isFutureDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
   commitHouseholdMutation,
@@ -22,7 +22,6 @@ import { parseWeightCsvImport, type WeightCsvImportIssue } from "@/lib/weight-cs
 import { handleServerActionError, isPrismaUniqueConstraintError, logUnexpectedError } from "@/lib/server-errors";
 import { getWeightCsvFileSizeError } from "@/lib/weight-rules";
 
-const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const WEIGHT_SORT_TARGETS = new Set(["registered", "date", "weight"]);
 const SORT_DIRECTIONS = new Set(["asc", "desc"]);
 
@@ -86,7 +85,7 @@ function getWeightHistoryFilter(formData: FormData) {
   if (filter === "month") {
     historyFilter.filter = "month";
 
-    if (typeof month === "string" && YEAR_MONTH_PATTERN.test(month)) {
+    if (typeof month === "string" && isValidYearMonthInput(month)) {
       historyFilter.month = month;
     }
   }

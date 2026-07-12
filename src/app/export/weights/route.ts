@@ -4,7 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { toCsv } from "@/lib/csv";
-import { monthDateRange, toDateInputValue } from "@/lib/date";
+import { isValidYearMonthInput, monthDateRange, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { logUnexpectedError } from "@/lib/server-errors";
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       where.hamsterId = hamsterId;
     }
 
-    if (month && /^\d{4}-\d{2}$/.test(month)) {
+    if (month && isValidYearMonthInput(month)) {
       const { start, end } = monthDateRange(month);
       where.recordDate = { gte: start, lt: end };
     }

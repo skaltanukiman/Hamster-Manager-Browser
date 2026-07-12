@@ -1,4 +1,4 @@
-import { parseDateInput, todayInputJst } from "@/lib/date";
+import { isValidDateInput, parseDateInput, todayInputJst } from "@/lib/date";
 import { MAX_WEIGHT_CSV_ROWS, MAX_WEIGHT_G } from "@/lib/weight-rules";
 
 export type WeightCsvImportIssue = {
@@ -124,15 +124,15 @@ function parseCsvDate(value: string) {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
+  const input = `${year}-${pad(month)}-${pad(day)}`;
 
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) {
+  if (!isValidDateInput(input)) {
     return null;
   }
 
   return {
-    date,
-    input: `${year}-${pad(month)}-${pad(day)}`
+    date: parseDateInput(input),
+    input
   };
 }
 

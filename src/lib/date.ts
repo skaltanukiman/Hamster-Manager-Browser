@@ -1,18 +1,46 @@
-const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const YEAR_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
 }
 
+function createUtcDate(year: number, monthIndex: number, day: number) {
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, monthIndex, day);
+  return date;
+}
+
+export function isValidDateInput(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false;
+
+  const date = createUtcDate(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+export function isValidYearMonthInput(value: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return year >= 1 && month >= 1 && month <= 12;
+}
+
 export function parseDateInput(value: string) {
-  if (!DATE_INPUT_PATTERN.test(value)) {
+  if (!isValidDateInput(value)) {
     throw new Error(`Invalid date input: ${value}`);
   }
 
   // DBは日付のみを扱うため、ブラウザやサーバーのローカルタイムゾーンで日付がずれないようUTC 00:00で固定する。
-  return new Date(`${value}T00:00:00.000Z`);
+  const [year, month, day] = value.split("-").map(Number);
+  return createUtcDate(year, month - 1, day);
 }
 
 export function toDateInputValue(date: Date) {
@@ -43,28 +71,28 @@ export function isFutureDateInput(value: string) {
 }
 
 export function normalizeYearMonth(value: string | undefined | null) {
-  return value && YEAR_MONTH_PATTERN.test(value) ? value : currentMonthInputJst();
+  return value && isValidYearMonthInput(value) ? value : currentMonthInputJst();
 }
 
 export function getDaysInMonth(yearMonth: string) {
-  if (!YEAR_MONTH_PATTERN.test(yearMonth)) {
+  if (!isValidYearMonthInput(yearMonth)) {
     throw new Error(`Invalid month input: ${yearMonth}`);
   }
 
   const [year, month] = yearMonth.split("-").map(Number);
-  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const days = createUtcDate(year, month, 0).getUTCDate();
 
   return Array.from({ length: days }, (_, index) => {
     const day = index + 1;
     const date = `${yearMonth}-${pad(day)}`;
-    const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+    const weekday = WEEKDAYS[createUtcDate(year, month - 1, day).getUTCDay()];
 
     return { date, day, weekday };
   });
 }
 
 export function monthDateRange(yearMonth: string) {
-  if (!YEAR_MONTH_PATTERN.test(yearMonth)) {
+  if (!isValidYearMonthInput(yearMonth)) {
     throw new Error(`Invalid month input: ${yearMonth}`);
   }
 
@@ -73,7 +101,7 @@ export function monthDateRange(yearMonth: string) {
   return {
     start: parseDateInput(`${yearMonth}-01`),
     // 終端は翌月1日の排他的境界にし、月末日の時刻差を気にせず検索できるようにする。
-    end: new Date(Date.UTC(year, month, 1))
+    end: createUtcDate(year, month, 1)
   };
 }
 

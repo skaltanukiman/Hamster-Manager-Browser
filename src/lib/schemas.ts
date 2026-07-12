@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { HAMSTER_SELECTOR_MODES, MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
-import { parseDateInput, todayInputJst } from "@/lib/date";
+import { isValidDateInput, isValidYearMonthInput, parseDateInput, todayInputJst } from "@/lib/date";
 import { MAX_WEIGHT_G } from "@/lib/weight-rules";
 
 export const idSchema = z.string().min(1);
 
-export const dateInputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-export const yearMonthSchema = z.string().regex(/^\d{4}-\d{2}$/);
+export const dateInputSchema = z.string().refine(isValidDateInput);
+export const yearMonthSchema = z.string().refine(isValidYearMonthInput);
 
 // 空文字のメモはDBへ空文字ではなくnullで保存し、未入力として扱いを統一する。
 const nullableMemoSchema = z.preprocess((value) => {
