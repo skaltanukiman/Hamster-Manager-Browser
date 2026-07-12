@@ -165,13 +165,14 @@ export async function commitHouseholdMutation<T>(
 
 export function publishHouseholdChangeSafely(
   change: CommittedHouseholdChange,
-  publisher: (change: CommittedHouseholdChange) => void = publishHouseholdChange
+  publisher: (change: CommittedHouseholdChange) => void = publishHouseholdChange,
+  reportError: typeof logUnexpectedError = logUnexpectedError
 ) {
   try {
     publisher(change);
     return true;
   } catch (error) {
-    logUnexpectedError(error, {
+    reportError(error, {
       operation: "realtime.publishHouseholdChange",
       context: {
         householdId: change.householdId,

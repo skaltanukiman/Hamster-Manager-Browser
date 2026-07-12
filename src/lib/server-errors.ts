@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import { Prisma } from "@prisma/client";
 import { redirect, unstable_rethrow } from "next/navigation";
+import type { Logger } from "winston";
+
+import { writeServerLog } from "@/lib/logger";
 
 type LogContextValue = string | number | boolean | null | undefined;
 
@@ -12,6 +15,21 @@ export type UnexpectedErrorLogOptions = {
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_STACK_LENGTH = 8000;
+const ALLOWED_CONTEXT_KEYS = new Set([
+  "userId",
+  "targetUserId",
+  "householdId",
+  "hamsterId",
+  "memberId",
+  "cleaningRecordId",
+  "weightRecordId",
+  "requestId",
+  "source",
+  "revision",
+  "revalidatePath",
+  "month",
+  "targetCount"
+]);
 
 function truncate(value: string, maxLength: number) {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength)}...[truncated]`;
@@ -20,8 +38,11 @@ function truncate(value: string, maxLength: number) {
 function redactSecrets(value: string) {
   return value
     .replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+(@)/gi, "$1[REDACTED]$2")
+    .replace(/([?&](?:token|secret|password|api[_-]?key|access[_-]?token|refresh[_-]?token)=)[^&#\s]*/gi, "$1[REDACTED]")
+    .replace(/(authorization\s*:\s*bearer\s+)[^\s,;]+/gi, "$1[REDACTED]")
     .replace(/(bearer\s+)[a-z0-9._~+\/-]+/gi, "$1[REDACTED]")
-    .replace(/((?:token|secret|password)\s*[=:]\s*)[^\s,;]+/gi, "$1[REDACTED]");
+    .replace(/(cookie\s*:\s*)[^\r\n]+/gi, "$1[REDACTED]")
+    .replace(/((?:token|secret|password|api[_-]?key|access[_-]?token|refresh[_-]?token)\s*[=:]\s*)[^\s,;]+/gi, "$1[REDACTED]");
 }
 
 function safeText(value: string, maxLength: number) {
@@ -52,7 +73,9 @@ function sanitizeContext(context: Record<string, LogContextValue> | undefined) {
   }
 
   return Object.fromEntries(
-    Object.entries(context).map(([key, value]) => [key, typeof value === "string" ? safeText(value, 256) : value])
+    Object.entries(context)
+      .filter(([key]) => ALLOWED_CONTEXT_KEYS.has(key))
+      .map(([key, value]) => [key, typeof value === "string" ? safeText(value, 256) : value])
   );
 }
 
@@ -60,18 +83,18 @@ export function isPrismaUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-export function logUnexpectedError(error: unknown, options: UnexpectedErrorLogOptions) {
+export function logUnexpectedError(error: unknown, options: UnexpectedErrorLogOptions, logger?: Logger) {
   const errorId = randomUUID();
   const payload = {
-    level: "error",
+    event: "unexpected_error",
+    message: "想定外例外が発生しました。",
     errorId,
     operation: options.operation,
-    occurredAt: new Date().toISOString(),
     context: sanitizeContext(options.context),
     error: serializeError(error)
   };
 
-  console.error(JSON.stringify(payload));
+  writeServerLog("error", payload, logger);
   return errorId;
 }
 
@@ -87,10 +110,11 @@ export function handleServerActionError(
   options: UnexpectedErrorLogOptions & {
     pathname: string;
     searchParams?: URLSearchParams;
+    logger?: Logger;
   }
 ): never {
   // redirect() などNext.jsが制御フローに使う内部例外は、通常の障害として記録・変換しない。
   unstable_rethrow(error);
-  const errorId = logUnexpectedError(error, options);
+  const errorId = logUnexpectedError(error, options, options.logger);
   redirect(createSystemErrorUrl(options.pathname, errorId, options.searchParams));
 }

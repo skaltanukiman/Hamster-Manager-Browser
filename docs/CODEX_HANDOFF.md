@@ -88,6 +88,11 @@ AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
 AUTH_URL=
 AUTH_TRUST_HOST=true
+
+LOG_LEVEL=debug
+LOG_DIR=/app/logs
+LOG_RETENTION_DAYS=14
+LOG_MAX_FILE_SIZE_MB=20
 ```
 
 現行 Auth.js v5 系では `NEXTAUTH_URL` ではなく `AUTH_URL` を使う。Google OAuth の Callback URL は `/api/auth/callback/google`。
@@ -124,6 +129,8 @@ docker compose up -d
 ```
 
 app コンテナは起動時に `prisma migrate deploy` を自動実行し、成功後に Next.js を起動する。新しい Prisma Client と未更新DBの不整合を残さない。
+
+サーバーログは `src/lib/logger.ts` のWinstonロガーからDocker標準出力・標準エラーと `/app/logs/application-YYYY-MM-DD.log` へJSON Lines形式で二重出力する。Composeは `./logs:/app/logs` をバインドし、14日・20MBを既定値としてローテーションする。VPSでは事前に `mkdir -p logs && sudo chown 1001:1001 logs && chmod 750 logs` を実行する。`errorId` は両出力で一致する。
 
 確認:
 

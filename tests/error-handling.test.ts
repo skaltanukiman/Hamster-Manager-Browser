@@ -4,8 +4,11 @@ import test from "node:test";
 import { Prisma } from "@prisma/client";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { Writable } from "node:stream";
+import { transports } from "winston";
 
 import { UnexpectedErrorPanel } from "../src/components/unexpected-error-panel";
+import { closeServerLogger, createServerLogger } from "../src/lib/logger";
 import {
   commitHouseholdMutation,
   publishHouseholdChangeSafely,
@@ -44,17 +47,25 @@ test("P2002だけを一意制約違反として分類する", () => {
   assert.equal(isPrismaUniqueConstraintError(new Error("P2002")), false);
 });
 
-test("想定外例外はエラーID付きでログ出力され、機密情報を伏せる", () => {
-  const originalConsoleError = console.error;
+test("想定外例外はエラーID付きでログ出力され、機密情報を伏せる", async () => {
   let logged = "";
-  console.error = (message?: unknown) => {
-    logged = String(message);
-  };
+  const stream = new Writable({
+    write(chunk, _encoding, callback) {
+      logged += chunk.toString();
+      callback();
+    }
+  });
+  const logger = createServerLogger({
+    disableFile: true,
+    consoleTransport: new transports.Stream({ stream })
+  });
   try {
     const errorId = logUnexpectedError(
       new Error("connect postgresql://user:super-secret@db:5432/app token=invitation-secret"),
-      { operation: "test.operation", context: { householdId: "household-1" } }
+      { operation: "test.operation", context: { householdId: "household-1" } },
+      logger
     );
+    await closeServerLogger(logger);
     assert.match(errorId, /^[a-f0-9-]{36}$/);
     assert.match(logged, new RegExp(errorId));
     assert.match(logged, /test\.operation/);
@@ -62,7 +73,7 @@ test("想定外例外はエラーID付きでログ出力され、機密情報を
     assert.doesNotMatch(logged, /super-secret|invitation-secret/);
     assert.match(logged, /\[REDACTED\]/);
   } finally {
-    console.error = originalConsoleError;
+    if (!logger.writableFinished) await closeServerLogger(logger);
   }
 });
 
@@ -108,25 +119,20 @@ test("revision更新が失敗した場合は同じトランザクションのデ
 });
 
 test("SSE配信失敗は保存成功後の処理を失敗に変えない", () => {
-  const originalConsoleError = console.error;
-  console.error = () => undefined;
-  try {
-    const result = publishHouseholdChangeSafely(
-      {
-        householdId: "household-1",
-        source: "weight",
-        actorClientId: null,
-        actorUserId: "user-1",
-        revision: "2"
-      },
-      () => {
-        throw new Error("SSE failed");
-      }
-    );
-    assert.equal(result, false);
-  } finally {
-    console.error = originalConsoleError;
-  }
+  const result = publishHouseholdChangeSafely(
+    {
+      householdId: "household-1",
+      source: "weight",
+      actorClientId: null,
+      actorUserId: "user-1",
+      revision: "2"
+    },
+    () => {
+      throw new Error("SSE failed");
+    },
+    () => "00000000-0000-4000-8000-000000000000"
+  );
+  assert.equal(result, false);
 });
 
 test("共通エラー画面は安全なIDと再試行操作を提供する", () => {
