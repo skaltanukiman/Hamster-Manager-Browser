@@ -11,7 +11,8 @@ import {
 import {
   createInvitationToken,
   hashInvitationToken,
-  invitationExpiresAt
+  invitationExpiresAt,
+  isValidInvitationToken
 } from "@/lib/invitations";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
@@ -30,11 +31,18 @@ const MEMBER_ROLE_MANAGE_ROLES = ["OWNER"] as const;
 
 class InvitationUnavailableError extends Error {}
 
+export type CreateHouseholdInvitationState = {
+  inviteToken: string | null;
+};
+
 function parseManageableMemberRole(value: FormDataEntryValue | null) {
   return value === "ADMIN" || value === "MEMBER" ? value : null;
 }
 
-export async function createHouseholdInvitation(formData?: FormData) {
+export async function createHouseholdInvitation(
+  _previousState: CreateHouseholdInvitationState,
+  formData: FormData
+): Promise<CreateHouseholdInvitationState> {
   try {
     const context = await getRequiredHouseholdContext();
     if (!hasHouseholdRole(context.membership.role, [...INVITATION_MANAGE_ROLES])) {
@@ -60,8 +68,7 @@ export async function createHouseholdInvitation(formData?: FormData) {
     revalidatePathsSafely([{ path: "/settings/members" }], "members.createInvitation.revalidate", {
       householdId: context.household.id
     });
-    const params = new URLSearchParams({ status: "invitationCreated", inviteToken: token });
-    redirect(`/settings/members?${params.toString()}`);
+    return { inviteToken: token };
   } catch (error) {
     handleServerActionError(error, { operation: "members.createInvitation", pathname: "/settings/members" });
   }
@@ -70,7 +77,7 @@ export async function createHouseholdInvitation(formData?: FormData) {
 export async function acceptHouseholdInvitation(formData: FormData) {
   try {
     const token = formData.get("token");
-    if (typeof token !== "string" || token.length < 32) redirect("/invitations/accept?status=invalid");
+    if (typeof token !== "string" || !isValidInvitationToken(token)) redirect("/invitations/accept?status=invalid");
 
     const user = await getRequiredSessionUser();
     const now = new Date();

@@ -25,14 +25,14 @@
 
 ## Household 共有・メンバー管理
 
-- **画面または URL:** ヘッダーの操作対象切替、`/settings/members`、`/invitations/accept?token=...`。
-- **主なコンポーネント:** `HouseholdSwitcher`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
+- **画面または URL:** ヘッダーの操作対象切替、`/settings/members`、`/invitations/accept#token=...`。
+- **主なコンポーネント:** `HouseholdSwitcher`、`HouseholdInvitationForm`、`InvitationAcceptForm`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
 - **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredHouseholdContext` / `getCurrentHouseholdSwitcherData`、`Household`、`HouseholdMember`、`HouseholdInvitation`、参加時の `AppSetting`。
 - **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER を `hasHouseholdRole` と Action 内トランザクションで再確認する。
-- **関連テスト:** 専用テストなし。
+- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限。
-- **依存関係:** 招待の平文 token は作成直後にのみ画面へ返し、DB には hash のみ保存する。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
+- **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
 ## ダッシュボード
 
