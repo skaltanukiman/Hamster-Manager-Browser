@@ -6,7 +6,11 @@ const PUBLIC_PATHS = ["/login"];
 const PUBLIC_PREFIXES = ["/api/auth"];
 
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return (
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    /^\/api\/hamsters\/[^/]+\/image$/.test(pathname)
+  );
 }
 
 export default auth((request) => {

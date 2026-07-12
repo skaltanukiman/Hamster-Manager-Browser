@@ -76,7 +76,7 @@ function shouldTrackControl(control: HTMLInputElement | HTMLSelectElement | HTML
   }
 
   if (control instanceof HTMLInputElement) {
-    return !["button", "file", "hidden", "reset", "submit"].includes(control.type);
+    return !["button", "hidden", "reset", "submit"].includes(control.type);
   }
 
   return true;

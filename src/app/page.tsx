@@ -4,6 +4,7 @@ import { ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
 import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { DashboardMemo } from "@/components/dashboard-memo";
 import { EmptyState } from "@/components/empty-state";
+import { HamsterThumbnail } from "@/components/hamster-thumbnail";
 import { daysSinceDate, formatDateJp } from "@/lib/date";
 import { getDashboardData } from "@/lib/queries";
 
@@ -80,6 +81,14 @@ export default async function DashboardPage() {
                     >
                       {hamster.isActive ? "管理中" : "管理外"}
                     </span>
+                  </div>
+
+                  <div className="mt-4 flex min-h-24 justify-center md:min-h-28">
+                    <HamsterThumbnail
+                      hamsterId={hamster.id}
+                      hamsterName={hamster.name}
+                      profileImageFileName={hamster.profileImageFileName}
+                    />
                   </div>
 
                   <dl className="mt-5 grid gap-3">

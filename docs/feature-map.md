@@ -37,7 +37,7 @@
 ## ダッシュボード
 
 - **画面または URL:** `/`。
-- **主なコンポーネント:** `DashboardMemo`、`CleaningDateToggle`、`EmptyState`。
+- **主なコンポーネント:** `DashboardMemo`、`CleaningDateToggle`、`HamsterThumbnail`、`EmptyState`。
 - **Server Action または API:** 直接の更新 Action はなし。設定更新は `saveDashboardSettings`。
 - **データアクセス・Prismaモデル:** `getDashboardData`（`src/lib/queries.ts`）が `Hamster`、`AppSetting` / `DashboardHamster`、最新 `WeightRecord`、各種 `CleaningRecord` を Household とユーザー設定で取得。
 - **バリデーション:** 表示件数・対象選択は設定の `dashboardSettingsSchema` と `dashboard-settings.ts`。
@@ -48,12 +48,12 @@
 ## ハムスター一覧・登録・編集・削除
 
 - **画面または URL:** `/hamsters`。
-- **主なコンポーネント:** `HamsterList`、`SelectionActionBar`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。
-- **Server Action または API:** `createHamster`、`updateHamster`、`updateHamsterActiveStatus`、`deleteHamster`、`deleteHamsters`（`src/app/actions/hamsters.ts`）。
+- **主なコンポーネント:** `HamsterList`、`HamsterImageField`、`HamsterThumbnail`、`SelectionActionBar`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。
+- **Server Action または API:** `createHamster`、`updateHamster`、`updateHamsterActiveStatus`、`deleteHamster`、`deleteHamsters`（`src/app/actions/hamsters.ts`）、認証付き画像配信 `/api/hamsters/[id]/image`。
 - **データアクセス・Prismaモデル:** `getHamsterManagementData`、`Hamster`。削除は関連 `CleaningRecord` / `WeightRecord` / `DashboardHamster` が schema の Cascade により連動する。
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
-- **関連テスト:** 重複などは専用テストなし。想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
-- **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`prisma/schema.prisma`。
+- **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
+- **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
 - **依存関係:** 全更新は realtime mutation を通す。`isActive=false` は体重・掃除の編集ロック条件なので、状態変更時は `weights.ts`、`cleaning.ts` の所属・状態検証を崩さない。
 
 ## 体重履歴

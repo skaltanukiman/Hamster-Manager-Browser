@@ -10,6 +10,7 @@ services:
       - "3001:3000"
     volumes:
       - ./logs:/app/logs
+      - ./uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy

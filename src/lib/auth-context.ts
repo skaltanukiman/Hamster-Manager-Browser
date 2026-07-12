@@ -162,6 +162,35 @@ export async function getRequiredHouseholdContext(): Promise<CurrentHouseholdCon
   };
 }
 
+// Route Handler向け。未認証時にHTMLへredirectせず、呼び出し側が401/404を返せるようnullで返す。
+export async function getHouseholdContextForRoute(): Promise<CurrentHouseholdContext | null> {
+  const session = await auth();
+  const user = session?.user;
+
+  if (!user?.id) {
+    return null;
+  }
+
+  const sessionUser: SessionUser = {
+    id: user.id,
+    appRole: user.appRole ?? "USER",
+    name: user.name,
+    email: user.email,
+    image: user.image
+  };
+  const membership = await findMembership(sessionUser.id, await getPreferredHouseholdId());
+
+  if (!membership) {
+    return null;
+  }
+
+  return {
+    user: sessionUser,
+    household: { id: membership.household.id, name: membership.household.name },
+    membership: { id: membership.id, role: membership.role, createdAt: membership.createdAt }
+  };
+}
+
 export async function getCurrentHouseholdSwitcherData() {
   const context = await getRequiredHouseholdContext();
   const memberships = await prisma.householdMember.findMany({

@@ -8,22 +8,23 @@ datasource db {
 }
 
 model Hamster {
-  id              String           @id @default(cuid())
-  householdId     String?          @map("household_id")
-  household       Household?       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  id                   String             @id @default(cuid())
+  householdId          String?            @map("household_id")
+  household            Household?         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   // ハムスター名は家庭内だけで重複を避け、別家庭なら同名を許可する。
-  name            String
-  memo            String?
+  name                 String
+  memo                 String?
+  profileImageFileName String?            @map("profile_image_file_name")
   // カード表示にはまだ使わず、プロフィール情報として保存しておく日付。
-  birthDate       DateTime?        @db.Date
-  adoptionDate    DateTime?        @db.Date
+  birthDate            DateTime?          @db.Date
+  adoptionDate         DateTime?          @db.Date
   // 管理外にしたハムスターは記録編集をロックし、復活時に同じ履歴を再利用する。
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  cleaningRecords CleaningRecord[]
-  weightRecords   WeightRecord[]
-  dashboardEntries DashboardHamster[]
+  isActive             Boolean            @default(true)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  cleaningRecords      CleaningRecord[]
+  weightRecords        WeightRecord[]
+  dashboardEntries     DashboardHamster[]
 
   @@unique([householdId, name])
   @@index([householdId])
@@ -31,18 +32,18 @@ model Hamster {
 }
 
 model CleaningRecord {
-  id                   String   @id @default(cuid())
-  hamsterId            String
-  hamster              Hamster  @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
-  recordDate           DateTime @db.Date
-  toiletCleaned        Boolean  @default(false)
-  bathCleaned          Boolean  @default(false)
-  flooringPartCleaned  Boolean  @default(false)
-  flooringAllCleaned   Boolean  @default(false)
-  houseCleaned         Boolean  @default(false)
-  memo                 String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  hamsterId           String
+  hamster             Hamster  @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
+  recordDate          DateTime @db.Date
+  toiletCleaned       Boolean  @default(false)
+  bathCleaned         Boolean  @default(false)
+  flooringPartCleaned Boolean  @default(false)
+  flooringAllCleaned  Boolean  @default(false)
+  houseCleaned        Boolean  @default(false)
+  memo                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // 衛生管理表はハムスターごとに1日1行として保存する。
   @@unique([hamsterId, recordDate])
@@ -185,13 +186,13 @@ model HouseholdMember {
 }
 
 model HouseholdInvitation {
-  id          String     @id @default(cuid())
-  householdId String     @map("household_id")
-  tokenHash   String     @unique @map("token_hash")
-  expiresAt   DateTime   @map("expires_at")
-  acceptedAt  DateTime?  @map("accepted_at")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  householdId String    @map("household_id")
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@index([householdId])
   @@map("household_invitations")

@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import {
+  commitWithNewHamsterImage,
+  deleteHamsterImage,
+  deleteHamsterImageRecords,
+  getOptionalImageFile,
+  HamsterImageError,
+  prepareHamsterImage
+} from "@/lib/hamster-image";
+import { writeServerLog } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
@@ -42,6 +51,29 @@ function hamsterValidationStatus(issues: ZodIssue[]) {
   return "invalid";
 }
 
+function hamsterImageValidationStatus(error: HamsterImageError) {
+  if (error.code === "tooLarge") return "hamsterImageTooLarge";
+  if (error.code === "unsupported") return "hamsterImageUnsupported";
+  return "hamsterImageInvalid";
+}
+
+async function deleteImageAfterMutation(householdId: string, fileName: string, operation: string, hamsterId?: string) {
+  try {
+    await deleteHamsterImage(householdId, fileName);
+  } catch (error) {
+    writeServerLog("warn", {
+      event: "hamster_image_delete_failed",
+      message: "DB更新後のハムスター画像削除に失敗しました。",
+      operation,
+      context: {
+        householdId,
+        hamsterId,
+        errorName: error instanceof Error ? error.name : typeof error
+      }
+    });
+  }
+}
+
 export async function createHamster(formData: FormData) {
   try {
     const context = await getRequiredHouseholdContext();
@@ -51,25 +83,36 @@ export async function createHamster(formData: FormData) {
       redirect(`/hamsters?status=${hamsterValidationStatus(result.error.issues)}`);
     }
 
-    const { change } = await commitHouseholdMutation({
-      householdId: context.household.id,
-      source: "hamster",
-      actorClientId: getRealtimeActorId(formData),
-      actorUserId: context.user.id,
-      mutate: (tx) =>
-        tx.hamster.create({
-          data: {
-            ...result.data,
-            householdId: context.household.id
-          }
-        })
-    });
+    const imageFile = getOptionalImageFile(formData.get("profileImage"));
+    const preparedImage = imageFile ? await prepareHamsterImage(imageFile) : null;
+    const commit = (profileImageFileName?: string) =>
+      commitHouseholdMutation({
+        householdId: context.household.id,
+        source: "hamster",
+        actorClientId: getRealtimeActorId(formData),
+        actorUserId: context.user.id,
+        mutate: (tx) =>
+          tx.hamster.create({
+            data: {
+              ...result.data,
+              householdId: context.household.id,
+              profileImageFileName
+            }
+          })
+      });
+    const { change } = preparedImage
+      ? await commitWithNewHamsterImage({ householdId: context.household.id, image: preparedImage, commit })
+      : await commit();
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.create.revalidate", {
       householdId: context.household.id
     });
     redirect("/hamsters?status=created");
   } catch (error) {
+    if (error instanceof HamsterImageError) {
+      redirect(`/hamsters?status=${hamsterImageValidationStatus(error)}`);
+    }
+
     if (isPrismaUniqueConstraintError(error)) {
       redirect("/hamsters?status=hamsterDuplicate");
     }
@@ -96,6 +139,7 @@ export async function updateHamster(formData: FormData) {
         memo: true,
         birthDate: true,
         adoptionDate: true,
+        profileImageFileName: true,
         isActive: true
       }
     });
@@ -108,29 +152,53 @@ export async function updateHamster(formData: FormData) {
       redirect("/hamsters?status=locked");
     }
 
+    const imageFile = getOptionalImageFile(formData.get("profileImage"));
+    const removeProfileImage = formData.get("removeProfileImage") === "true";
+
     if (
       hamster.name === data.name &&
       hamster.memo === data.memo &&
       isSameNullableDate(hamster.birthDate, data.birthDate) &&
-      isSameNullableDate(hamster.adoptionDate, data.adoptionDate)
+      isSameNullableDate(hamster.adoptionDate, data.adoptionDate) &&
+      !imageFile &&
+      !(removeProfileImage && hamster.profileImageFileName)
     ) {
       redirect("/hamsters?status=unchanged");
     }
 
-    const { change } = await commitHouseholdMutation({
-      householdId: context.household.id,
-      source: "hamster",
-      actorClientId: getRealtimeActorId(formData),
-      actorUserId: context.user.id,
-      mutate: (tx) => tx.hamster.update({ where: { id }, data })
-    });
+    const preparedImage = imageFile ? await prepareHamsterImage(imageFile) : null;
+    const commit = (profileImageFileName?: string | null) =>
+      commitHouseholdMutation({
+        householdId: context.household.id,
+        source: "hamster",
+        actorClientId: getRealtimeActorId(formData),
+        actorUserId: context.user.id,
+        mutate: (tx) =>
+          tx.hamster.update({
+            where: { id },
+            data: {
+              ...data,
+              ...(profileImageFileName !== undefined ? { profileImageFileName } : {})
+            }
+          })
+      });
+    const { change } = preparedImage
+      ? await commitWithNewHamsterImage({ householdId: context.household.id, image: preparedImage, commit })
+      : await commit(removeProfileImage ? null : undefined);
     publishHouseholdChangeSafely(change);
+    if ((preparedImage || removeProfileImage) && hamster.profileImageFileName) {
+      await deleteImageAfterMutation(context.household.id, hamster.profileImageFileName, "hamsters.update.deleteOldImage", id);
+    }
     revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.update.revalidate", {
       householdId: context.household.id,
       hamsterId: id
     });
     redirect("/hamsters?status=updated");
   } catch (error) {
+    if (error instanceof HamsterImageError) {
+      redirect(`/hamsters?status=${hamsterImageValidationStatus(error)}`);
+    }
+
     if (isPrismaUniqueConstraintError(error)) {
       redirect("/hamsters?status=hamsterDuplicate");
     }
@@ -177,6 +245,12 @@ export async function deleteHamster(formData: FormData) {
     const result = deleteHamsterSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect("/hamsters?status=invalid");
 
+    const hamster = await prisma.hamster.findFirst({
+      where: { id: result.data.id, householdId: context.household.id },
+      select: { profileImageFileName: true }
+    });
+    if (!hamster) redirect("/hamsters?status=invalid");
+
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "hamster",
@@ -188,6 +262,14 @@ export async function deleteHamster(formData: FormData) {
       }
     });
     publishHouseholdChangeSafely(change);
+    await deleteHamsterImageRecords([{ id: result.data.id, ...hamster }], (record) =>
+      deleteImageAfterMutation(
+        context.household.id,
+        record.profileImageFileName!,
+        "hamsters.delete.deleteImage",
+        record.id
+      )
+    );
     revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.delete.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.id
@@ -204,6 +286,12 @@ export async function deleteHamsters(formData: FormData) {
     const result = deleteHamstersSchema.safeParse({ ids: formData.getAll("ids") });
     if (!result.success) redirect("/hamsters?status=invalid");
 
+    const hamsters = await prisma.hamster.findMany({
+      where: { id: { in: result.data.ids }, householdId: context.household.id },
+      select: { id: true, profileImageFileName: true }
+    });
+    if (hamsters.length !== result.data.ids.length) redirect("/hamsters?status=invalid");
+
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "hamster",
@@ -217,6 +305,14 @@ export async function deleteHamsters(formData: FormData) {
       }
     });
     publishHouseholdChangeSafely(change);
+    await deleteHamsterImageRecords(hamsters, (hamster) =>
+      deleteImageAfterMutation(
+        context.household.id,
+        hamster.profileImageFileName!,
+        "hamsters.deleteMany.deleteImage",
+        hamster.id
+      )
+    );
     revalidatePathsSafely(
       ["/", "/hamsters", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
       "hamsters.deleteMany.revalidate",
