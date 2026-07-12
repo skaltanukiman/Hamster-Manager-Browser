@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { HAMSTER_SELECTOR_MODES, MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
 import { isValidDateInput, isValidYearMonthInput, parseDateInput, todayInputJst } from "@/lib/date";
-import { MAX_WEIGHT_G } from "@/lib/weight-rules";
+import { isWeightInTenths, MAX_WEIGHT_G } from "@/lib/weight-rules";
 
 export const idSchema = z.string().min(1);
 
@@ -67,7 +67,7 @@ export const updateHamsterActiveStatusSchema = z.object({
 export const createWeightRecordSchema = z.object({
   hamsterId: idSchema,
   recordDate: dateInputSchema,
-  weightG: z.coerce.number().positive().max(MAX_WEIGHT_G)
+  weightG: z.coerce.number().positive().max(MAX_WEIGHT_G).refine(isWeightInTenths, { message: "weightIncrement" })
 });
 
 export const updateWeightRecordSchema = createWeightRecordSchema.extend({

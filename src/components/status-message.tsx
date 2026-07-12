@@ -12,6 +12,7 @@ const messages: Record<string, string> = {
   unchanged: "変更はありません。",
   invalid: "入力内容を確認してください。",
   duplicate: "同じ日付の記録が既に存在します。",
+  weightIncrement: "体重は0.1g単位で入力してください。",
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
   hamsterNameTooLong: "名前は15文字以内で入力してください。",
   profileNameTooLong: "表示名は50文字以内で入力してください。",
@@ -43,6 +44,7 @@ const messages: Record<string, string> = {
 const errorStatuses = new Set([
   "invalid",
   "duplicate",
+  "weightIncrement",
   "hamsterDuplicate",
   "hamsterNameTooLong",
   "profileNameTooLong",

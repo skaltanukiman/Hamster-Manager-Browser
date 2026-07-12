@@ -64,7 +64,7 @@
 - **Server Action または API:** `createWeightRecord`、`updateWeightRecord`、`deleteWeightRecord`、`deleteWeightRecords`（`src/app/actions/weights.ts`）。
 - **データアクセス・Prismaモデル:** `getWeightPageData`（DB 側のフィルター・ソート・ページングとグラフ全件）、`Hamster`、`WeightRecord`、`AppSetting`。
 - **バリデーション:** `createWeightRecordSchema`、`updateWeightRecordSchema`、削除 schema、`MAX_WEIGHT_G`（1〜500g、0.1g、未来日不可）。`@@unique([hamsterId, recordDate])` が日次重複を保証する。
-- **関連テスト:** `tests/csv-and-realtime.test.ts` の体重上限・未来日検証は CSV 経由。画面 / Action の専用テストはなし。
+- **関連テスト:** `tests/weight-validation.test.ts`（通常登録・編集・CSVの0.1g単位検証）、`tests/csv-and-realtime.test.ts`（CSVの体重上限・未来日検証）。
 - **関連設定:** `src/lib/weight-rules.ts`、`src/lib/date.ts`、`src/lib/dashboard-settings.ts`（選択 UI）。
 - **依存関係:** 管理外ハムスターは作成・編集・削除不可。履歴一覧は 20 件ページングだがグラフは同一条件の全レコードを使うため、両方のクエリ条件を揃える。
 
@@ -85,7 +85,7 @@
 - **主なコンポーネント:** `WeightCsvImportForm`。
 - **Server Action または API:** `importWeightRecordsCsv`（`actions/weights.ts`、`useActionState` で実行）。
 - **データアクセス・Prismaモデル:** `Hamster.findMany` による名前照合、`WeightRecord.findMany` による既存重複確認、`WeightRecord.createMany`。登録と Household revision 更新は同一トランザクション。
-- **バリデーション:** `parseWeightCsvImport`（`src/lib/weight-csv-import.ts`）、`weight-rules.ts`（2MB・10,000行・500g上限）、日付・必須列・CSV内重複。管理外・未登録の名前も拒否する。
+- **バリデーション:** `parseWeightCsvImport`（`src/lib/weight-csv-import.ts`）、`weight-rules.ts`（2MB・10,000行・500g上限・0.1g単位）、日付・必須列・CSV内重複。管理外・未登録の名前も拒否する。
 - **関連テスト:** `tests/csv-and-realtime.test.ts`。
 - **関連設定:** `next.config.mjs` の Server Action body size（3MB）はファイル上限以上を受け取れる必要がある。
 - **依存関係:** 通常の体重登録と同じ制約を保つ。CSV の GAS `id` は DB ID に流用しない。エラー詳細の形式を変える場合はフォーム表示も更新する。

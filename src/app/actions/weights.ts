@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { isFutureDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
@@ -33,6 +34,14 @@ type WeightHistoryFilter = {
   direction?: string;
   includeInactive?: string;
 };
+
+function weightValidationStatus(issues: ZodIssue[]) {
+  const weightIssues = issues.filter((issue) => issue.path[0] === "weightG");
+
+  return weightIssues.length > 0 && weightIssues.every((issue) => issue.message === "weightIncrement")
+    ? "weightIncrement"
+    : "invalid";
+}
 
 export type WeightCsvImportState = {
   hasResult: boolean;
@@ -200,7 +209,7 @@ export async function createWeightRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdContext();
     const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) redirect("/weights?status=invalid");
+    if (!result.success) redirect(`/weights?status=${weightValidationStatus(result.error.issues)}`);
 
     const historyFilter = getWeightHistoryFilter(formData);
     if (isFutureDateInput(result.data.recordDate)) weightRedirect(result.data.hamsterId, "future", historyFilter);
@@ -250,7 +259,7 @@ export async function updateWeightRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdContext();
     const result = updateWeightRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) redirect("/weights?status=invalid");
+    if (!result.success) redirect(`/weights?status=${weightValidationStatus(result.error.issues)}`);
 
     const historyFilter = getWeightHistoryFilter(formData);
     if (isFutureDateInput(result.data.recordDate)) weightRedirect(result.data.hamsterId, "future", historyFilter);

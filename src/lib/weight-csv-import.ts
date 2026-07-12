@@ -1,5 +1,5 @@
 import { isValidDateInput, parseDateInput, todayInputJst } from "@/lib/date";
-import { MAX_WEIGHT_CSV_ROWS, MAX_WEIGHT_G } from "@/lib/weight-rules";
+import { isWeightInTenths, MAX_WEIGHT_CSV_ROWS, MAX_WEIGHT_G } from "@/lib/weight-rules";
 
 export type WeightCsvImportIssue = {
   lineNumber: number;
@@ -196,6 +196,8 @@ export function parseWeightCsvImport(text: string, todayInput = todayInputJst())
       rowErrors.push("weightは0より大きい数値で入力してください。");
     } else if (weightG > MAX_WEIGHT_G) {
       rowErrors.push(`weightは${MAX_WEIGHT_G}g以下で入力してください。`);
+    } else if (!isWeightInTenths(weightG)) {
+      rowErrors.push("weightは0.1g単位で入力してください。");
     }
 
     if (unitValue.length > 0 && unitValue !== "g") {
