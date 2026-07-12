@@ -227,6 +227,17 @@ export function HamsterList({
                   >
                     {hamster.isActive ? "管理中" : "管理外"}
                   </span>
+                  <form action={updateHamsterActiveStatus} className="hidden lg:block">
+                    <input type="hidden" name="id" value={hamster.id} />
+                    <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
+                    <button
+                      type="submit"
+                      className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      {isLocked ? <RotateCcw className="h-3.5 w-3.5" aria-hidden /> : <Archive className="h-3.5 w-3.5" aria-hidden />}
+                      {isLocked ? "管理中に戻す" : "管理外にする"}
+                    </button>
+                  </form>
                   {isLocked ? <span className="text-xs text-slate-500">記録とプロフィール編集をロック中</span> : null}
                 </div>
                 <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
@@ -268,13 +279,13 @@ export function HamsterList({
                       保存
                     </DirtySubmitButton>
                   </form>
-                  <div className="flex w-full flex-wrap items-end gap-2 lg:w-auto">
-                    <form action={updateHamsterActiveStatus} className="flex w-full items-end lg:w-auto">
+                  <div className="flex w-full flex-wrap items-end gap-2 lg:hidden">
+                    <form action={updateHamsterActiveStatus} className="flex w-full items-end">
                       <input type="hidden" name="id" value={hamster.id} />
                       <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
                       <button
                         type="submit"
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 lg:w-auto"
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         {isLocked ? <RotateCcw className="h-4 w-4" aria-hidden /> : <Archive className="h-4 w-4" aria-hidden />}
                         {isLocked ? "管理中に戻す" : "管理外にする"}
