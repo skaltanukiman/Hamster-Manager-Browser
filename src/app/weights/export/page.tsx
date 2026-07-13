@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, Download, Search } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
-import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
+import { WeightCsvExportForm } from "@/components/weight-csv-export-form";
 import { normalizeYearMonth } from "@/lib/date";
 import { getHamsterOptions, getHamsterSelectorMode } from "@/lib/queries";
 
@@ -28,16 +28,6 @@ export default async function WeightExportPage({
   const selectedHamsterId = getParam(query.hamsterId) ?? "";
   const month = getParam(query.month) ?? "";
   const normalizedMonth = month ? normalizeYearMonth(month) : "";
-  const params = new URLSearchParams();
-
-  if (selectedHamsterId) {
-    params.set("hamsterId", selectedHamsterId);
-  }
-  if (normalizedMonth) {
-    params.set("month", normalizedMonth);
-  }
-
-  const downloadHref = `/export/weights${params.toString() ? `?${params}` : ""}`;
 
   return (
     <div className="space-y-6">
@@ -57,41 +47,12 @@ export default async function WeightExportPage({
 
       <StatusMessage status={getParam(query.status)} errorId={getParam(query.errorId)} />
 
-      <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]">
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          ハムスター
-          <HamsterSelectorInput
-            key={selectedHamsterId}
-            mode={hamsterSelectorMode}
-            name="hamsterId"
-            selectedId={selectedHamsterId}
-            options={hamsters}
-            allOptionLabel="すべて"
-            emptyMessage="条件に一致するハムスターはいません"
-          />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          年月
-          <input type="month" name="month" defaultValue={normalizedMonth} />
-        </label>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
-        >
-          <Search className="h-4 w-4" aria-hidden />
-          絞り込み
-        </button>
-      </form>
-
-      <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-        <Link
-          href={downloadHref}
-          className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90"
-        >
-          <Download className="h-4 w-4" aria-hidden />
-          CSVをダウンロード
-        </Link>
-      </div>
+      <WeightCsvExportForm
+        hamsters={hamsters.map(({ id, name, isActive }) => ({ id, name, isActive }))}
+        hamsterSelectorMode={hamsterSelectorMode}
+        selectedHamsterId={selectedHamsterId}
+        selectedMonth={normalizedMonth}
+      />
     </div>
   );
 }

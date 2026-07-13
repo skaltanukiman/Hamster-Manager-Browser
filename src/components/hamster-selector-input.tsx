@@ -9,6 +9,7 @@ type HamsterSelectorInputProps = {
   options: HamsterComboboxOption[];
   selectedId?: string;
   allOptionLabel?: string;
+  autoSubmit?: boolean;
   disabled?: boolean;
   emptyMessage?: string;
 };
@@ -19,12 +20,13 @@ export function HamsterSelectorInput({
   options,
   selectedId = "",
   allOptionLabel,
+  autoSubmit = true,
   disabled = false,
   emptyMessage = "条件に一致するハムスターはいません"
 }: HamsterSelectorInputProps) {
   if (mode === "select") {
-    return (
-      <AutoSubmitSelect name={name} defaultValue={selectedId} disabled={disabled}>
+    const optionsElement = (
+      <>
         {allOptionLabel ? <option value="">{allOptionLabel}</option> : null}
         {!allOptionLabel ? <option value="">{options.length === 0 ? emptyMessage : "選択してください"}</option> : null}
         {options.map((hamster) => (
@@ -33,6 +35,20 @@ export function HamsterSelectorInput({
             {hamster.isActive ? "" : "（管理外）"}
           </option>
         ))}
+      </>
+    );
+
+    if (!autoSubmit) {
+      return (
+        <select name={name} defaultValue={selectedId} disabled={disabled}>
+          {optionsElement}
+        </select>
+      );
+    }
+
+    return (
+      <AutoSubmitSelect name={name} defaultValue={selectedId} disabled={disabled}>
+        {optionsElement}
       </AutoSubmitSelect>
     );
   }
@@ -43,6 +59,7 @@ export function HamsterSelectorInput({
       selectedId={selectedId}
       options={options}
       allOptionLabel={allOptionLabel}
+      autoSubmit={autoSubmit}
       disabled={disabled}
       emptyMessage={emptyMessage}
     />

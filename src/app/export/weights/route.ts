@@ -4,29 +4,40 @@ import { unstable_rethrow } from "next/navigation";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { toCsv } from "@/lib/csv";
-import { isValidYearMonthInput, monthDateRange, toDateInputValue } from "@/lib/date";
+import { isValidYearMonthInput, monthDateRange } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { logUnexpectedError } from "@/lib/server-errors";
+import {
+  buildWeightCsvRows,
+  parseWeightCsvExportOptions,
+  WeightCsvExportValidationError
+} from "@/lib/weight-csv-export";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const hamsterId = request.nextUrl.searchParams.get("hamsterId") || undefined;
   const month = request.nextUrl.searchParams.get("month") || undefined;
+
   try {
     const context = await getRequiredHouseholdContext();
+    const exportOptions = parseWeightCsvExportOptions(request.nextUrl.searchParams);
     const where: Prisma.WeightRecordWhereInput = {
       hamster: {
         householdId: context.household.id
       }
     };
 
-  // CSVエクスポートは画面と同じ絞り込み条件を受け取り、指定がなければ全ハムスター・全期間を対象にする。
+    // CSVエクスポートは画面と同じ絞り込み条件を受け取り、指定がなければ全ハムスター・全期間を対象にする。
     if (hamsterId) {
       where.hamsterId = hamsterId;
     }
 
-    if (month && isValidYearMonthInput(month)) {
+    if (month && !isValidYearMonthInput(month)) {
+      throw new WeightCsvExportValidationError("年月の指定が不正です。");
+    }
+
+    if (month) {
       const { start, end } = monthDateRange(month);
       where.recordDate = { gte: start, lt: end };
     }
@@ -37,30 +48,28 @@ export async function GET(request: NextRequest) {
       orderBy: [{ recordDate: "asc" }, { createdAt: "asc" }]
     });
 
-    const rows: Array<Array<string | number>> = [
-      ["date", "hamster", "weight_g", "created_at", "updated_at"],
-      ...records.map((record) => [
-        toDateInputValue(record.recordDate),
-        record.hamster.name,
-        record.weightG,
-        record.createdAt.toISOString(),
-        record.updatedAt.toISOString()
-      ])
-    ];
-
+    const rows = buildWeightCsvRows(records, exportOptions.columns, exportOptions.timeZone);
     const fileParts = ["weight_records"];
     if (hamsterId) fileParts.push("filtered");
     if (month) fileParts.push(month);
 
-  // Excelで日本語や日付列が扱いやすいよう、UTF-8 BOM付きのCSVとして返す。
+    // Excelで日本語や日付列が扱いやすいよう、UTF-8 BOM付きのCSVとして返す。
     return new Response(`\uFEFF${toCsv(rows)}`, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${fileParts.join("_")}.csv"`
-    }
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${fileParts.join("_")}.csv"`
+      }
     });
   } catch (error) {
     unstable_rethrow(error);
+
+    if (error instanceof WeightCsvExportValidationError) {
+      return new Response(error.message, {
+        status: 400,
+        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
+    }
+
     const errorId = logUnexpectedError(error, {
       operation: "weights.exportCsv",
       context: { hamsterId, month }

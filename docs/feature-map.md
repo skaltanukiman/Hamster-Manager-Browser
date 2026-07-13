@@ -1,6 +1,6 @@
 # 機能マップ
 
-最終確認: 2026-07-12。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、Action / API 側でも対象の所属・管理状態を確認します。
+最終確認: 2026-07-13。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、Action / API 側でも対象の所属・管理状態を確認します。
 
 ## 共通の起点
 
@@ -71,12 +71,12 @@
 ## 体重 CSV エクスポート
 
 - **画面または URL:** `/weights/export`、ダウンロード API `/export/weights`、旧 `/export` はリダイレクト。
-- **主なコンポーネント:** `HamsterSelectorInput`、`StatusMessage`。
+- **主なコンポーネント:** `WeightCsvExportForm`、`HamsterSelectorInput`、`StatusMessage`。画面全体は Server Component のまま、列選択とダウンロード可否だけを小さな Client Component で管理する。
 - **Server Action または API:** `src/app/export/weights/route.ts` の GET（CSV Response）。
 - **データアクセス・Prismaモデル:** `getHamsterOptions`、`getHamsterSelectorMode`、Route 内の `WeightRecord.findMany` と `Hamster` 所属条件。
-- **バリデーション:** URL の `hamsterId` / `yearMonth` は Route 内で解析。対象 Household の所属を `getRequiredHouseholdContext` で確定する。
-- **関連テスト:** 専用テストなし。
-- **関連設定:** `src/lib/csv.ts`、`src/lib/date.ts`。
+- **バリデーション:** URL の `hamsterId` / `month` を Route 内で解析し、`src/lib/weight-csv-export.ts` で選択列の許可・1列以上・重複なしと UTC / JST を検証する。対象 Household の所属を `getRequiredHouseholdContext` で確定する。
+- **関連テスト:** `tests/weight-csv-export.test.ts`（固定識別列、列選択・順序、UTC / JST、測定日維持、CSVエスケープ、不正指定）。
+- **関連設定:** `src/lib/weight-csv-export.ts`（固定識別値、列定義、日時変換、行生成）、`src/lib/csv.ts`（CSVエスケープ）、`src/lib/date.ts`（測定日の整形）。
 - **依存関係:** エクスポート API だけを公開 URL にしない。画面と Route Handler の双方で Household スコープを維持する。
 
 ## 体重 CSV インポート
