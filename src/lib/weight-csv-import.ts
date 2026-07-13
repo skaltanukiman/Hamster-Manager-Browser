@@ -14,7 +14,7 @@ export type ParsedWeightCsvImportRow = {
   weightG: number;
 };
 
-type CsvRecord = {
+export type CsvRecord = {
   lineNumber: number;
   cells: string[];
 };
@@ -29,7 +29,7 @@ function isEmptyRecord(cells: string[]) {
   return cells.every((cell) => cell.trim().length === 0);
 }
 
-function parseCsvRecords(text: string) {
+export function parseCsvRecords(text: string) {
   const source = text.replace(/^\uFEFF/, "");
   const records: CsvRecord[] = [];
   let cells: string[] = [];

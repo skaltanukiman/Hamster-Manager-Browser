@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-import { WeightCsvImportForm } from "@/components/weight-csv-import-form";
+import { ArrowLeft, DatabaseZap, FilePenLine } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +9,7 @@ export default function WeightCsvImportPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-ink">体重CSVインポート</h2>
-          <p className="mt-1 text-sm text-slate-600">GAS版から出力した体重管理CSVを取り込みます。</p>
+          <p className="mt-1 text-sm text-slate-600">利用するCSVの種類を選んでください。</p>
         </div>
         <Link
           href="/weights"
@@ -22,17 +20,22 @@ export default function WeightCsvImportPage() {
         </Link>
       </div>
 
-      <section className="rounded-md border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
-        <h3 className="text-base font-bold text-ink">取り込み対象CSV</h3>
-        <p className="mt-2">ヘッダー行あり、UTF-8、カンマ区切りのCSVに対応しています。</p>
-        <p className="mt-1">
-          必須列は <span className="font-semibold text-ink">date</span>、<span className="font-semibold text-ink">hamster</span>、
-          <span className="font-semibold text-ink">weight</span> です。
-        </p>
-        <p className="mt-1">同じハムスター・同じ測定日の記録が既にある場合は、二重登録せずスキップします。</p>
-      </section>
-
-      <WeightCsvImportForm />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link href="/weights/import/app" className="rounded-md border border-moss bg-white p-5 shadow-sm transition hover:bg-moss/5">
+          <FilePenLine className="h-7 w-7 text-moss" aria-hidden />
+          <h3 className="mt-3 text-base font-bold text-ink">アプリ版CSVで一括編集</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            このアプリからエクスポートしたCSVを編集し、既存記録の更新と新規追加をまとめて行います。
+          </p>
+        </Link>
+        <Link href="/weights/import/gas" className="rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:bg-slate-50">
+          <DatabaseZap className="h-7 w-7 text-slate-600" aria-hidden />
+          <h3 className="mt-3 text-base font-bold text-ink">GAS版（旧版）からデータ移行</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            GAS版から出力したCSVを新規登録します。既存のハムスター・測定日は更新せずスキップします。
+          </p>
+        </Link>
+      </div>
     </div>
   );
 }

@@ -74,21 +74,21 @@
 - **主なコンポーネント:** `WeightCsvExportForm`、`HamsterSelectorInput`、`StatusMessage`。画面全体は Server Component のまま、列選択とダウンロード可否だけを小さな Client Component で管理する。
 - **Server Action または API:** `src/app/export/weights/route.ts` の GET（CSV Response）。
 - **データアクセス・Prismaモデル:** `getHamsterOptions`、`getHamsterSelectorMode`、Route 内の `WeightRecord.findMany` と `Hamster` 所属条件。
-- **バリデーション:** URL の `hamsterId` / `month` を Route 内で解析し、`src/lib/weight-csv-export.ts` で選択列の許可・1列以上・重複なしと UTC / JST を検証する。対象 Household の所属を `getRequiredHouseholdContext` で確定する。
+- **バリデーション:** URL の `hamsterId` / `month` を Route 内で解析し、`src/lib/weight-csv-export.ts` で選択列の許可・1列以上・重複なしと UTC / JST を検証する。対象 Household の所属を `getRequiredHouseholdContext` で確定し、`record_id` を必ず出力する。
 - **関連テスト:** `tests/weight-csv-export.test.ts`（固定識別列、列選択・順序、UTC / JST、測定日維持、CSVエスケープ、不正指定）。
 - **関連設定:** `src/lib/weight-csv-export.ts`（固定識別値、列定義、日時変換、行生成）、`src/lib/csv.ts`（CSVエスケープ）、`src/lib/date.ts`（測定日の整形）。
 - **依存関係:** エクスポート API だけを公開 URL にしない。画面と Route Handler の双方で Household スコープを維持する。
 
 ## 体重 CSV インポート
 
-- **画面または URL:** `/weights/import`。
+- **画面または URL:** `/weights/import`（種類選択）、`/weights/import/app`（アプリ版一括編集）、`/weights/import/gas`（旧版移行）。
 - **主なコンポーネント:** `WeightCsvImportForm`。
-- **Server Action または API:** `importWeightRecordsCsv`（`actions/weights.ts`、`useActionState` で実行）。
-- **データアクセス・Prismaモデル:** `Hamster.findMany` による名前照合、`WeightRecord.findMany` による既存重複確認、`WeightRecord.createMany`。登録と Household revision 更新は同一トランザクション。
-- **バリデーション:** `parseWeightCsvImport`（`src/lib/weight-csv-import.ts`）、`weight-rules.ts`（2MB・10,000行・500g上限・0.1g単位）、日付・必須列・CSV内重複。管理外・未登録の名前も拒否する。
+- **Server Action または API:** `importAppWeightRecordsCsv`、`importGasWeightRecordsCsv`（`actions/weights.ts`、`useActionState` で実行）。
+- **データアクセス・Prismaモデル:** アプリ版は `record_id` のHousehold所属と変更先重複を検証して `WeightRecord.update` / `createMany`。GAS版は名前照合と既存重複確認後に `createMany`。いずれもデータ変更と Household revision 更新は同一トランザクション。
+- **バリデーション:** `parseAppWeightCsvImport`（`src/lib/weight-csv-app-import.ts`）、`parseWeightCsvImport`（`src/lib/weight-csv-import.ts`）、`weight-rules.ts`（2MB・10,000行・500g上限・0.1g単位）。アプリ版は出力元識別・スキーマバージョン・ID所属・CSV内/変更先重複を検証し、エラー時は全件未反映。両方とも管理外・未登録の名前を拒否。
 - **関連テスト:** `tests/csv-and-realtime.test.ts`。
 - **関連設定:** `next.config.mjs` の Server Action body size（3MB）はファイル上限以上を受け取れる必要がある。
-- **依存関係:** 通常の体重登録と同じ制約を保つ。CSV の GAS `id` は DB ID に流用しない。エラー詳細の形式を変える場合はフォーム表示も更新する。
+- **依存関係:** 通常の体重登録と同じ制約を保つ。GAS `id` は DB ID に流用せず、アプリ版 `record_id` と区別する。CSVでの削除は行わない。エラー詳細の形式を変える場合はフォーム表示も更新する。
 
 ## 掃除記録
 

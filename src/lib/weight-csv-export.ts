@@ -12,6 +12,8 @@ export const WEIGHT_CSV_REQUIRED_COLUMNS = [
   { key: "schema_version", label: "スキーマバージョン", value: WEIGHT_CSV_IDENTITY.schemaVersion }
 ] as const;
 
+export const WEIGHT_CSV_RECORD_ID_COLUMN = { key: "record_id", label: "記録ID" } as const;
+
 export const WEIGHT_CSV_DATA_COLUMNS = [
   { key: "date", label: "測定日" },
   { key: "hamster", label: "ハムスター名" },
@@ -36,6 +38,7 @@ export type WeightCsvTimeZone = (typeof WEIGHT_CSV_TIME_ZONES)[number]["value"];
 export const DEFAULT_WEIGHT_CSV_TIME_ZONE: WeightCsvTimeZone = "UTC";
 
 export type WeightCsvRecord = {
+  id: string;
   recordDate: Date;
   weightG: number;
   createdAt: Date;
@@ -119,7 +122,11 @@ const DATA_COLUMN_VALUE_GETTERS: Record<
 };
 
 export function getWeightCsvHeader(columns: readonly WeightCsvDataColumn[]) {
-  return [...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.key), ...columns];
+  return [
+    ...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.key),
+    WEIGHT_CSV_RECORD_ID_COLUMN.key,
+    ...columns
+  ];
 }
 
 export function weightRecordToCsvRow(
@@ -129,6 +136,7 @@ export function weightRecordToCsvRow(
 ) {
   return [
     ...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.value),
+    record.id,
     ...columns.map((column) => DATA_COLUMN_VALUE_GETTERS[column](record, timeZone))
   ];
 }

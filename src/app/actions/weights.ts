@@ -20,6 +20,7 @@ import {
   deleteWeightRecordSchema,
   updateWeightRecordSchema
 } from "@/lib/schemas";
+import { parseAppWeightCsvImport } from "@/lib/weight-csv-app-import";
 import { parseWeightCsvImport, type WeightCsvImportIssue } from "@/lib/weight-csv-import";
 import { handleServerActionError, isPrismaUniqueConstraintError, logUnexpectedError } from "@/lib/server-errors";
 import { getWeightCsvFileSizeError } from "@/lib/weight-rules";
@@ -47,6 +48,7 @@ function weightValidationStatus(issues: ZodIssue[]) {
 export type WeightCsvImportState = {
   hasResult: boolean;
   successCount: number;
+  updatedCount: number;
   skippedCount: number;
   errorCount: number;
   errors: WeightCsvImportIssue[];
@@ -57,6 +59,7 @@ export type WeightCsvImportState = {
 
 function weightCsvImportState({
   successCount = 0,
+  updatedCount = 0,
   skippedCount = 0,
   errors = [],
   message,
@@ -64,6 +67,7 @@ function weightCsvImportState({
   errorId
 }: {
   successCount?: number;
+  updatedCount?: number;
   skippedCount?: number;
   errors?: WeightCsvImportIssue[];
   message: string;
@@ -73,6 +77,7 @@ function weightCsvImportState({
   return {
     hasResult: true,
     successCount,
+    updatedCount,
     skippedCount,
     errorCount: errors.length,
     errors,
@@ -371,7 +376,7 @@ export async function deleteWeightRecords(formData: FormData) {
   }
 }
 
-export async function importWeightRecordsCsv(
+export async function importGasWeightRecordsCsv(
   _previousState: WeightCsvImportState,
   formData: FormData
 ): Promise<WeightCsvImportState> {
@@ -480,12 +485,219 @@ export async function importWeightRecordsCsv(
     });
   } catch (error) {
     const errorId = logUnexpectedError(error, {
-      operation: "weights.importCsv",
+      operation: "weights.importGasCsv",
       context: { householdId }
     });
     return weightCsvImportState({
       errors: [{ lineNumber: 0, message: "システムエラーのためCSVを取り込めませんでした。" }],
       message: "CSVインポートに失敗しました。",
+      errorType: "system",
+      errorId
+    });
+  }
+}
+
+export async function importAppWeightRecordsCsv(
+  _previousState: WeightCsvImportState,
+  formData: FormData
+): Promise<WeightCsvImportState> {
+  let householdId: string | undefined;
+  try {
+    const context = await getRequiredHouseholdContext();
+    householdId = context.household.id;
+    const csvFile = formData.get("csvFile");
+    if (!(csvFile instanceof File) || csvFile.size === 0) {
+      return weightCsvImportState({
+        errors: [{ lineNumber: 0, message: "CSVファイルを選択してください。" }],
+        message: "CSV一括編集に失敗しました。"
+      });
+    }
+    const fileSizeError = getWeightCsvFileSizeError(csvFile.size);
+    if (fileSizeError) {
+      return weightCsvImportState({
+        errors: [{ lineNumber: 0, message: fileSizeError }],
+        message: "CSV一括編集に失敗しました。"
+      });
+    }
+
+    const parsed = parseAppWeightCsvImport(await csvFile.text());
+    const errors: WeightCsvImportIssue[] = [...parsed.errors];
+    if (parsed.rows.length === 0 || errors.length > 0) {
+      return weightCsvImportState({
+        errors,
+        message:
+          errors.length > 0
+            ? "CSVのエラーを修正してから再度インポートしてください。"
+            : "CSVに一括編集対象の行がありませんでした。"
+      });
+    }
+
+    const hamsters = await prisma.hamster.findMany({
+      where: { householdId: context.household.id },
+      select: { id: true, name: true, isActive: true }
+    });
+    const hamsterByName = new Map(hamsters.map((hamster) => [hamster.name, hamster]));
+    const requestedRecordIds = [...new Set(parsed.rows.map((row) => row.recordId).filter(Boolean))];
+    const existingRecords = await prisma.weightRecord.findMany({
+      where: { id: { in: requestedRecordIds }, hamster: { householdId: context.household.id } },
+      select: {
+        id: true,
+        hamsterId: true,
+        recordDate: true,
+        weightG: true,
+        hamster: { select: { isActive: true } }
+      }
+    });
+    const existingById = new Map(existingRecords.map((record) => [record.id, record]));
+    const seenRecordIds = new Set<string>();
+    const seenDestinationKeys = new Set<string>();
+    const candidates: Array<{
+      lineNumber: number;
+      recordId: string;
+      hamsterId: string;
+      recordDate: Date;
+      recordDateInput: string;
+      weightG: number;
+    }> = [];
+
+    for (const row of parsed.rows) {
+      if (row.recordId && seenRecordIds.has(row.recordId)) {
+        errors.push({ lineNumber: row.lineNumber, message: `record_id「${row.recordId}」がCSV内で重複しています。` });
+        continue;
+      }
+      if (row.recordId) seenRecordIds.add(row.recordId);
+
+      const hamster = hamsterByName.get(row.hamsterName);
+      if (!hamster) {
+        errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」が登録されていません。` });
+        continue;
+      }
+      if (!hamster.isActive) {
+        errors.push({ lineNumber: row.lineNumber, message: `ハムスター「${row.hamsterName}」は管理外のため編集できません。` });
+        continue;
+      }
+
+      const existingRecord = row.recordId ? existingById.get(row.recordId) : undefined;
+      if (row.recordId && !existingRecord) {
+        errors.push({
+          lineNumber: row.lineNumber,
+          message: `record_id「${row.recordId}」の記録が現在のHouseholdに存在しません。`
+        });
+        continue;
+      }
+      if (existingRecord && !existingRecord.hamster.isActive) {
+        errors.push({ lineNumber: row.lineNumber, message: "管理外ハムスターの既存記録は編集できません。" });
+        continue;
+      }
+
+      const destinationKey = `${hamster.id}:${row.recordDateInput}`;
+      if (seenDestinationKeys.has(destinationKey)) {
+        errors.push({
+          lineNumber: row.lineNumber,
+          message: `ハムスター「${row.hamsterName}」の${row.recordDateInput}がCSV内で重複しています。`
+        });
+        continue;
+      }
+      seenDestinationKeys.add(destinationKey);
+      candidates.push({
+        lineNumber: row.lineNumber,
+        recordId: row.recordId,
+        hamsterId: hamster.id,
+        recordDate: row.recordDate,
+        recordDateInput: row.recordDateInput,
+        weightG: row.weightG
+      });
+    }
+
+    if (errors.length > 0) {
+      return weightCsvImportState({ errors, message: "CSVのエラーを修正してから再度インポートしてください。" });
+    }
+
+    const destinationHamsterIds = [...new Set(candidates.map((row) => row.hamsterId))];
+    const destinationDates = [...new Set(candidates.map((row) => row.recordDateInput))].map(parseDateInput);
+    const occupiedRecords = await prisma.weightRecord.findMany({
+      where: {
+        hamsterId: { in: destinationHamsterIds },
+        recordDate: { in: destinationDates },
+        hamster: { householdId: context.household.id }
+      },
+      select: { id: true, hamsterId: true, recordDate: true }
+    });
+    const occupiedByKey = new Map(
+      occupiedRecords.map((record) => [`${record.hamsterId}:${toDateInputValue(record.recordDate)}`, record.id])
+    );
+    for (const row of candidates) {
+      const occupiedRecordId = occupiedByKey.get(`${row.hamsterId}:${row.recordDateInput}`);
+      if (occupiedRecordId && occupiedRecordId !== row.recordId) {
+        errors.push({
+          lineNumber: row.lineNumber,
+          message: "変更先のハムスター・測定日には別の体重記録があります。"
+        });
+      }
+    }
+    if (errors.length > 0) {
+      return weightCsvImportState({ errors, message: "CSVのエラーを修正してから再度インポートしてください。" });
+    }
+
+    const createRows = candidates.filter((row) => !row.recordId);
+    const updateRows = candidates.filter((row) => {
+      if (!row.recordId) return false;
+      const existing = existingById.get(row.recordId);
+      return (
+        existing !== undefined &&
+        (existing.hamsterId !== row.hamsterId ||
+          toDateInputValue(existing.recordDate) !== row.recordDateInput ||
+          existing.weightG !== row.weightG)
+      );
+    });
+    const skippedCount = candidates.length - createRows.length - updateRows.length;
+    const actorClientId = getRealtimeActorId(formData);
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      for (const row of updateRows) {
+        await tx.weightRecord.update({
+          where: { id: row.recordId },
+          data: { hamsterId: row.hamsterId, recordDate: row.recordDate, weightG: row.weightG }
+        });
+      }
+      const created =
+        createRows.length > 0
+          ? await tx.weightRecord.createMany({
+              data: createRows.map((row) => ({
+                hamsterId: row.hamsterId,
+                recordDate: row.recordDate,
+                weightG: row.weightG
+              }))
+            })
+          : { count: 0 };
+      const changeCount = created.count + updateRows.length;
+      const change =
+        changeCount > 0
+          ? await updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id)
+          : null;
+      return { createdCount: created.count, updatedCount: updateRows.length, change };
+    });
+
+    if (transactionResult.change) publishHouseholdChangeSafely(transactionResult.change);
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.importAppCsv.revalidate", {
+      householdId: context.household.id
+    });
+    return weightCsvImportState({
+      successCount: transactionResult.createdCount,
+      updatedCount: transactionResult.updatedCount,
+      skippedCount,
+      message:
+        transactionResult.createdCount + transactionResult.updatedCount > 0
+          ? "アプリ版CSVの一括編集が完了しました。"
+          : "CSVの内容に変更はありませんでした。"
+    });
+  } catch (error) {
+    const errorId = logUnexpectedError(error, {
+      operation: "weights.importAppCsv",
+      context: { householdId }
+    });
+    return weightCsvImportState({
+      errors: [{ lineNumber: 0, message: "システムエラーのためCSVを取り込めませんでした。" }],
+      message: "CSV一括編集に失敗しました。",
       errorType: "system",
       errorId
     });
