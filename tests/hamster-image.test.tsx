@@ -181,9 +181,22 @@ test("画像があるサムネイルだけ拡大操作を提供する", () => {
   assert.doesNotMatch(html, /role="dialog"/);
 });
 
-test("管理外ハムスターの画像編集欄は無効になる", () => {
+test("管理外ハムスターは画像編集不可だが登録済み画像を拡大できる", () => {
+  const currentFileName = createHamsterImageFileName();
   const html = renderToStaticMarkup(
-    <HamsterImageField hamsterId="hamster-1" hamsterName="きなこ" currentFileName={null} disabled />
+    <HamsterImageField
+      hamsterId="hamster-1"
+      hamsterName="きなこ"
+      currentFileName={currentFileName}
+      disabled
+    />
   );
-  assert.match(html, /<fieldset disabled=""/);
+  assert.doesNotMatch(html, /<fieldset disabled=""/);
+  assert.match(html, /type="file"[^>]*disabled=""/);
+  assert.match(html, /<input(?=[^>]*name="removeProfileImage")(?=[^>]*disabled="")[^>]*>/);
+  assert.match(html, /aria-disabled="true"/);
+  assert.match(html, /cursor-not-allowed/);
+  assert.match(html, /管理外のため画像を削除できません/);
+  assert.match(html, /aria-haspopup="dialog"/);
+  assert.match(html, /きなこのプロフィール画像を拡大表示/);
 });

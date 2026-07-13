@@ -54,7 +54,7 @@
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
 - **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
-- **依存関係:** 全更新は realtime mutation を通す。`isActive=false` は体重・掃除の編集ロック条件なので、状態変更時は `weights.ts`、`cleaning.ts` の所属・状態検証を崩さない。
+- **依存関係:** 全更新は realtime mutation を通す。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。状態変更時は `weights.ts`、`cleaning.ts` の所属・状態検証を崩さない。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
 
 ## 体重履歴
