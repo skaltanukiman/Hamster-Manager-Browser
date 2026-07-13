@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageOff, X } from "lucide-react";
+import { PawPrint, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
 type HamsterThumbnailProps = {
@@ -65,11 +65,11 @@ export function HamsterThumbnail({
         </button>
       ) : (
         <div
-          className={`${sizeClass} flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 shadow-sm`}
-          aria-label="プロフィール画像未登録"
+          className={`${sizeClass} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 shadow-sm`}
+          role="img"
+          aria-label={`${hamsterName}のプロフィール画像は未登録です`}
         >
-          <ImageOff className="h-7 w-7" aria-hidden />
-          <span className="text-[10px] font-medium">画像未登録</span>
+          <PawPrint className="h-10 w-10" aria-hidden />
         </div>
       )}
 
