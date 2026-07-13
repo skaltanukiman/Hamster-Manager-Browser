@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
+import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { isFutureDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
@@ -162,7 +163,7 @@ async function ensureHamsterIsActive(hamsterId: string, householdId: string, his
   }
 
   // 体重登録はhamsterIdだけで届くため、所属家庭を照合して横取り更新を防ぐ。
-  if (hamster.householdId !== householdId) {
+  if (!belongsToCurrentHousehold(hamster.householdId, householdId)) {
     redirect("/weights?status=invalid");
   }
 
@@ -193,7 +194,7 @@ async function getEditableWeightRecord(
     }
   });
 
-  if (!record || record.hamsterId !== hamsterId || record.hamster.householdId !== householdId) {
+  if (!record || record.hamsterId !== hamsterId || !belongsToCurrentHousehold(record.hamster.householdId, householdId)) {
     redirect("/weights?status=invalid");
   }
 

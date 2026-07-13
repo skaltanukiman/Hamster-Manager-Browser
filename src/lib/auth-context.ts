@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { AppRole, HouseholdRole } from "@prisma/client";
 
 import { auth } from "@/auth";
+import { hasAuthenticatedUserId } from "@/lib/authorization";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 
@@ -52,7 +53,7 @@ export async function getRequiredSessionUser(): Promise<SessionUser> {
   const session = await auth();
   const user = session?.user;
 
-  if (!user?.id) {
+  if (!hasAuthenticatedUserId(user)) {
     redirect("/login");
   }
 
@@ -167,7 +168,7 @@ export async function getHouseholdContextForRoute(): Promise<CurrentHouseholdCon
   const session = await auth();
   const user = session?.user;
 
-  if (!user?.id) {
+  if (!hasAuthenticatedUserId(user)) {
     return null;
   }
 

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
@@ -65,7 +66,9 @@ export async function saveCleaningMonth(formData: FormData) {
       where: { id: hamsterId },
       select: { householdId: true, isActive: true }
     });
-    if (!hamster || hamster.householdId !== context.household.id) redirect("/cleaning?status=invalid");
+    if (!hamster || !belongsToCurrentHousehold(hamster.householdId, context.household.id)) {
+      redirect("/cleaning?status=invalid");
+    }
     if (!hamster.isActive) cleaningRedirect(hamsterId, yearMonth, "locked", includeInactive);
 
     const days = getDaysInMonth(yearMonth);

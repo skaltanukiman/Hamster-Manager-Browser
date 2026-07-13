@@ -6,7 +6,7 @@
 
 | 項目 | 主なファイル | 注意点 |
 | --- | --- | --- |
-| 認証ガード・ログイン遷移 | `src/proxy.ts`, `src/auth.ts`, `src/app/login/page.tsx`, `src/app/api/auth/[...nextauth]/route.ts` | `/login` と `/api/auth` 以外は認証必須。Auth.js は DB セッションを使用する。 |
+| 認証ガード・ログイン遷移 | `src/proxy.ts`, `src/auth.ts`, `src/app/login/page.tsx`, `src/app/api/auth/[...nextauth]/route.ts` | `/login`、`/api/auth`、`/api/health`以外は認証必須。Auth.js は DB セッションを使用し、認証・認可ポリシーは `tests/authorization.test.ts` で検証する。 |
 | 現在の Household と権限 | `src/lib/auth-context.ts`, `src/app/actions/households.ts`, `src/components/household-switcher.tsx` | `hamster_current_household` Cookie は所属確認後にのみ更新する。初回ログイン時の個人用 Household 作成もここにある。 |
 | レイアウト・ナビゲーション | `src/app/layout.tsx`, `src/components/app-nav.tsx`, `src/app/globals.css` | ログイン済み画面には Household 切替とリアルタイム監視が常設される。 |
 | 日付・検索・フォーム状態 | `src/lib/date.ts`, `src/lib/search.ts`, `src/components/form-dirty-state.ts`, `src/components/unsaved-changes-guard.tsx`, `src/components/dirty-submit-button.tsx` | 日付は JST の入力値を用い、形式だけでなく実在する暦日・年月を `tests/date-validation.test.ts` で検証する。未保存ガードと保存ボタン活性は一覧・掃除・体重で共有する。 |
@@ -19,7 +19,7 @@
 - **Server Action または API:** `signIn` / `signOut`（`src/auth.ts`。ログアウト Action は `layout.tsx` 内）。Auth.js Handler は `src/app/api/auth/[...nextauth]/route.ts`。
 - **データアクセス・Prismaモデル:** `PrismaAdapter(prisma)` が `User`、`Account`、`Session`、`VerificationToken` を利用。セッション callback が `User.appRole` を拡張セッションへ載せる。
 - **バリデーション:** OAuth プロバイダー設定と Auth.js が担当。画面アクセス制御は `src/proxy.ts`。
-- **関連テスト:** 認証専用の自動テストはなし。例外処理は `tests/logger.test.ts`。
+- **関連テスト:** `tests/authorization.test.ts`（セッションユーザーID必須、アプリロール判定）、`tests/logger.test.ts`（例外処理）。
 - **関連設定:** `.env*.example` の `AUTH_SECRET`、`AUTH_GOOGLE_ID`、`AUTH_GOOGLE_SECRET`、`AUTH_URL`、`src/types/next-auth.d.ts`。
 - **依存関係:** ログイン後の全データ機能は `auth-context.ts` の初期 Household 作成に依存する。`proxy.ts` の matcher / 公開パス変更は OAuth コールバックを遮断しないよう注意する。
 
@@ -29,8 +29,8 @@
 - **主なコンポーネント:** `HouseholdSwitcher`、`HouseholdInvitationForm`、`InvitationAcceptForm`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
 - **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredHouseholdContext` / `getCurrentHouseholdSwitcherData`、`Household`、`HouseholdMember`、`HouseholdInvitation`、参加時の `AppSetting`。
-- **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER を `hasHouseholdRole` と Action 内トランザクションで再確認する。
-- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）、`tests/audit-log.test.ts`（招待発行・メンバー削除・権限変更の成功監査ログ）。
+- **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。
+- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）、`tests/authorization.test.ts`（招待・削除・権限変更ポリシー）、`tests/audit-log.test.ts`（成功監査ログ）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限。
 - **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
@@ -52,7 +52,7 @@
 - **Server Action または API:** `createHamster`、`updateHamster`、`updateHamsterActiveStatus`、`deleteHamster`、`deleteHamsters`（`src/app/actions/hamsters.ts`）、認証付き画像配信 `/api/hamsters/[id]/image`。
 - **データアクセス・Prismaモデル:** `getHamsterManagementData`、`Hamster`。削除は関連 `CleaningRecord` / `WeightRecord` / `DashboardHamster` が schema の Cascade により連動する。
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
-- **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
+- **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
 - **依存関係:** 全更新は realtime mutation を通す。`isActive=false` は体重・掃除の編集ロック条件なので、状態変更時は `weights.ts`、`cleaning.ts` の所属・状態検証を崩さない。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
@@ -64,7 +64,7 @@
 - **Server Action または API:** `createWeightRecord`、`updateWeightRecord`、`deleteWeightRecord`、`deleteWeightRecords`（`src/app/actions/weights.ts`）。
 - **データアクセス・Prismaモデル:** `getWeightPageData`（DB 側のフィルター・ソート・ページングとグラフ全件）、`Hamster`、`WeightRecord`、`AppSetting`。
 - **バリデーション:** `createWeightRecordSchema`、`updateWeightRecordSchema`、削除 schema、`MAX_WEIGHT_G`（1〜500g、0.1g、未来日不可）。`@@unique([hamsterId, recordDate])` が日次重複を保証する。
-- **関連テスト:** `tests/weight-validation.test.ts`（通常登録・編集・CSVの0.1g単位検証）、`tests/csv-and-realtime.test.ts`（CSVの体重上限・未来日検証）。
+- **関連テスト:** `tests/weight-validation.test.ts`（通常登録・編集・CSVの0.1g単位検証）、`tests/csv-and-realtime.test.ts`（CSVの体重上限・未来日検証）、`tests/authorization.test.ts`（Household所属判定）。
 - **関連設定:** `src/lib/weight-rules.ts`、`src/lib/date.ts`、`src/lib/dashboard-settings.ts`（選択 UI）。
 - **依存関係:** 管理外ハムスターは作成・編集・削除不可。履歴一覧は 20 件ページングだがグラフは同一条件の全レコードを使うため、両方のクエリ条件を揃える。
 
@@ -97,7 +97,7 @@
 - **Server Action または API:** `saveCleaningMonth`（`src/app/actions/cleaning.ts`）。
 - **データアクセス・Prismaモデル:** `getCleaningPageData`、`Hamster`、`CleaningRecord`、`AppSetting`。月内の既存行との差分から create / update / delete を行う。
 - **バリデーション:** `cleaningMonthSchema`、`yearMonthSchema`、日付・未来日チェック（`src/lib/date.ts`）。
-- **関連テスト:** 専用テストなし。
+- **関連テスト:** `tests/authorization.test.ts`（Household所属判定）。
 - **関連設定:** `src/lib/dashboard-settings.ts`（Hamster 選択形式）、`src/app/globals.css`（PC表 / モバイルカードの表示）。
 - **依存関係:** 記録が全て空なら行を削除する。掃除種別・メモのフィールドを変える場合、schema、Action 差分判定、`getCleaningPageData`、ダッシュボード最新掃除表示、Prisma migration をまとめて変更する。管理外の編集ロックも必須。
 
@@ -119,7 +119,7 @@
 - **Server Action または API:** `updateUserAppRole`（`src/app/actions/admin.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredAppAdminUser`、ページ内の `User.findMany`、`Household.findMany`、`HouseholdInvitation.findMany`、Action の `User`。
 - **バリデーション:** Action 内で `AppRole` を許可値として確認。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。
-- **関連テスト:** 専用テストなし。
+- **関連テスト:** `tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）。
 - **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。
 - **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく page / Action の両方でアプリ管理者を確認する。
 

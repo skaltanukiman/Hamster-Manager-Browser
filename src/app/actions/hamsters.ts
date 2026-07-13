@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
+import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import {
   commitWithNewHamsterImage,
@@ -144,7 +145,7 @@ export async function updateHamster(formData: FormData) {
       }
     });
 
-    if (!hamster || hamster.householdId !== context.household.id) {
+    if (!hamster || !belongsToCurrentHousehold(hamster.householdId, context.household.id)) {
       redirect("/hamsters?status=invalid");
     }
 

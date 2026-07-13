@@ -4,9 +4,15 @@ import { redirect } from "next/navigation";
 
 import { HOUSEHOLD_AUDIT_EVENTS, writeHouseholdAuditLog } from "@/lib/audit-log";
 import {
+  canManageHouseholdInvitations,
+  canManageHouseholdMemberRoles,
+  canRemoveHouseholdMembers,
+  memberRemovalDenial,
+  memberRoleUpdateDenial
+} from "@/lib/authorization";
+import {
   getRequiredHouseholdContext,
   getRequiredSessionUser,
-  hasHouseholdRole,
   setCurrentHouseholdCookie
 } from "@/lib/auth-context";
 import {
@@ -26,10 +32,6 @@ import {
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
 import { handleServerActionError, logUnexpectedError } from "@/lib/server-errors";
 
-const INVITATION_MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
-const MEMBER_REMOVE_ROLES = ["OWNER", "ADMIN"] as const;
-const MEMBER_ROLE_MANAGE_ROLES = ["OWNER"] as const;
-
 class InvitationUnavailableError extends Error {}
 
 export type CreateHouseholdInvitationState = {
@@ -46,7 +48,7 @@ export async function createHouseholdInvitation(
 ): Promise<CreateHouseholdInvitationState> {
   try {
     const context = await getRequiredHouseholdContext();
-    if (!hasHouseholdRole(context.membership.role, [...INVITATION_MANAGE_ROLES])) {
+    if (!canManageHouseholdInvitations(context.membership.role)) {
       redirect("/settings/members?status=forbidden");
     }
 
@@ -176,7 +178,7 @@ export async function removeHouseholdMember(formData: FormData) {
     const memberId = formData.get("memberId");
     if (typeof memberId !== "string" || !memberId) redirect("/settings/members?status=invalid");
     const context = await getRequiredHouseholdContext();
-    if (!hasHouseholdRole(context.membership.role, [...MEMBER_REMOVE_ROLES])) {
+    if (!canRemoveHouseholdMembers(context.membership.role)) {
       redirect("/settings/members?status=forbidden");
     }
 
@@ -192,16 +194,20 @@ export async function removeHouseholdMember(formData: FormData) {
           select: { id: true, userId: true, role: true }
         });
         if (!targetMember) redirect("/settings/members?status=invalid");
-        if (targetMember.userId === context.user.id) redirect("/settings/members?status=cannotRemoveSelf");
-        if (context.membership.role === "ADMIN" && targetMember.role !== "MEMBER") {
-          redirect("/settings/members?status=forbidden");
-        }
+        let ownerCount = Number.MAX_SAFE_INTEGER;
         if (targetMember.role === "OWNER") {
-          const ownerCount = await tx.householdMember.count({
+          ownerCount = await tx.householdMember.count({
             where: { householdId: context.household.id, role: "OWNER" }
           });
-          if (ownerCount <= 1) redirect("/settings/members?status=cannotRemoveLastOwner");
         }
+        const denial = memberRemovalDenial({
+          actorRole: context.membership.role,
+          actorUserId: context.user.id,
+          targetUserId: targetMember.userId,
+          targetRole: targetMember.role,
+          ownerCount
+        });
+        if (denial) redirect(`/settings/members?status=${denial}`);
         const deleted = await tx.householdMember.deleteMany({
           where: { id: targetMember.id, householdId: context.household.id }
         });
@@ -236,7 +242,7 @@ export async function updateHouseholdMemberRole(formData: FormData) {
     const role = parseManageableMemberRole(formData.get("role"));
     if (typeof memberId !== "string" || !memberId || !role) redirect("/settings/members?status=invalid");
     const context = await getRequiredHouseholdContext();
-    if (!hasHouseholdRole(context.membership.role, [...MEMBER_ROLE_MANAGE_ROLES])) {
+    if (!canManageHouseholdMemberRoles(context.membership.role)) {
       redirect("/settings/members?status=forbidden");
     }
 
@@ -251,13 +257,14 @@ export async function updateHouseholdMemberRole(formData: FormData) {
           select: { id: true, userId: true, role: true }
         });
         if (!targetMember) redirect("/settings/members?status=invalid");
-        if (targetMember.userId === context.user.id) {
-          redirect("/settings/members?status=cannotChangeOwnHouseholdRole");
-        }
-        if (targetMember.role !== "ADMIN" && targetMember.role !== "MEMBER") {
-          redirect("/settings/members?status=cannotChangeOwnerRole");
-        }
-        if (targetMember.role === role) redirect("/settings/members?status=unchanged");
+        const denial = memberRoleUpdateDenial({
+          actorRole: context.membership.role,
+          actorUserId: context.user.id,
+          targetUserId: targetMember.userId,
+          currentRole: targetMember.role,
+          newRole: role
+        });
+        if (denial) redirect(`/settings/members?status=${denial}`);
         const updated = await tx.householdMember.updateMany({
           where: { id: targetMember.id, householdId: context.household.id, role: targetMember.role },
           data: { role }

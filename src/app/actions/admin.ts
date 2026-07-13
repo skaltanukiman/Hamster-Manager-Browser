@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import type { AppRole } from "@prisma/client";
 
+import { appRoleUpdateDenial } from "@/lib/authorization";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
 import { prisma } from "@/lib/prisma";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
@@ -34,13 +35,20 @@ export async function updateUserAppRole(formData: FormData) {
         select: { id: true, appRole: true }
       });
       if (!targetUser) redirect("/admin?status=adminTargetInvalid");
-      if (targetUser.id === currentUser.id && targetUser.appRole !== appRole) {
-        redirect("/admin?status=cannotChangeOwnRole");
-      }
+      let superAdminCount = Number.MAX_SAFE_INTEGER;
       if (targetUser.appRole === "SUPER_ADMIN" && appRole !== "SUPER_ADMIN") {
-        const superAdminCount = await tx.user.count({ where: { appRole: "SUPER_ADMIN" } });
-        if (superAdminCount <= 1) redirect("/admin?status=cannotRemoveLastSuperAdmin");
+        superAdminCount = await tx.user.count({ where: { appRole: "SUPER_ADMIN" } });
       }
+      const denial = appRoleUpdateDenial({
+        actorRole: currentUser.appRole,
+        actorUserId: currentUser.id,
+        targetUserId: targetUser.id,
+        currentRole: targetUser.appRole,
+        newRole: appRole,
+        superAdminCount
+      });
+      if (denial === "forbidden") redirect("/");
+      if (denial) redirect(`/admin?status=${denial}`);
       await tx.user.update({ where: { id: targetUser.id }, data: { appRole } });
     });
 
