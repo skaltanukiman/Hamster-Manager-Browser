@@ -10,6 +10,7 @@ import {
   DEFAULT_WEIGHT_CSV_DATA_COLUMNS,
   DEFAULT_WEIGHT_CSV_TIME_ZONE,
   WEIGHT_CSV_DATA_COLUMNS,
+  WEIGHT_CSV_RECORD_ID_COLUMN,
   WEIGHT_CSV_REQUIRED_COLUMNS,
   WEIGHT_CSV_TIME_ZONES,
   type WeightCsvDataColumn
@@ -82,7 +83,7 @@ export function WeightCsvExportForm({
             <legend className="text-sm font-semibold text-slate-700">連携用の必須列</legend>
             <p className="mt-1 text-xs text-slate-500">システム連携用のため、すべてのCSVへ必ず出力します。</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => (
+              {[...WEIGHT_CSV_REQUIRED_COLUMNS, WEIGHT_CSV_RECORD_ID_COLUMN].map((column) => (
                 <label
                   key={column.key}
                   className="flex min-w-0 items-start gap-3 rounded-md border border-slate-200 bg-white p-3"
