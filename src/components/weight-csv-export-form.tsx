@@ -68,7 +68,7 @@ export function WeightCsvExportForm({
             <input type="month" name="month" defaultValue={selectedMonth} />
           </label>
         </div>
-        <p className="mt-3 text-xs text-slate-500">指定しない場合は、全ハムスター・全期間を出力します。</p>
+        <p className="mt-3 text-xs text-slate-500">年月を指定しない場合は、全期間を出力します。</p>
       </section>
 
       <section
@@ -81,7 +81,7 @@ export function WeightCsvExportForm({
 
         <div className="mt-4 space-y-5">
           <fieldset>
-            <legend className="text-sm font-semibold text-slate-700">連携用の必須列</legend>
+            <legend className="text-sm font-semibold text-slate-700">連携・取込用の必須列</legend>
             <p className="mt-1 text-xs text-slate-500">
               アプリ版CSVの再インポートに必要です。閲覧用CSVではまとめて除外できます。
             </p>
@@ -93,7 +93,7 @@ export function WeightCsvExportForm({
                 className="mt-0.5 shrink-0"
               />
               <span className="min-w-0 text-sm text-slate-700">
-                <span className="block font-semibold">連携用の必須列を出力する</span>
+                <span className="block font-semibold">連携・取込用の必須列を出力する</span>
                 <span className="block text-xs text-slate-500">
                   オフにすると、下の4列を除外して選択したデータ列だけを出力します。
                 </span>
