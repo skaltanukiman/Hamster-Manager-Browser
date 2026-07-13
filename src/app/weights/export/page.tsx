@@ -34,7 +34,9 @@ export default async function WeightExportPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-ink">体重CSVエクスポート</h2>
-          <p className="mt-1 text-sm text-slate-600">体重記録をCSVでダウンロードし、アプリ版CSVの一括編集に利用できます。</p>
+          <p className="mt-1 text-sm text-slate-600">
+            体重記録をCSVでダウンロードし、アプリ版CSVの一括編集や閲覧に利用できます。
+          </p>
         </div>
         <Link
           href="/weights"

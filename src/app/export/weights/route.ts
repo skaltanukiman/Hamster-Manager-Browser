@@ -48,7 +48,12 @@ export async function GET(request: NextRequest) {
       orderBy: [{ recordDate: "asc" }, { createdAt: "asc" }]
     });
 
-    const rows = buildWeightCsvRows(records, exportOptions.columns, exportOptions.timeZone);
+    const rows = buildWeightCsvRows(
+      records,
+      exportOptions.columns,
+      exportOptions.timeZone,
+      exportOptions.includeRequiredColumns
+    );
     const fileParts = ["weight_records"];
     if (hamsterId) fileParts.push("filtered");
     if (month) fileParts.push(month);

@@ -36,6 +36,7 @@ export const WEIGHT_CSV_TIME_ZONES = [
 export type WeightCsvTimeZone = (typeof WEIGHT_CSV_TIME_ZONES)[number]["value"];
 
 export const DEFAULT_WEIGHT_CSV_TIME_ZONE: WeightCsvTimeZone = "UTC";
+export const DEFAULT_WEIGHT_CSV_INCLUDE_REQUIRED_COLUMNS = true;
 
 export type WeightCsvRecord = {
   id: string;
@@ -92,13 +93,28 @@ export function validateWeightCsvTimeZone(value?: string): WeightCsvTimeZone {
   return value as WeightCsvTimeZone;
 }
 
+export function validateWeightCsvIncludeRequiredColumns(value?: string) {
+  if (value === undefined) {
+    return DEFAULT_WEIGHT_CSV_INCLUDE_REQUIRED_COLUMNS;
+  }
+
+  if (value === "true") return true;
+  if (value === "false") return false;
+
+  throw new WeightCsvExportValidationError("連携用の必須列の指定が不正です。");
+}
+
 export function parseWeightCsvExportOptions(searchParams: URLSearchParams) {
   const requestedColumns = searchParams.has("columns") ? searchParams.getAll("columns") : undefined;
   const requestedTimeZone = searchParams.has("timezone") ? searchParams.get("timezone") ?? "" : undefined;
+  const requestedIncludeRequiredColumns = searchParams.has("includeRequiredColumns")
+    ? searchParams.get("includeRequiredColumns") ?? ""
+    : undefined;
 
   return {
     columns: validateWeightCsvDataColumns(requestedColumns),
-    timeZone: validateWeightCsvTimeZone(requestedTimeZone)
+    timeZone: validateWeightCsvTimeZone(requestedTimeZone),
+    includeRequiredColumns: validateWeightCsvIncludeRequiredColumns(requestedIncludeRequiredColumns)
   };
 }
 
@@ -121,10 +137,14 @@ const DATA_COLUMN_VALUE_GETTERS: Record<
   updated_at: (record, timeZone) => formatWeightCsvTimestamp(record.updatedAt, timeZone)
 };
 
-export function getWeightCsvHeader(columns: readonly WeightCsvDataColumn[]) {
+export function getWeightCsvHeader(
+  columns: readonly WeightCsvDataColumn[],
+  includeRequiredColumns = DEFAULT_WEIGHT_CSV_INCLUDE_REQUIRED_COLUMNS
+) {
   return [
-    ...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.key),
-    WEIGHT_CSV_RECORD_ID_COLUMN.key,
+    ...(includeRequiredColumns
+      ? [...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.key), WEIGHT_CSV_RECORD_ID_COLUMN.key]
+      : []),
     ...columns
   ];
 }
@@ -132,11 +152,11 @@ export function getWeightCsvHeader(columns: readonly WeightCsvDataColumn[]) {
 export function weightRecordToCsvRow(
   record: WeightCsvRecord,
   columns: readonly WeightCsvDataColumn[],
-  timeZone: WeightCsvTimeZone
+  timeZone: WeightCsvTimeZone,
+  includeRequiredColumns = DEFAULT_WEIGHT_CSV_INCLUDE_REQUIRED_COLUMNS
 ) {
   return [
-    ...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.value),
-    record.id,
+    ...(includeRequiredColumns ? [...WEIGHT_CSV_REQUIRED_COLUMNS.map((column) => column.value), record.id] : []),
     ...columns.map((column) => DATA_COLUMN_VALUE_GETTERS[column](record, timeZone))
   ];
 }
@@ -144,7 +164,11 @@ export function weightRecordToCsvRow(
 export function buildWeightCsvRows(
   records: readonly WeightCsvRecord[],
   columns: readonly WeightCsvDataColumn[] = DEFAULT_WEIGHT_CSV_DATA_COLUMNS,
-  timeZone: WeightCsvTimeZone = DEFAULT_WEIGHT_CSV_TIME_ZONE
+  timeZone: WeightCsvTimeZone = DEFAULT_WEIGHT_CSV_TIME_ZONE,
+  includeRequiredColumns = DEFAULT_WEIGHT_CSV_INCLUDE_REQUIRED_COLUMNS
 ): Array<Array<string | number>> {
-  return [getWeightCsvHeader(columns), ...records.map((record) => weightRecordToCsvRow(record, columns, timeZone))];
+  return [
+    getWeightCsvHeader(columns, includeRequiredColumns),
+    ...records.map((record) => weightRecordToCsvRow(record, columns, timeZone, includeRequiredColumns))
+  ];
 }

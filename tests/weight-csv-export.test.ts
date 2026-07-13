@@ -8,6 +8,7 @@ import {
   formatWeightCsvTimestamp,
   parseWeightCsvExportOptions,
   validateWeightCsvDataColumns,
+  validateWeightCsvIncludeRequiredColumns,
   validateWeightCsvTimeZone,
   WeightCsvExportValidationError,
   type WeightCsvRecord
@@ -25,6 +26,7 @@ const record: WeightCsvRecord = {
 test("初期状態では固定列に続けて全データ列を定義順で出力する", () => {
   const options = parseWeightCsvExportOptions(new URLSearchParams());
   assert.deepEqual(options.columns, DEFAULT_WEIGHT_CSV_DATA_COLUMNS);
+  assert.equal(options.includeRequiredColumns, true);
 
   const rows = buildWeightCsvRows([record], options.columns, options.timeZone);
   assert.deepEqual(rows[0], [
@@ -50,6 +52,20 @@ test("初期状態では固定列に続けて全データ列を定義順で出�
     "2026-07-10T02:34:56.000Z"
   ]);
   assert.equal(rows[0].length, rows[1].length);
+});
+
+test("閲覧用では連携用の必須列をまとめて除外する", () => {
+  const options = parseWeightCsvExportOptions(
+    new URLSearchParams({
+      columns: "date",
+      includeRequiredColumns: "false"
+    })
+  );
+  const rows = buildWeightCsvRows([record], options.columns, options.timeZone, options.includeRequiredColumns);
+
+  assert.equal(options.includeRequiredColumns, false);
+  assert.deepEqual(rows[0], ["date"]);
+  assert.deepEqual(rows[1], ["2026-07-10"]);
 });
 
 test("選択したデータ列だけを画面の定義順で出力する", () => {
@@ -92,6 +108,7 @@ test("不正・未選択・重複したデータ列と不正なタイムゾー�
   assert.throws(() => validateWeightCsvDataColumns([""]), /1つ以上/);
   assert.throws(() => validateWeightCsvDataColumns(["date", "date"]), /重複/);
   assert.throws(() => validateWeightCsvTimeZone("Asia/Tokyo"), WeightCsvExportValidationError);
+  assert.throws(() => validateWeightCsvIncludeRequiredColumns("1"), WeightCsvExportValidationError);
 });
 
 test("ハムスター名のカンマ・改行・ダブルクォートをCSV仕様どおりエスケープする", () => {

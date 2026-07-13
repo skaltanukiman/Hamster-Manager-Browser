@@ -22,7 +22,9 @@ export default function AppWeightCsvImportPage() {
       <section className="rounded-md border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
         <h3 className="text-base font-bold text-ink">利用方法</h3>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>体重CSVエクスポートでdate、hamster、weight_gを含めてダウンロードします。</li>
+          <li>
+            体重CSVエクスポートで「連携用の必須列を出力する」をオンにし、date、hamster、weight_gを含めてダウンロードします。
+          </li>
           <li>date、hamster、weight_gを編集します。新規行はrecord_idを空欄にします。</li>
           <li>編集したCSVをこの画面からインポートします。</li>
         </ol>

@@ -32,6 +32,7 @@ export function WeightCsvExportForm({
   const [selectedColumns, setSelectedColumns] = useState<WeightCsvDataColumn[]>([
     ...DEFAULT_WEIGHT_CSV_DATA_COLUMNS
   ]);
+  const [includeRequiredColumns, setIncludeRequiredColumns] = useState(true);
   const canDownload = selectedColumns.length > 0;
 
   function toggleColumn(column: WeightCsvDataColumn) {
@@ -81,19 +82,38 @@ export function WeightCsvExportForm({
         <div className="mt-4 space-y-5">
           <fieldset>
             <legend className="text-sm font-semibold text-slate-700">連携用の必須列</legend>
-            <p className="mt-1 text-xs text-slate-500">システム連携用のため、すべてのCSVへ必ず出力します。</p>
+            <p className="mt-1 text-xs text-slate-500">
+              アプリ版CSVの再インポートに必要です。閲覧用CSVではまとめて除外できます。
+            </p>
+            <label className="mt-3 flex max-w-xl items-start gap-3 rounded-md border border-moss/30 bg-white p-3">
+              <input
+                type="checkbox"
+                checked={includeRequiredColumns}
+                onChange={(event) => setIncludeRequiredColumns(event.target.checked)}
+                className="mt-0.5 shrink-0"
+              />
+              <span className="min-w-0 text-sm text-slate-700">
+                <span className="block font-semibold">連携用の必須列を出力する</span>
+                <span className="block text-xs text-slate-500">
+                  オフにすると、下の4列を除外して選択したデータ列だけを出力します。
+                </span>
+              </span>
+            </label>
+            <input type="hidden" name="includeRequiredColumns" value={String(includeRequiredColumns)} />
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[...WEIGHT_CSV_REQUIRED_COLUMNS, WEIGHT_CSV_RECORD_ID_COLUMN].map((column) => (
                 <label
                   key={column.key}
-                  className="flex min-w-0 items-start gap-3 rounded-md border border-slate-200 bg-white p-3"
+                  className={`flex min-w-0 items-start gap-3 rounded-md border border-slate-200 bg-white p-3 ${
+                    includeRequiredColumns ? "" : "opacity-60"
+                  }`}
                 >
-                  <input type="checkbox" checked disabled className="mt-0.5 shrink-0" />
+                  <input type="checkbox" checked={includeRequiredColumns} disabled className="mt-0.5 shrink-0" />
                   <span className="min-w-0 text-sm text-slate-700">
                     <span className="block font-semibold">{column.label}</span>
                     <code className="break-all text-xs text-slate-500">{column.key}</code>
                     <span className="ml-2 inline-flex rounded bg-moss/10 px-1.5 py-0.5 text-xs font-semibold text-moss">
-                      必須
+                      連携時必須
                     </span>
                   </span>
                 </label>
