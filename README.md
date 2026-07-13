@@ -757,6 +757,36 @@ npx prisma db seed
 
 招待リンクは作成から 7 日間有効です。一度承認されたリンクは再利用できません。メール送信は行わず、画面に表示されたリンクを手動で共有します。
 
+### 招待データの定期整理
+
+使用済みの招待は受諾から90日後、未使用の期限切れ招待は期限から30日後に削除します。有効な招待は削除しません。手動実行は次のコマンドです。
+
+```powershell
+docker compose exec -T app npm run invitations:cleanup
+```
+
+正常終了時は削除件数を標準出力とアプリケーションログへ記録します。失敗時は `errorId` 付きでログへ記録し、コマンドを失敗終了します。
+
+削除せず対象件数だけ確認する場合は、先に次を実行します。
+
+```powershell
+docker compose exec -T app npm run invitations:cleanup -- --dry-run
+```
+
+VPSでは、リポジトリの実際の配置先へ読み替えたうえで、`crontab -e` に次のような日次実行を登録します。時刻はVPSのタイムゾーン基準です。
+
+```cron
+0 3 * * * cd /home/USER/apps/hamster-manager-browser && /usr/bin/docker compose exec -T app npm run invitations:cleanup
+```
+
+登録後は次で内容を確認できます。
+
+```bash
+crontab -l
+```
+
+クリーンアップはアプリコンテナが起動している場合に実行できます。cron登録前に、まず `--dry-run` で対象件数とログを確認してください。
+
 OWNER は `/settings/members` から MEMBER / ADMIN の権限を切り替えられます。ADMIN は招待リンク作成と MEMBER の共有参加解除ができます。OWNER は自分自身と最後の OWNER を除き、共有メンバーの参加を解除できます。
 
 ## アプリ全体管理者
