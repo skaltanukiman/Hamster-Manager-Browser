@@ -45,7 +45,7 @@ export default async function CleaningPage({
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
   const today = todayInputJst();
-  const isLocked = selectedHamster ? !selectedHamster.isActive || !canEdit : !canEdit;
+  const isLocked = selectedHamster ? !selectedHamster.isActive : false;
   const cleaningRecordsVersion = JSON.stringify(
     days.map((day) => {
       const record = recordsByDate.get(day.date);
@@ -128,8 +128,8 @@ export default async function CleaningPage({
                 {/* レスポンシブ表示で同名入力を重複送信しないよう、PC用とスマホ用は別フォームにする。 */}
                 <form
                   key={`cleaning-table-${selectedHamster.id}-${yearMonth}-${cleaningRecordsVersion}`}
-                  action={saveCleaningMonth}
-                  data-dirty-watch
+                  action={canEdit ? saveCleaningMonth : undefined}
+                  data-dirty-watch={canEdit ? true : undefined}
                   className="hidden space-y-4 md:block"
                 >
                   <input type="hidden" name="hamsterId" value={selectedHamster.id} />
@@ -155,13 +155,13 @@ export default async function CleaningPage({
                           const record = recordsByDate.get(day.date);
                           // 未来日は入力欄を無効化し、サーバー側の未来日拒否と画面表示を揃える。
                           const isFuture = isFutureDateInput(day.date);
-                          const isDisabled = isFuture || isLocked;
+                          const isUnavailable = isFuture || isLocked;
                           const isToday = day.date === today;
 
                           return (
                             <tr
                               key={day.date}
-                              className={isToday ? "bg-straw/20" : isDisabled ? "bg-slate-50 text-slate-400" : undefined}
+                              className={isToday ? "bg-straw/20" : isUnavailable ? "bg-slate-50 text-slate-400" : undefined}
                             >
                               <td className={`date-cell ${isToday ? "font-semibold text-ink" : "font-semibold text-slate-700"}`}>
                                 {day.day}
@@ -173,7 +173,10 @@ export default async function CleaningPage({
                                   type="checkbox"
                                   name={`toilet_${day.date}`}
                                   defaultChecked={record?.toiletCleaned ?? false}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  aria-disabled={!canEdit || undefined}
+                                  tabIndex={canEdit ? undefined : -1}
+                                  className={canEdit ? undefined : "pointer-events-none"}
                                 />
                               </td>
                               <td className="checkbox-cell">
@@ -182,7 +185,10 @@ export default async function CleaningPage({
                                   type="checkbox"
                                   name={`bath_${day.date}`}
                                   defaultChecked={record?.bathCleaned ?? false}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  aria-disabled={!canEdit || undefined}
+                                  tabIndex={canEdit ? undefined : -1}
+                                  className={canEdit ? undefined : "pointer-events-none"}
                                 />
                               </td>
                               <td className="checkbox-cell">
@@ -191,7 +197,10 @@ export default async function CleaningPage({
                                   type="checkbox"
                                   name={`flooring_part_${day.date}`}
                                   defaultChecked={record?.flooringPartCleaned ?? false}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  aria-disabled={!canEdit || undefined}
+                                  tabIndex={canEdit ? undefined : -1}
+                                  className={canEdit ? undefined : "pointer-events-none"}
                                 />
                               </td>
                               <td className="checkbox-cell">
@@ -200,7 +209,10 @@ export default async function CleaningPage({
                                   type="checkbox"
                                   name={`flooring_all_${day.date}`}
                                   defaultChecked={record?.flooringAllCleaned ?? false}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  aria-disabled={!canEdit || undefined}
+                                  tabIndex={canEdit ? undefined : -1}
+                                  className={canEdit ? undefined : "pointer-events-none"}
                                 />
                               </td>
                               <td className="checkbox-cell">
@@ -209,7 +221,10 @@ export default async function CleaningPage({
                                   type="checkbox"
                                   name={`house_${day.date}`}
                                   defaultChecked={record?.houseCleaned ?? false}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  aria-disabled={!canEdit || undefined}
+                                  tabIndex={canEdit ? undefined : -1}
+                                  className={canEdit ? undefined : "pointer-events-none"}
                                 />
                               </td>
                               <td className="memo-cell">
@@ -217,7 +232,8 @@ export default async function CleaningPage({
                                   name={`memo_${day.date}`}
                                   defaultValue={record?.memo ?? ""}
                                   placeholder={!canEdit ? "閲覧者は入力できません" : isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
-                                  disabled={isDisabled}
+                                  disabled={isUnavailable}
+                                  readOnly={!canEdit}
                                 />
                               </td>
                             </tr>

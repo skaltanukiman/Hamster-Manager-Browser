@@ -94,18 +94,18 @@ export function CleaningMobileForm({
       <form
         key={`cleaning-mobile-${hamsterId}-${yearMonth}-${recordsVersion}`}
         id="cleaning-mobile-form"
-        action={saveCleaningMonth}
-        data-dirty-watch
+        action={readOnly ? undefined : saveCleaningMonth}
+        data-dirty-watch={readOnly ? undefined : true}
         className="space-y-4"
       >
         <input type="hidden" name="hamsterId" value={hamsterId} />
         <input type="hidden" name="yearMonth" value={yearMonth} />
         {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
 
-        <MobileDirtySaveArea disabled={isLocked} formId="cleaning-mobile-form">
+        <MobileDirtySaveArea disabled={isLocked || readOnly} formId="cleaning-mobile-form">
           <div className="grid gap-3">
             {days.map((day) => {
-              const isDisabled = day.isFuture || isLocked;
+              const isUnavailable = day.isFuture || isLocked;
               const isVisible = selectedDate === "all" || selectedDate === day.date;
 
               return (
@@ -114,7 +114,7 @@ export function CleaningMobileForm({
                   className={`${isVisible ? "" : "hidden"} rounded-md border p-4 shadow-sm ${
                     day.isToday
                       ? "border-straw bg-straw/15"
-                      : isDisabled
+                      : isUnavailable
                         ? "border-slate-200 bg-slate-50 text-slate-400"
                         : "border-slate-200 bg-white"
                   }`}
@@ -133,53 +133,63 @@ export function CleaningMobileForm({
                   </div>
 
                   <div className="mt-4 grid gap-2 min-[380px]:grid-cols-2">
-                    <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                    <label className={`inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 ${readOnly ? "pointer-events-none" : ""}`}>
                       <input
                         aria-label={`${day.date} トイレ掃除`}
                         type="checkbox"
                         name={`toilet_${day.date}`}
                         defaultChecked={day.record?.toiletCleaned ?? false}
-                        disabled={isDisabled}
+                        disabled={isUnavailable}
+                        aria-disabled={readOnly || undefined}
+                        tabIndex={readOnly ? -1 : undefined}
                       />
                       トイレ掃除
                     </label>
-                    <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                    <label className={`inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 ${readOnly ? "pointer-events-none" : ""}`}>
                       <input
                         aria-label={`${day.date} 砂場掃除`}
                         type="checkbox"
                         name={`bath_${day.date}`}
                         defaultChecked={day.record?.bathCleaned ?? false}
-                        disabled={isDisabled}
+                        disabled={isUnavailable}
+                        aria-disabled={readOnly || undefined}
+                        tabIndex={readOnly ? -1 : undefined}
                       />
                       砂場掃除
                     </label>
-                    <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                    <label className={`inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 ${readOnly ? "pointer-events-none" : ""}`}>
                       <input
                         aria-label={`${day.date} 床材一部交換`}
                         type="checkbox"
                         name={`flooring_part_${day.date}`}
                         defaultChecked={day.record?.flooringPartCleaned ?? false}
-                        disabled={isDisabled}
+                        disabled={isUnavailable}
+                        aria-disabled={readOnly || undefined}
+                        tabIndex={readOnly ? -1 : undefined}
                       />
                       床材一部交換
                     </label>
-                    <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                    <label className={`inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 ${readOnly ? "pointer-events-none" : ""}`}>
                       <input
                         aria-label={`${day.date} 床材全交換`}
                         type="checkbox"
                         name={`flooring_all_${day.date}`}
                         defaultChecked={day.record?.flooringAllCleaned ?? false}
-                        disabled={isDisabled}
+                        disabled={isUnavailable}
+                        aria-disabled={readOnly || undefined}
+                        tabIndex={readOnly ? -1 : undefined}
                       />
                       床材全交換
                     </label>
-                    <label className="inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 min-[380px]:col-span-2">
+                    <label className={`inline-flex min-h-11 items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 min-[380px]:col-span-2 ${readOnly ? "pointer-events-none" : ""}`}>
                       <input
                         aria-label={`${day.date} ハウス掃除`}
                         type="checkbox"
                         name={`house_${day.date}`}
                         defaultChecked={day.record?.houseCleaned ?? false}
-                        disabled={isDisabled}
+                        disabled={isUnavailable}
+                        aria-disabled={readOnly || undefined}
+                        tabIndex={readOnly ? -1 : undefined}
                       />
                       ハウス掃除
                     </label>
@@ -191,7 +201,8 @@ export function CleaningMobileForm({
                       name={`memo_${day.date}`}
                       defaultValue={day.record?.memo ?? ""}
                       placeholder={readOnly ? "閲覧者は入力できません" : isLocked ? "管理外のため入力できません" : day.isFuture ? "未来日は入力できません" : "メモ"}
-                      disabled={isDisabled}
+                      disabled={isUnavailable}
+                      readOnly={readOnly}
                     />
                   </label>
                 </section>
