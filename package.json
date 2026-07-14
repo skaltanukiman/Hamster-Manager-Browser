@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "tsx --test tests/error-handling.test.ts tests/csv-and-realtime.test.ts tests/weight-csv-export.test.ts tests/date-validation.test.ts tests/invitations.test.ts tests/invitation-cleanup.test.ts tests/logger.test.ts tests/audit-log.test.ts tests/authorization.test.ts tests/health.test.ts tests/security-headers.test.ts tests/hamster-image.test.tsx tests/weight-validation.test.ts",
+    "test": "tsx --test tests/error-handling.test.ts tests/csv-and-realtime.test.ts tests/weight-csv-export.test.ts tests/date-validation.test.ts tests/dashboard-settings.test.ts tests/invitations.test.ts tests/invitation-cleanup.test.ts tests/logger.test.ts tests/audit-log.test.ts tests/authorization.test.ts tests/health.test.ts tests/security-headers.test.ts tests/hamster-image.test.tsx tests/weight-validation.test.ts",
     "log:smoke": "tsx scripts/log-smoke.ts",
     "invitations:cleanup": "tsx scripts/cleanup-invitations.ts",
     "admin:grant": "tsx prisma/admin-role.ts",

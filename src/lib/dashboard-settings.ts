@@ -18,5 +18,5 @@ export function normalizeDashboardBoardCount(value: number | null | undefined) {
 }
 
 export function normalizeHamsterSelectorMode(value: string | null | undefined): HamsterSelectorMode {
-  return value === "select" ? "select" : DEFAULT_HAMSTER_SELECTOR_MODE;
+  return value === "combobox" || value === "select" ? value : DEFAULT_HAMSTER_SELECTOR_MODE;
 }
