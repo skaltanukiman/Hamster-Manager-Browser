@@ -59,71 +59,75 @@ export function HouseholdInvitationList({
   canManage: boolean;
   now: Date;
 }) {
+  const activeInvitations = invitations.filter(
+    (invitation) => getHouseholdInvitationStatus(invitation, now) === "active"
+  );
+
+  if (activeInvitations.length === 0) {
+    return null;
+  }
+
   return (
     <section className="space-y-3">
       <div>
-        <h3 className="text-base font-bold text-ink">作成済みの招待リンク</h3>
+        <h3 className="text-base font-bold text-ink">有効な招待リンク</h3>
         <p className="mt-1 text-sm text-slate-600">過去のリンク自体は再表示されません。有効なリンクだけ無効化できます。</p>
       </div>
 
-      {invitations.length === 0 ? (
-        <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-          作成済みの招待リンクはありません。
-        </p>
-      ) : (
-        <>
-          <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm md:block">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>作成日時</th>
-                  <th>有効期限</th>
-                  <th>状態</th>
-                  <th>作成者</th>
-                  {canManage ? <th>操作</th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {invitations.map((invitation) => {
-                  const status = getHouseholdInvitationStatus(invitation, now);
-                  return (
-                    <tr key={invitation.id}>
-                      <td>{formatDateTimeJp(invitation.createdAt)}</td>
-                      <td>{formatDateTimeJp(invitation.expiresAt)}</td>
-                      <td><InvitationStatusBadge status={status} /></td>
-                      <td>{creatorName(invitation)}</td>
-                      {canManage ? (
-                        <td>{status === "active" ? <InvitationRevokeForm invitationId={invitation.id} /> : "-"}</td>
-                      ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid gap-3 md:hidden">
-            {invitations.map((invitation) => {
+      <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm md:block">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>作成日時</th>
+              <th>有効期限</th>
+              <th>状態</th>
+              <th>作成者</th>
+              {canManage ? <th>操作</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {activeInvitations.map((invitation) => {
               const status = getHouseholdInvitationStatus(invitation, now);
               return (
-                <article key={invitation.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-ink">{creatorName(invitation)}</p>
-                      <p className="mt-1 text-xs text-slate-500">作成: {formatDateTimeJp(invitation.createdAt)}</p>
-                    </div>
+                <tr key={invitation.id}>
+                  <td>{formatDateTimeJp(invitation.createdAt)}</td>
+                  <td>{formatDateTimeJp(invitation.expiresAt)}</td>
+                  <td>
                     <InvitationStatusBadge status={status} />
-                  </div>
-                  <p className="mt-3 text-xs text-slate-600">有効期限: {formatDateTimeJp(invitation.expiresAt)}</p>
-                  {canManage && status === "active" ? (
-                    <div className="mt-3"><InvitationRevokeForm invitationId={invitation.id} /></div>
+                  </td>
+                  <td>{creatorName(invitation)}</td>
+                  {canManage ? (
+                    <td>{status === "active" ? <InvitationRevokeForm invitationId={invitation.id} /> : "-"}</td>
                   ) : null}
-                </article>
+                </tr>
               );
             })}
-          </div>
-        </>
-      )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-3 md:hidden">
+        {activeInvitations.map((invitation) => {
+          const status = getHouseholdInvitationStatus(invitation, now);
+          return (
+            <article key={invitation.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-ink">{creatorName(invitation)}</p>
+                  <p className="mt-1 text-xs text-slate-500">作成: {formatDateTimeJp(invitation.createdAt)}</p>
+                </div>
+                <InvitationStatusBadge status={status} />
+              </div>
+              <p className="mt-3 text-xs text-slate-600">有効期限: {formatDateTimeJp(invitation.expiresAt)}</p>
+              {canManage && status === "active" ? (
+                <div className="mt-3">
+                  <InvitationRevokeForm invitationId={invitation.id} />
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

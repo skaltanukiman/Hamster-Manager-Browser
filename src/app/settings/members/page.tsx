@@ -42,6 +42,7 @@ async function getInvitationOrigin() {
 
 async function getMembersPageData() {
   const context = await getRequiredHouseholdContext();
+  const now = new Date();
   const [members, invitations] = await Promise.all([
     prisma.householdMember.findMany({
       where: { householdId: context.household.id },
@@ -49,7 +50,12 @@ async function getMembersPageData() {
       orderBy: { createdAt: "asc" }
     }),
     prisma.householdInvitation.findMany({
-      where: { householdId: context.household.id },
+      where: {
+        householdId: context.household.id,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now }
+      },
       include: {
         createdBy: {
           select: { name: true, email: true }
@@ -59,7 +65,7 @@ async function getMembersPageData() {
     })
   ]);
 
-  return { context, members, invitations };
+  return { context, members, invitations, now };
 }
 
 export default async function MembersPage({
@@ -69,7 +75,7 @@ export default async function MembersPage({
 }) {
   const params = await searchParams;
   const invitationOrigin = await getInvitationOrigin();
-  const { context, members, invitations } = await getMembersPageData();
+  const { context, members, invitations, now } = await getMembersPageData();
   const canManageInvitations = canManageHouseholdInvitations(context.membership.role);
   const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
   const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
@@ -97,8 +103,6 @@ export default async function MembersPage({
           </p>
         </section>
       )}
-
-      <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={new Date()} />
 
       <section className="space-y-3">
         <div className="flex items-center gap-2">
@@ -203,6 +207,8 @@ export default async function MembersPage({
           })}
         </div>
       </section>
+
+      <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={now} />
     </div>
   );
 }
