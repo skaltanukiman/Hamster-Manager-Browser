@@ -2,8 +2,9 @@ import type { Prisma } from "@prisma/client";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { normalizeDashboardBoardCount, normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
-import { monthDateRange, toDateInputValue } from "@/lib/date";
+import { monthDateRange, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+import { getAppliedWeightChartRange } from "@/lib/weight-chart-filter";
 
 export const WEIGHT_HISTORY_PAGE_SIZE = 20;
 
@@ -254,6 +255,8 @@ export async function getWeightPageData({
   selectedHamsterId,
   filterMode,
   month,
+  chartFrom,
+  chartTo,
   page,
   sortTarget,
   sortDirection,
@@ -262,6 +265,8 @@ export async function getWeightPageData({
   selectedHamsterId: string | undefined;
   filterMode: WeightHistoryFilterMode;
   month: string | undefined;
+  chartFrom: string | undefined;
+  chartTo: string | undefined;
   page: number;
   sortTarget: WeightHistorySortTarget;
   sortDirection: SortDirection;
@@ -317,6 +322,14 @@ export async function getWeightPageData({
   const monthOptions = monthRows.map((row) => row.yearMonth);
   const selectedMonth = filterMode === "month" ? month ?? monthOptions[0] ?? "" : "";
   const where = buildWeightRecordWhere(selectedHamster.id, filterMode, selectedMonth);
+  const appliedChartRange = getAppliedWeightChartRange(filterMode, chartFrom, chartTo);
+  const chartWhere: Prisma.WeightRecordWhereInput = filterMode === "month" ? where : { hamsterId: selectedHamster.id };
+  if (appliedChartRange.from || appliedChartRange.to) {
+    chartWhere.recordDate = {
+      ...(appliedChartRange.from ? { gte: parseDateInput(appliedChartRange.from) } : {}),
+      ...(appliedChartRange.to ? { lte: parseDateInput(appliedChartRange.to) } : {})
+    };
+  }
   const totalCount = await prisma.weightRecord.count({ where });
   const totalPages = Math.max(Math.ceil(totalCount / WEIGHT_HISTORY_PAGE_SIZE), 1);
   const currentPage = Math.min(Math.max(page, 1), totalPages);
@@ -330,7 +343,7 @@ export async function getWeightPageData({
     }),
     // グラフはページング中の一覧とは独立して、現在の表示条件に一致する体重推移全体を描画する。
     prisma.weightRecord.findMany({
-      where,
+      where: chartWhere,
       orderBy: [{ recordDate: "asc" }, { createdAt: "asc" }]
     })
   ]);

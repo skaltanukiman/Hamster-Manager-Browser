@@ -15,11 +15,17 @@ type WeightChartPoint = {
   weightG: number;
 };
 
-export function WeightChart({ data }: { data: WeightChartPoint[] }) {
+export function WeightChart({
+  data,
+  emptyMessage = "体重記録がまだありません。"
+}: {
+  data: WeightChartPoint[];
+  emptyMessage?: string;
+}) {
   if (data.length === 0) {
     return (
       <div className="flex h-72 items-center justify-center rounded-md border border-dashed border-slate-300 bg-white text-sm text-slate-500">
-        体重記録がまだありません。
+        {emptyMessage}
       </div>
     );
   }
@@ -45,4 +51,3 @@ export function WeightChart({ data }: { data: WeightChartPoint[] }) {
     </div>
   );
 }
-

@@ -24,6 +24,8 @@ type WeightHistoryListProps = {
   sortDirection: string;
   currentPage: number;
   includeInactive: boolean;
+  chartFrom?: string;
+  chartTo?: string;
   today: string;
   isLocked: boolean;
   readOnly?: boolean;
@@ -38,6 +40,8 @@ export function WeightHistoryList({
   sortDirection,
   currentPage,
   includeInactive,
+  chartFrom,
+  chartTo,
   today,
   isLocked,
   readOnly = false
@@ -98,6 +102,8 @@ export function WeightHistoryList({
           <input type="hidden" name="direction" value={sortDirection} />
           <input type="hidden" name="page" value={currentPage} />
           {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
+          {chartFrom ? <input type="hidden" name="chartFrom" value={chartFrom} /> : null}
+          {chartTo ? <input type="hidden" name="chartTo" value={chartTo} /> : null}
           {selectedDeleteIds.map((id) => (
             <input key={id} type="hidden" name="ids" value={id} />
           ))}
@@ -139,6 +145,8 @@ export function WeightHistoryList({
               <input type="hidden" name="direction" value={sortDirection} />
               <input type="hidden" name="page" value={currentPage} />
               {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
+              {chartFrom ? <input type="hidden" name="chartFrom" value={chartFrom} /> : null}
+              {chartTo ? <input type="hidden" name="chartTo" value={chartTo} /> : null}
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 日付
                 <input type="date" name="recordDate" defaultValue={record.recordDate} max={today} disabled={isLocked} readOnly={readOnly} />

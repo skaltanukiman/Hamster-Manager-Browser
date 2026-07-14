@@ -3,7 +3,27 @@ import test from "node:test";
 
 import { createWeightRecordSchema, updateWeightRecordSchema } from "../src/lib/schemas";
 import { parseWeightCsvImport } from "../src/lib/weight-csv-import";
+import { getAppliedWeightChartRange, normalizeWeightChartRange } from "../src/lib/weight-chart-filter";
 import { isWeightInTenths } from "../src/lib/weight-rules";
+
+test("グラフ期間は実在する開始日と終了日だけを受け付ける", () => {
+  assert.deepEqual(normalizeWeightChartRange("2026-06-01", "2026-06-30"), {
+    from: "2026-06-01",
+    to: "2026-06-30"
+  });
+  assert.deepEqual(normalizeWeightChartRange("2026-06-31", "invalid"), {
+    from: undefined,
+    to: undefined
+  });
+});
+
+test("グラフ専用期間は全件表示だけに適用し、月ごと表示では適用しない", () => {
+  assert.deepEqual(getAppliedWeightChartRange("all", "2026-06-01", "2026-06-30"), {
+    from: "2026-06-01",
+    to: "2026-06-30"
+  });
+  assert.deepEqual(getAppliedWeightChartRange("month", "2026-06-01", "2026-06-30"), {});
+});
 
 test("体重は整数または0.1g単位だけを受け付ける", () => {
   assert.equal(isWeightInTenths(121), true);

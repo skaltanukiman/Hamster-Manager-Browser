@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, RotateCcw, Upload } from "lucide-react";
 
 import { createWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
@@ -13,6 +13,7 @@ import { canEditHouseholdSharedData } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getWeightPageData } from "@/lib/queries";
+import { normalizeWeightChartRange } from "@/lib/weight-chart-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ function buildWeightsHref({
   hamsterId,
   filterMode,
   month,
+  chartFrom,
+  chartTo,
   page,
   sortTarget,
   sortDirection,
@@ -62,6 +65,8 @@ function buildWeightsHref({
   hamsterId: string;
   filterMode: FilterMode;
   month: string;
+  chartFrom?: string;
+  chartTo?: string;
   page: number;
   sortTarget: WeightSortTarget;
   sortDirection: SortDirection;
@@ -74,6 +79,14 @@ function buildWeightsHref({
     if (month) {
       params.set("month", month);
     }
+  }
+
+  if (chartFrom) {
+    params.set("chartFrom", chartFrom);
+  }
+
+  if (chartTo) {
+    params.set("chartTo", chartTo);
   }
 
   if (sortTarget !== "date") {
@@ -104,6 +117,8 @@ export default async function WeightsPage({
     errorId?: string | string[];
     filter?: string | string[];
     month?: string | string[];
+    chartFrom?: string | string[];
+    chartTo?: string | string[];
     page?: string | string[];
     sort?: string | string[];
     direction?: string | string[];
@@ -115,6 +130,7 @@ export default async function WeightsPage({
   const canEdit = canEditHouseholdSharedData(context.membership.role);
   const filterMode = normalizeFilterMode(getParam(params.filter));
   const requestedMonth = getParam(params.month);
+  const chartRange = normalizeWeightChartRange(getParam(params.chartFrom), getParam(params.chartTo));
   const requestedPage = normalizePage(getParam(params.page));
   const sortTarget = normalizeWeightSortTarget(getParam(params.sort));
   const sortDirection = normalizeSortDirection(getParam(params.direction));
@@ -124,6 +140,8 @@ export default async function WeightsPage({
       selectedHamsterId: getParam(params.hamsterId),
       filterMode,
       month: isYearMonthInput(requestedMonth) ? requestedMonth : undefined,
+      chartFrom: chartRange.from,
+      chartTo: chartRange.to,
       page: requestedPage,
       sortTarget,
       sortDirection,
@@ -180,6 +198,8 @@ export default async function WeightsPage({
           <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto]">
             <input type="hidden" name="filter" value={filterMode} />
             {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+            {chartRange.from ? <input type="hidden" name="chartFrom" value={chartRange.from} /> : null}
+            {chartRange.to ? <input type="hidden" name="chartTo" value={chartRange.to} /> : null}
             <input type="hidden" name="sort" value={sortTarget} />
             <input type="hidden" name="direction" value={sortDirection} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -225,6 +245,8 @@ export default async function WeightsPage({
               <input type="hidden" name="hamsterId" value={selectedHamster.id} />
               <input type="hidden" name="filter" value={filterMode} />
               {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
+              {chartRange.from ? <input type="hidden" name="chartFrom" value={chartRange.from} /> : null}
+              {chartRange.to ? <input type="hidden" name="chartTo" value={chartRange.to} /> : null}
               <input type="hidden" name="sort" value={sortTarget} />
               <input type="hidden" name="direction" value={sortDirection} />
               {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
@@ -251,9 +273,78 @@ export default async function WeightsPage({
 
             <section>
               <h3 className="mb-3 text-base font-bold text-ink">{selectedHamster.name} の体重推移</h3>
-              <WeightChart data={chartData} />
+              <WeightChart
+                data={chartData}
+                emptyMessage={
+                  filterMode === "all" && (chartRange.from || chartRange.to)
+                    ? "指定した期間の体重記録はありません。"
+                    : undefined
+                }
+              />
             </section>
           </section>
+
+          {filterMode === "all" && hasWeightRecords ? (
+            <section className="space-y-3">
+              <h3 className="text-base font-bold text-ink">グラフの絞り込み</h3>
+              <form method="get" className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+                <input type="hidden" name="hamsterId" value={selectedHamster.id} />
+                <input type="hidden" name="filter" value="all" />
+                <input type="hidden" name="sort" value={sortTarget} />
+                <input type="hidden" name="direction" value={sortDirection} />
+                {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
+                <div className="flex flex-wrap items-end gap-2">
+                  <span className="self-center text-sm font-medium text-slate-700">期間</span>
+                  <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
+                    <span className="sr-only">開始日</span>
+                    <input
+                      type="date"
+                      name="chartFrom"
+                      defaultValue={chartRange.from}
+                      max={chartRange.to ?? today}
+                      required
+                    />
+                  </label>
+                  <span className="self-center text-sm text-slate-600">～</span>
+                  <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
+                    <span className="sr-only">終了日</span>
+                    <input
+                      type="date"
+                      name="chartTo"
+                      defaultValue={chartRange.to}
+                      min={chartRange.from}
+                      max={today}
+                      required
+                    />
+                  </label>
+                  <span className="self-center text-sm text-slate-600">まで</span>
+                  <button
+                    type="submit"
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90"
+                  >
+                    絞り込む
+                  </button>
+                  {chartRange.from || chartRange.to ? (
+                    <Link
+                      href={buildWeightsHref({
+                        hamsterId: selectedHamster.id,
+                        filterMode,
+                        month: selectedMonth,
+                        page: 1,
+                        sortTarget,
+                        sortDirection,
+                        includeInactive
+                      })}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      解除
+                    </Link>
+                  ) : null}
+                </div>
+              </form>
+            </section>
+          ) : null}
 
           <section className="space-y-3">
             <h3 className="text-base font-bold text-ink">体重履歴</h3>
@@ -268,6 +359,8 @@ export default async function WeightsPage({
               >
                 <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                 {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
+                {chartRange.from ? <input type="hidden" name="chartFrom" value={chartRange.from} /> : null}
+                {chartRange.to ? <input type="hidden" name="chartTo" value={chartRange.to} /> : null}
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   表示
                   <AutoSubmitSelect name="filter" defaultValue={filterMode}>
@@ -355,6 +448,8 @@ export default async function WeightsPage({
                 sortDirection={sortDirection}
                 currentPage={pagination.currentPage}
                 includeInactive={includeInactive}
+                chartFrom={chartRange.from}
+                chartTo={chartRange.to}
                 today={today}
                 isLocked={isLocked}
                 readOnly={!canEdit}
@@ -368,6 +463,8 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
+                      chartFrom: chartRange.from,
+                      chartTo: chartRange.to,
                       page: 1,
                       sortTarget,
                       sortDirection,
@@ -390,6 +487,8 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
+                      chartFrom: chartRange.from,
+                      chartTo: chartRange.to,
                       page: pagination.currentPage - 1,
                       sortTarget,
                       sortDirection,
@@ -415,6 +514,8 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
+                      chartFrom: chartRange.from,
+                      chartTo: chartRange.to,
                       page: pagination.currentPage + 1,
                       sortTarget,
                       sortDirection,
@@ -437,6 +538,8 @@ export default async function WeightsPage({
                       hamsterId: selectedHamster.id,
                       filterMode,
                       month: selectedMonth,
+                      chartFrom: chartRange.from,
+                      chartTo: chartRange.to,
                       page: pagination.totalPages,
                       sortTarget,
                       sortDirection,

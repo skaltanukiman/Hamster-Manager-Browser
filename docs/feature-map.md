@@ -62,11 +62,11 @@
 - **画面または URL:** `/weights`。
 - **主なコンポーネント:** `WeightHistoryList`、`WeightChart`、`HamsterSelectorInput`、`AutoSubmitInput` / `AutoSubmitSelect`、`SelectionActionBar`。
 - **Server Action または API:** `createWeightRecord`、`updateWeightRecord`、`deleteWeightRecord`、`deleteWeightRecords`（`src/app/actions/weights.ts`）。
-- **データアクセス・Prismaモデル:** `getWeightPageData`（DB 側のフィルター・ソート・ページングとグラフ全件）、`Hamster`、`WeightRecord`、`AppSetting`。
+- **データアクセス・Prismaモデル:** `getWeightPageData`（DB 側の履歴フィルター・ソート・ページングとグラフ専用期間フィルター）、`Hamster`、`WeightRecord`、`AppSetting`。
 - **バリデーション:** `createWeightRecordSchema`、`updateWeightRecordSchema`、削除 schema、`MAX_WEIGHT_G`（1〜500g、0.1g、未来日不可）。`@@unique([hamsterId, recordDate])` が日次重複を保証する。
 - **関連テスト:** `tests/weight-validation.test.ts`（通常登録・編集・CSVの0.1g単位検証）、`tests/csv-and-realtime.test.ts`（CSVの体重上限・未来日検証）、`tests/authorization.test.ts`（Household所属判定）。
 - **関連設定:** `src/lib/weight-rules.ts`、`src/lib/date.ts`、`src/lib/dashboard-settings.ts`（選択 UI）。
-- **依存関係:** 管理外ハムスターとVIEWERは作成・編集・削除不可。VIEWERは検索・フィルター・並び替え・ページ移動・グラフ・CSVエクスポートを利用できる。履歴一覧は 20 件ページングだがグラフは同一条件の全レコードを使うため、両方のクエリ条件を揃える。
+- **依存関係:** 管理外ハムスターとVIEWERは作成・編集・削除不可。VIEWERは検索・フィルター・並び替え・ページ移動・グラフ・CSVエクスポートを利用できる。履歴一覧は 20 件ページング。「全件」表示ではグラフだけを開始日〜終了日で独立して絞り込み、「月ごと」表示では従来どおり履歴の対象月とグラフを連動させる。
 
 ## 体重 CSV エクスポート
 

@@ -5,7 +5,7 @@ import type { ZodIssue } from "zod";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
-import { isFutureDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
+import { isFutureDateInput, isValidDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
   commitHouseholdMutation,
@@ -35,6 +35,8 @@ type WeightHistoryFilter = {
   sort?: string;
   direction?: string;
   includeInactive?: string;
+  chartFrom?: string;
+  chartTo?: string;
 };
 
 function weightValidationStatus(issues: ZodIssue[]) {
@@ -94,6 +96,8 @@ function getWeightHistoryFilter(formData: FormData) {
   const sort = formData.get("sort");
   const direction = formData.get("direction");
   const includeInactive = formData.get("includeInactive");
+  const chartFrom = formData.get("chartFrom");
+  const chartTo = formData.get("chartTo");
   const pageNumber = typeof page === "string" && /^\d+$/.test(page) ? Number(page) : undefined;
   const historyFilter: WeightHistoryFilter = {};
 
@@ -119,6 +123,14 @@ function getWeightHistoryFilter(formData: FormData) {
 
   if (includeInactive === "1") {
     historyFilter.includeInactive = "1";
+  }
+
+  if (typeof chartFrom === "string" && isValidDateInput(chartFrom)) {
+    historyFilter.chartFrom = chartFrom;
+  }
+
+  if (typeof chartTo === "string" && isValidDateInput(chartTo)) {
+    historyFilter.chartTo = chartTo;
   }
 
   return historyFilter;
@@ -152,6 +164,14 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: Weight
 
   if (historyFilter.includeInactive) {
     params.set("includeInactive", historyFilter.includeInactive);
+  }
+
+  if (historyFilter.chartFrom) {
+    params.set("chartFrom", historyFilter.chartFrom);
+  }
+
+  if (historyFilter.chartTo) {
+    params.set("chartTo", historyFilter.chartTo);
   }
 
   redirect(`/weights?${params.toString()}`);
@@ -248,7 +268,9 @@ export async function createWeightRecord(formData: FormData) {
       month: historyFilter.month,
       sort: "registered",
       direction: "desc",
-      includeInactive: historyFilter.includeInactive
+      includeInactive: historyFilter.includeInactive,
+      chartFrom: historyFilter.chartFrom,
+      chartTo: historyFilter.chartTo
     });
   } catch (error) {
     const hamsterId = formData.get("hamsterId");
