@@ -39,7 +39,7 @@ export type CreateHouseholdInvitationState = {
 };
 
 function parseManageableMemberRole(value: FormDataEntryValue | null) {
-  return value === "ADMIN" || value === "MEMBER" ? value : null;
+  return value === "ADMIN" || value === "MEMBER" || value === "VIEWER" ? value : null;
 }
 
 export async function createHouseholdInvitation(

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
-import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
 import { isFutureDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
@@ -213,7 +213,7 @@ async function getEditableWeightRecord(
 
 export async function createWeightRecord(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights");
     const result = createWeightRecordSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect(`/weights?status=${weightValidationStatus(result.error.issues)}`);
 
@@ -263,7 +263,7 @@ export async function createWeightRecord(formData: FormData) {
 
 export async function updateWeightRecord(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights");
     const result = updateWeightRecordSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect(`/weights?status=${weightValidationStatus(result.error.issues)}`);
 
@@ -306,7 +306,7 @@ export async function updateWeightRecord(formData: FormData) {
 
 export async function deleteWeightRecord(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights");
     const result = deleteWeightRecordSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect("/weights?status=invalid");
     const historyFilter = getWeightHistoryFilter(formData);
@@ -340,7 +340,7 @@ export async function deleteWeightRecord(formData: FormData) {
 
 export async function deleteWeightRecords(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights");
     const result = deleteWeightRecordsSchema.safeParse({
       ids: formData.getAll("ids"),
       hamsterId: formData.get("hamsterId")
@@ -382,7 +382,7 @@ export async function importGasWeightRecordsCsv(
 ): Promise<WeightCsvImportState> {
   let householdId: string | undefined;
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights/import/gas");
     householdId = context.household.id;
     const csvFile = formData.get("csvFile");
     if (!(csvFile instanceof File) || csvFile.size === 0) {
@@ -503,7 +503,7 @@ export async function importAppWeightRecordsCsv(
 ): Promise<WeightCsvImportState> {
   let householdId: string | undefined;
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/weights/import/app");
     householdId = context.household.id;
     const csvFile = formData.get("csvFile");
     if (!(csvFile instanceof File) || csvFile.size === 0) {

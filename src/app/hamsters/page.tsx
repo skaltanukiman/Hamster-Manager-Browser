@@ -4,6 +4,8 @@ import { createHamster } from "@/app/actions/hamsters";
 import { HamsterImageField } from "@/components/hamster-image-field";
 import { HamsterList } from "@/components/hamster-list";
 import { StatusMessage } from "@/components/status-message";
+import { canEditHouseholdSharedData } from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getHamsterManagementData } from "@/lib/queries";
 
@@ -20,6 +22,8 @@ export default async function HamstersPage({
 }) {
   const params = await searchParams;
   const status = getParam(params.status);
+  const context = await getRequiredHouseholdContext();
+  const canEdit = canEditHouseholdSharedData(context.membership.role);
   const hamsters = await getHamsterManagementData();
   const hamsterListItems = hamsters.map((hamster) => ({
     id: hamster.id,
@@ -44,7 +48,7 @@ export default async function HamstersPage({
 
       <StatusMessage status={status} errorId={getParam(params.errorId)} />
 
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      {canEdit ? <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-ink">新規登録</h3>
         <form
           action={createHamster}
@@ -78,7 +82,11 @@ export default async function HamstersPage({
             登録
           </button>
         </form>
-      </section>
+      </section> : (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          閲覧者はハムスターの登録・編集・削除、画像変更、管理状態の変更を実行できません。
+        </p>
+      )}
 
       <section className="space-y-3">
         <h3 className="text-base font-bold text-ink">一覧</h3>
@@ -92,6 +100,7 @@ export default async function HamstersPage({
             today={today}
             initialSortTarget="registered"
             initialSortDirection={status === "created" ? "desc" : "asc"}
+            readOnly={!canEdit}
           />
         )}
       </section>

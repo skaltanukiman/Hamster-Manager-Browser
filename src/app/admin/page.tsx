@@ -3,6 +3,7 @@ import type { AppRole, HouseholdInvitation } from "@prisma/client";
 
 import { updateUserAppRole } from "@/app/actions/admin";
 import { StatusMessage } from "@/components/status-message";
+import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
 import { formatDateJp } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
@@ -13,12 +14,6 @@ const appRoleLabels = {
   USER: "一般ユーザー",
   ADMIN: "管理者",
   SUPER_ADMIN: "スーパー管理者"
-} as const;
-
-const householdRoleLabels = {
-  OWNER: "オーナー",
-  ADMIN: "管理者",
-  MEMBER: "メンバー"
 } as const;
 
 function getParam(value: string | string[] | undefined) {
@@ -206,7 +201,7 @@ export default async function AdminPage({
               <div className="mt-3 flex flex-wrap gap-2">
                 {household.members.map((member) => (
                   <span key={member.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
-                    {member.user.name || member.user.email || "未設定"} / {householdRoleLabels[member.role]}
+                    {member.user.name || member.user.email || "未設定"} / {HOUSEHOLD_ROLE_LABELS[member.role]}
                   </span>
                 ))}
               </div>

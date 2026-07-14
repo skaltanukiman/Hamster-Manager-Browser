@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 import { deleteHamsters, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { HamsterImageField } from "@/components/hamster-image-field";
+import { HamsterThumbnail } from "@/components/hamster-thumbnail";
 import { SelectionActionBar } from "@/components/selection-action-bar";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { normalizeSearchText } from "@/lib/search";
@@ -43,6 +44,7 @@ type HamsterListProps = {
   today: string;
   initialSortTarget?: SortTarget;
   initialSortDirection?: SortDirection;
+  readOnly?: boolean;
 };
 
 const HAMSTER_LIST_PAGE_SIZE = 20;
@@ -51,7 +53,8 @@ export function HamsterList({
   hamsters,
   today,
   initialSortTarget = "registered",
-  initialSortDirection = "asc"
+  initialSortDirection = "asc",
+  readOnly = false
 }: HamsterListProps) {
   const [sortTarget, setSortTarget] = useState<SortTarget>(initialSortTarget);
   const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
@@ -168,7 +171,7 @@ export function HamsterList({
         {filteredHamsters.length > 0 ? ` ${firstVisibleNumber} - ${lastVisibleNumber} 件を表示しています。` : ""}
       </p>
 
-      <SelectionActionBar selectedCount={selectedDeleteIds.length}>
+      {!readOnly ? <SelectionActionBar selectedCount={selectedDeleteIds.length}>
         <button
           type="button"
           onClick={handleSelectAllVisibleHamsters}
@@ -197,7 +200,7 @@ export function HamsterList({
             削除
           </button>
         </form>
-      </SelectionActionBar>
+      </SelectionActionBar> : null}
 
       {filteredHamsters.length === 0 ? (
         <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
@@ -211,7 +214,7 @@ export function HamsterList({
             return (
               <article key={hamster.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <label className="inline-flex items-center">
+                  {!readOnly ? <label className="inline-flex items-center">
                     <input
                       type="checkbox"
                       checked={selectedDeleteIdSet.has(hamster.id)}
@@ -219,7 +222,7 @@ export function HamsterList({
                       className="h-4 w-4 rounded border-slate-300 text-moss"
                     />
                     <span className="sr-only">{hamster.name}を選択</span>
-                  </label>
+                  </label> : null}
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${
                       hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
@@ -227,7 +230,7 @@ export function HamsterList({
                   >
                     {hamster.isActive ? "管理中" : "管理外"}
                   </span>
-                  <form action={updateHamsterActiveStatus} className="hidden lg:block">
+                  {!readOnly ? <form action={updateHamsterActiveStatus} className="hidden lg:block">
                     <input type="hidden" name="id" value={hamster.id} />
                     <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
                     <button
@@ -237,49 +240,59 @@ export function HamsterList({
                       {isLocked ? <RotateCcw className="h-3.5 w-3.5" aria-hidden /> : <Archive className="h-3.5 w-3.5" aria-hidden />}
                       {isLocked ? "管理中に戻す" : "管理外にする"}
                     </button>
-                  </form>
+                  </form> : null}
                   {isLocked ? <span className="text-xs text-slate-500">記録とプロフィール編集をロック中</span> : null}
                 </div>
                 <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                   <form
-                    action={updateHamster}
-                    data-dirty-watch
+                    action={readOnly ? undefined : updateHamster}
+                    data-dirty-watch={readOnly ? undefined : true}
                     className="grid gap-3 lg:grid-cols-[minmax(140px,180px)_160px_160px_1fr_auto]"
                   >
                     <input type="hidden" name="id" value={hamster.id} />
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       名前
-                      <input name="name" required maxLength={15} defaultValue={hamster.name} disabled={isLocked} />
+                      <input name="name" required maxLength={15} defaultValue={hamster.name} disabled={isLocked} readOnly={readOnly} />
                     </label>
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       誕生日
-                      <input type="date" name="birthDate" max={today} defaultValue={hamster.birthDate} disabled={isLocked} />
+                      <input type="date" name="birthDate" max={today} defaultValue={hamster.birthDate} disabled={isLocked} readOnly={readOnly} />
                     </label>
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       お迎え日
-                      <input type="date" name="adoptionDate" max={today} defaultValue={hamster.adoptionDate} disabled={isLocked} />
+                      <input type="date" name="adoptionDate" max={today} defaultValue={hamster.adoptionDate} disabled={isLocked} readOnly={readOnly} />
                     </label>
                     <label className="grid gap-1 text-sm font-medium text-slate-700">
                       メモ
-                      <input name="memo" maxLength={2000} defaultValue={hamster.memo ?? ""} disabled={isLocked} />
+                      <input name="memo" maxLength={2000} defaultValue={hamster.memo ?? ""} disabled={isLocked} readOnly={readOnly} />
                     </label>
                     <div className="min-w-0 lg:col-span-5 lg:row-start-2">
-                      <HamsterImageField
+                      {readOnly ? (
+                        <fieldset className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
+                          <legend className="px-1 text-sm font-semibold text-slate-700">プロフィール画像</legend>
+                          <HamsterThumbnail
+                            hamsterId={hamster.id}
+                            hamsterName={hamster.name}
+                            profileImageFileName={hamster.profileImageFileName}
+                            size="management"
+                          />
+                        </fieldset>
+                      ) : <HamsterImageField
                         hamsterId={hamster.id}
                         hamsterName={hamster.name}
                         currentFileName={hamster.profileImageFileName}
                         disabled={isLocked}
-                      />
+                      />}
                     </div>
-                    <DirtySubmitButton
+                    {!readOnly ? <DirtySubmitButton
                       disabled={isLocked}
                       className="inline-flex h-10 w-full items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 lg:col-start-5 lg:row-start-1 lg:w-auto"
                     >
                       <Save className="h-4 w-4" aria-hidden />
                       保存
-                    </DirtySubmitButton>
+                    </DirtySubmitButton> : null}
                   </form>
-                  <div className="flex w-full flex-wrap items-end gap-2 lg:hidden">
+                  {!readOnly ? <div className="flex w-full flex-wrap items-end gap-2 lg:hidden">
                     <form action={updateHamsterActiveStatus} className="flex w-full items-end">
                       <input type="hidden" name="id" value={hamster.id} />
                       <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
@@ -291,7 +304,7 @@ export function HamsterList({
                         {isLocked ? "管理中に戻す" : "管理外にする"}
                       </button>
                     </form>
-                  </div>
+                  </div> : null}
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
                   掃除記録 {hamster.cleaningRecordCount}件 / 体重記録 {hamster.weightRecordCount}件

@@ -1,11 +1,28 @@
 import type { AppRole, HouseholdRole } from "@prisma/client";
 
+export type ManageableHouseholdRole = Exclude<HouseholdRole, "OWNER">;
+
+export const HOUSEHOLD_ROLE_LABELS: Record<HouseholdRole, string> = {
+  OWNER: "オーナー",
+  ADMIN: "管理者",
+  MEMBER: "メンバー",
+  VIEWER: "閲覧者"
+};
+
 export function hasAuthenticatedUserId(user: { id?: string | null } | null | undefined): user is { id: string } {
   return typeof user?.id === "string" && user.id.length > 0;
 }
 
 export function belongsToCurrentHousehold(resourceHouseholdId: string | null | undefined, currentHouseholdId: string) {
   return typeof resourceHouseholdId === "string" && resourceHouseholdId === currentHouseholdId;
+}
+
+export function canViewHouseholdSharedData(role: HouseholdRole) {
+  return role === "OWNER" || role === "ADMIN" || role === "MEMBER" || role === "VIEWER";
+}
+
+export function canEditHouseholdSharedData(role: HouseholdRole) {
+  return role === "OWNER" || role === "ADMIN" || role === "MEMBER";
 }
 
 export function canManageHouseholdInvitations(role: HouseholdRole) {
@@ -35,7 +52,7 @@ export function memberRemovalDenial({
 }) {
   if (actorRole !== "OWNER" && actorRole !== "ADMIN") return "forbidden";
   if (actorUserId === targetUserId) return "cannotRemoveSelf";
-  if (actorRole === "ADMIN" && targetRole !== "MEMBER") return "forbidden";
+  if (actorRole === "ADMIN" && targetRole !== "MEMBER" && targetRole !== "VIEWER") return "forbidden";
   if (targetRole === "OWNER" && ownerCount <= 1) return "cannotRemoveLastOwner";
   return null;
 }
@@ -51,11 +68,11 @@ export function memberRoleUpdateDenial({
   actorUserId: string;
   targetUserId: string;
   currentRole: HouseholdRole;
-  newRole: "ADMIN" | "MEMBER";
+  newRole: ManageableHouseholdRole;
 }) {
   if (actorRole !== "OWNER") return "forbidden";
   if (actorUserId === targetUserId) return "cannotChangeOwnHouseholdRole";
-  if (currentRole !== "ADMIN" && currentRole !== "MEMBER") return "cannotChangeOwnerRole";
+  if (currentRole === "OWNER") return "cannotChangeOwnerRole";
   if (currentRole === newRole) return "unchanged";
   return null;
 }

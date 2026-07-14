@@ -2,21 +2,20 @@
 
 import { ShieldCheck } from "lucide-react";
 import type { FormEvent } from "react";
-import type { HouseholdRole } from "@prisma/client";
 
 import { updateHouseholdMemberRole } from "@/app/actions/members";
+import type { ManageableHouseholdRole } from "@/lib/authorization";
 
-type ManageableMemberRole = Extract<HouseholdRole, "ADMIN" | "MEMBER">;
-
-const roleLabels: Record<ManageableMemberRole, string> = {
+const roleLabels: Record<ManageableHouseholdRole, string> = {
+  VIEWER: "閲覧者",
+  MEMBER: "メンバー",
   ADMIN: "管理者",
-  MEMBER: "メンバー"
 };
 
 type MemberRoleFormProps = {
   memberId: string;
   memberName: string;
-  currentRole: ManageableMemberRole;
+  currentRole: ManageableHouseholdRole;
 };
 
 export function MemberRoleForm({ memberId, memberName, currentRole }: MemberRoleFormProps) {

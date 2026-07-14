@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { AppRole, HouseholdRole } from "@prisma/client";
 
 import { auth } from "@/auth";
-import { hasAuthenticatedUserId } from "@/lib/authorization";
+import { canEditHouseholdSharedData, hasAuthenticatedUserId } from "@/lib/authorization";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 
@@ -161,6 +161,15 @@ export async function getRequiredHouseholdContext(): Promise<CurrentHouseholdCon
       createdAt: membership.createdAt
     }
   };
+}
+
+export async function getRequiredHouseholdMutationContext(pathname: string): Promise<CurrentHouseholdContext> {
+  const context = await getRequiredHouseholdContext();
+  if (!canEditHouseholdSharedData(context.membership.role)) {
+    const separator = pathname.includes("?") ? "&" : "?";
+    redirect(`${pathname}${separator}status=viewerForbidden`);
+  }
+  return context;
 }
 
 // Route Handler向け。未認証時にHTMLへredirectせず、呼び出し側が401/404を返せるようnullで返す。

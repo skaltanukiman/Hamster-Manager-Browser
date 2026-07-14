@@ -34,6 +34,7 @@ type CleaningMobileFormProps = {
   hamsterId: string;
   includeInactive: boolean;
   isLocked: boolean;
+  readOnly?: boolean;
   recordsVersion: string;
   yearMonth: string;
 };
@@ -68,6 +69,7 @@ export function CleaningMobileForm({
   hamsterId,
   includeInactive,
   isLocked,
+  readOnly = false,
   recordsVersion,
   yearMonth
 }: CleaningMobileFormProps) {
@@ -188,7 +190,7 @@ export function CleaningMobileForm({
                     <input
                       name={`memo_${day.date}`}
                       defaultValue={day.record?.memo ?? ""}
-                      placeholder={isLocked ? "管理外のため入力できません" : day.isFuture ? "未来日は入力できません" : "メモ"}
+                      placeholder={readOnly ? "閲覧者は入力できません" : isLocked ? "管理外のため入力できません" : day.isFuture ? "未来日は入力できません" : "メモ"}
                       disabled={isDisabled}
                     />
                   </label>

@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
+import { canEditHouseholdSharedData } from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { currentMonthInputJst, getDaysInMonth, isFutureDateInput, normalizeYearMonth, todayInputJst } from "@/lib/date";
 import { getCleaningPageData } from "@/lib/queries";
 
@@ -29,6 +31,8 @@ export default async function CleaningPage({
   }>;
 }) {
   const params = await searchParams;
+  const context = await getRequiredHouseholdContext();
+  const canEdit = canEditHouseholdSharedData(context.membership.role);
   const yearMonth = normalizeYearMonth(getParam(params.month));
   const includeInactive = getParam(params.includeInactive) === "1";
   const { hamsters, selectedHamster, recordsByDate, hamsterSelectorMode } = await getCleaningPageData(
@@ -41,7 +45,7 @@ export default async function CleaningPage({
   const days = getDaysInMonth(yearMonth);
   const currentMonth = currentMonthInputJst();
   const today = todayInputJst();
-  const isLocked = selectedHamster ? !selectedHamster.isActive : false;
+  const isLocked = selectedHamster ? !selectedHamster.isActive || !canEdit : !canEdit;
   const cleaningRecordsVersion = JSON.stringify(
     days.map((day) => {
       const record = recordsByDate.get(day.date);
@@ -68,7 +72,11 @@ export default async function CleaningPage({
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {hamsters.length === 0 ? (
-        <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
+        canEdit ? <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" /> : (
+          <p className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+            閲覧できるハムスターはまだ登録されていません。
+          </p>
+        )
       ) : (
         <>
           <form
@@ -107,7 +115,11 @@ export default async function CleaningPage({
           ) : (
             <UnsavedChangesGuard>
               <div className="content-reveal space-y-4">
-                {isLocked ? (
+                {!canEdit ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    閲覧者は掃除記録を閲覧できますが、登録・更新・削除は実行できません。
+                  </p>
+                ) : isLocked ? (
                   <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                     このハムスターは管理外のため、掃除記録の編集・保存はできません。
                   </p>
@@ -204,7 +216,7 @@ export default async function CleaningPage({
                                 <input
                                   name={`memo_${day.date}`}
                                   defaultValue={record?.memo ?? ""}
-                                  placeholder={isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
+                                  placeholder={!canEdit ? "閲覧者は入力できません" : isLocked ? "管理外のため入力できません" : isFuture ? "未来日は入力できません" : "メモ"}
                                   disabled={isDisabled}
                                 />
                               </td>
@@ -216,13 +228,13 @@ export default async function CleaningPage({
                   </div>
 
                   <div className="flex justify-end">
-                    <DirtySubmitButton
+                    {canEdit ? <DirtySubmitButton
                       disabled={isLocked}
                       className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       <Save className="h-4 w-4" aria-hidden />
                       保存
-                    </DirtySubmitButton>
+                    </DirtySubmitButton> : null}
                   </div>
                 </form>
 
@@ -250,6 +262,7 @@ export default async function CleaningPage({
                   hamsterId={selectedHamster.id}
                   includeInactive={includeInactive}
                   isLocked={isLocked}
+                  readOnly={!canEdit}
                   recordsVersion={cleaningRecordsVersion}
                   yearMonth={yearMonth}
                 />

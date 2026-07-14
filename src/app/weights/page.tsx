@@ -9,6 +9,8 @@ import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightHistoryList } from "@/components/weight-history-list";
+import { canEditHouseholdSharedData } from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { toDateInputValue, todayInputJst } from "@/lib/date";
 import { getWeightPageData } from "@/lib/queries";
 
@@ -109,6 +111,8 @@ export default async function WeightsPage({
   }>;
 }) {
   const params = await searchParams;
+  const context = await getRequiredHouseholdContext();
+  const canEdit = canEditHouseholdSharedData(context.membership.role);
   const filterMode = normalizeFilterMode(getParam(params.filter));
   const requestedMonth = getParam(params.month);
   const requestedPage = normalizePage(getParam(params.page));
@@ -153,20 +157,24 @@ export default async function WeightsPage({
             <Download className="h-4 w-4" aria-hidden />
             CSVエクスポート
           </Link>
-          <Link
+          {canEdit ? <Link
             href="/weights/import"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
           >
             <Upload className="h-4 w-4" aria-hidden />
             CSVインポート
-          </Link>
+          </Link> : null}
         </div>
       </div>
 
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {hamsters.length === 0 ? (
-        <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" />
+        canEdit ? <EmptyState title="先にハムスターを登録してください。" href="/hamsters" actionLabel="登録する" /> : (
+          <p className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+            閲覧できるハムスターはまだ登録されていません。
+          </p>
+        )
       ) : (
         <>
           <form method="get" className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_auto]">
@@ -195,19 +203,25 @@ export default async function WeightsPage({
           {!selectedHamster ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               {hasSelectableHamsters
-                ? "ハムスター名を入力するか候補から選択すると、体重登録フォームと履歴を表示します。"
+                ? canEdit
+                  ? "ハムスター名を入力するか候補から選択すると、体重登録フォームと履歴を表示します。"
+                  : "ハムスター名を入力するか候補から選択すると、体重履歴とグラフを表示します。"
                 : "管理中のハムスターがいません。管理外も含む場合はチェックを入れてください。"}
             </p>
           ) : (
             <div className="content-reveal space-y-6">
-              {isLocked ? (
+              {!canEdit ? (
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  閲覧者は体重記録・グラフを閲覧できますが、登録・編集・削除、CSVインポートは実行できません。
+                </p>
+              ) : isLocked ? (
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   このハムスターは管理外のため、体重記録の登録・編集・削除はできません。
                 </p>
               ) : null}
 
-          <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
-            <form action={createWeightRecord} data-dirty-watch className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <section className={canEdit ? "grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]" : "grid gap-4"}>
+            {canEdit ? <form action={createWeightRecord} data-dirty-watch className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <input type="hidden" name="hamsterId" value={selectedHamster.id} />
               <input type="hidden" name="filter" value={filterMode} />
               {selectedMonth ? <input type="hidden" name="month" value={selectedMonth} /> : null}
@@ -233,7 +247,7 @@ export default async function WeightsPage({
                   登録
                 </button>
               </div>
-            </form>
+            </form> : null}
 
             <section>
               <h3 className="mb-3 text-base font-bold text-ink">{selectedHamster.name} の体重推移</h3>
@@ -343,6 +357,7 @@ export default async function WeightsPage({
                 includeInactive={includeInactive}
                 today={today}
                 isLocked={isLocked}
+                readOnly={!canEdit}
               />
             )}
             {hasWeightRecords && pagination.totalPages > 1 ? (

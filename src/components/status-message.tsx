@@ -36,6 +36,7 @@ const messages: Record<string, string> = {
   cannotChangeOwnRole: "自分自身のアプリ全体権限は変更できません。",
   cannotRemoveLastSuperAdmin: "最後のスーパー管理者は降格できません。",
   forbidden: "この操作を実行する権限がありません。",
+  viewerForbidden: "閲覧者はこの操作を実行できません。",
   invitationExpired: "招待リンクの有効期限が切れています。",
   invitationUsed: "この招待リンクは既に使用されています。",
   systemError: "処理中に予期しないエラーが発生しました。時間をおいて再度お試しください。"
@@ -57,6 +58,7 @@ const errorStatuses = new Set([
   "future",
   "locked",
   "forbidden",
+  "viewerForbidden",
   "adminTargetInvalid",
   "cannotRemoveSelf",
   "cannotRemoveLastOwner",

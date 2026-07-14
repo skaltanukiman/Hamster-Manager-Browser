@@ -3,13 +3,8 @@
 import { usePathname } from "next/navigation";
 
 import type { HouseholdOption } from "@/lib/auth-context";
+import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
-
-const roleLabels = {
-  OWNER: "オーナー",
-  ADMIN: "管理者",
-  MEMBER: "メンバー"
-} as const;
 
 type HouseholdSwitcherProps = {
   currentHouseholdId: string;
@@ -39,7 +34,7 @@ export function HouseholdSwitcher({ currentHouseholdId, households, action }: Ho
       >
         {households.map((household) => (
           <option key={household.id} value={household.id}>
-            {household.name}（{roleLabels[household.role]}）
+            {household.name}（{HOUSEHOLD_ROLE_LABELS[household.role]}）
           </option>
         ))}
       </AutoSubmitSelect>

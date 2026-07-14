@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
-import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
 import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
@@ -57,7 +57,7 @@ function cleaningRedirect(hamsterId: string, yearMonth: string, status: string, 
 export async function saveCleaningMonth(formData: FormData) {
   const includeInactive = formData.get("includeInactive") === "1";
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/cleaning");
     const result = cleaningMonthSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect("/cleaning?status=invalid");
 

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
-import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
 import {
   commitWithNewHamsterImage,
   deleteHamsterImage,
@@ -77,7 +77,7 @@ async function deleteImageAfterMutation(householdId: string, fileName: string, o
 
 export async function createHamster(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = createHamsterSchema.safeParse(Object.fromEntries(formData));
 
     if (!result.success) {
@@ -124,7 +124,7 @@ export async function createHamster(formData: FormData) {
 
 export async function updateHamster(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = updateHamsterSchema.safeParse(Object.fromEntries(formData));
 
     if (!result.success) {
@@ -210,7 +210,7 @@ export async function updateHamster(formData: FormData) {
 
 export async function updateHamsterActiveStatus(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = updateHamsterActiveStatusSchema.safeParse(Object.fromEntries(formData));
 
     if (!result.success) redirect("/hamsters?status=invalid");
@@ -242,7 +242,7 @@ export async function updateHamsterActiveStatus(formData: FormData) {
 
 export async function deleteHamster(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = deleteHamsterSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect("/hamsters?status=invalid");
 
@@ -283,7 +283,7 @@ export async function deleteHamster(formData: FormData) {
 
 export async function deleteHamsters(formData: FormData) {
   try {
-    const context = await getRequiredHouseholdContext();
+    const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = deleteHamstersSchema.safeParse({ ids: formData.getAll("ids") });
     if (!result.success) redirect("/hamsters?status=invalid");
 

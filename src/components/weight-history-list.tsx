@@ -26,6 +26,7 @@ type WeightHistoryListProps = {
   includeInactive: boolean;
   today: string;
   isLocked: boolean;
+  readOnly?: boolean;
 };
 
 export function WeightHistoryList({
@@ -38,7 +39,8 @@ export function WeightHistoryList({
   currentPage,
   includeInactive,
   today,
-  isLocked
+  isLocked,
+  readOnly = false
 }: WeightHistoryListProps) {
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
   const selectedDeleteIdSet = new Set(selectedDeleteIds);
@@ -71,7 +73,7 @@ export function WeightHistoryList({
   return (
     <UnsavedChangesGuard>
       <div className="space-y-3">
-      <SelectionActionBar selectedCount={isLocked ? 0 : selectedDeleteIds.length}>
+      {!readOnly ? <SelectionActionBar selectedCount={isLocked ? 0 : selectedDeleteIds.length}>
         <button
           type="button"
           onClick={handleSelectAllVisibleRecords}
@@ -107,12 +109,12 @@ export function WeightHistoryList({
             削除
           </button>
         </form>
-      </SelectionActionBar>
+      </SelectionActionBar> : null}
 
       <div className="grid gap-3">
         {records.map((record) => (
           <article key={record.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-            <label className="mb-3 inline-flex items-center">
+            {!readOnly ? <label className="mb-3 inline-flex items-center">
               <input
                 type="checkbox"
                 checked={selectedDeleteIdSet.has(record.id)}
@@ -121,12 +123,12 @@ export function WeightHistoryList({
                 className="h-4 w-4 rounded border-slate-300 text-moss disabled:cursor-not-allowed disabled:opacity-50"
               />
               <span className="sr-only">{record.recordDate}の体重履歴を選択</span>
-            </label>
+            </label> : null}
 
             <form
               key={`${record.id}:${record.recordDate}:${record.weightG}`}
-              action={updateWeightRecord}
-              data-dirty-watch
+              action={readOnly ? undefined : updateWeightRecord}
+              data-dirty-watch={readOnly ? undefined : true}
               className="grid gap-3 md:grid-cols-[180px_160px_auto]"
             >
               <input type="hidden" name="id" value={record.id} />
@@ -139,7 +141,7 @@ export function WeightHistoryList({
               {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 日付
-                <input type="date" name="recordDate" defaultValue={record.recordDate} max={today} disabled={isLocked} />
+                <input type="date" name="recordDate" defaultValue={record.recordDate} max={today} disabled={isLocked} readOnly={readOnly} />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 体重(g)
@@ -151,15 +153,16 @@ export function WeightHistoryList({
                   step="0.1"
                   defaultValue={record.weightG}
                   disabled={isLocked}
+                  readOnly={readOnly}
                 />
               </label>
-              <DirtySubmitButton
+              {!readOnly ? <DirtySubmitButton
                 disabled={isLocked}
                 className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <Save className="h-4 w-4" aria-hidden />
                 保存
-              </DirtySubmitButton>
+              </DirtySubmitButton> : null}
             </form>
           </article>
         ))}

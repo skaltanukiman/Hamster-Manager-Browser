@@ -1,13 +1,13 @@
 # 機能マップ
 
-最終確認: 2026-07-13。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、Action / API 側でも対象の所属・管理状態を確認します。
+最終確認: 2026-07-14。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、共有データ更新Actionは `getRequiredHouseholdMutationContext()` でVIEWERをDB処理前に拒否します。Action / API 側でも対象の所属・管理状態を確認します。
 
 ## 共通の起点
 
 | 項目 | 主なファイル | 注意点 |
 | --- | --- | --- |
 | 認証ガード・ログイン遷移 | `src/proxy.ts`, `src/auth.ts`, `src/app/login/page.tsx`, `src/app/api/auth/[...nextauth]/route.ts` | `/login`、`/api/auth`、`/api/health`以外は認証必須。Auth.js は DB セッションを使用し、認証・認可ポリシーは `tests/authorization.test.ts` で検証する。 |
-| 現在の Household と権限 | `src/lib/auth-context.ts`, `src/app/actions/households.ts`, `src/components/household-switcher.tsx` | `hamster_current_household` Cookie は所属確認後にのみ更新する。初回ログイン時の個人用 Household 作成もここにある。 |
+| 現在の Household と権限 | `src/lib/authorization.ts`, `src/lib/auth-context.ts`, `src/app/actions/households.ts`, `src/components/household-switcher.tsx` | `OWNER` / `ADMIN` / `MEMBER` / `VIEWER` の閲覧・共有データ編集・招待・解除・権限変更を共通判定する。`hamster_current_household` Cookie は所属確認後にのみ更新する。 |
 | レイアウト・ナビゲーション | `src/app/layout.tsx`, `src/components/app-nav.tsx`, `src/app/globals.css` | ログイン済み画面には Household 切替とリアルタイム監視が常設される。 |
 | 日付・検索・フォーム状態 | `src/lib/date.ts`, `src/lib/search.ts`, `src/components/form-dirty-state.ts`, `src/components/unsaved-changes-guard.tsx`, `src/components/dirty-submit-button.tsx` | 日付は JST の入力値を用い、形式だけでなく実在する暦日・年月を `tests/date-validation.test.ts` で検証する。未保存ガードと保存ボタン活性は一覧・掃除・体重で共有する。 |
 | エラー・ログ | `src/lib/server-errors.ts`, `src/lib/logger.ts`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/components/status-message.tsx`, `src/components/unexpected-error-panel.tsx` | 利用者には内部例外を出さず errorId を表示する。`tests/error-handling.test.ts`、`tests/logger.test.ts` を併せて更新する。 |
@@ -29,7 +29,7 @@
 - **主なコンポーネント:** `HouseholdSwitcher`、`HouseholdInvitationForm`、`InvitationAcceptForm`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
 - **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredHouseholdContext` / `getCurrentHouseholdSwitcherData`、`Household`、`HouseholdMember`、`HouseholdInvitation`、参加時の `AppSetting`。
-- **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。
+- **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER / VIEWER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。招待参加時の初期ロールはMEMBERのまま。
 - **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）、`tests/invitation-cleanup.test.ts`（使用済み90日・期限切れ30日の削除条件）、`tests/authorization.test.ts`（招待・削除・権限変更ポリシー）、`tests/audit-log.test.ts`（成功監査ログ）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限、`src/lib/invitation-cleanup.ts`、`scripts/cleanup-invitations.ts`、`npm run invitations:cleanup`。
 - **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。使用済みは90日、未使用の期限切れは30日保持してVPS cronから整理する。有効な招待は削除しない。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
@@ -54,7 +54,7 @@
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
 - **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
-- **依存関係:** 全更新は realtime mutation を通す。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。状態変更時は `weights.ts`、`cleaning.ts` の所属・状態検証を崩さない。
+- **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
 
 ## 体重履歴
@@ -66,7 +66,7 @@
 - **バリデーション:** `createWeightRecordSchema`、`updateWeightRecordSchema`、削除 schema、`MAX_WEIGHT_G`（1〜500g、0.1g、未来日不可）。`@@unique([hamsterId, recordDate])` が日次重複を保証する。
 - **関連テスト:** `tests/weight-validation.test.ts`（通常登録・編集・CSVの0.1g単位検証）、`tests/csv-and-realtime.test.ts`（CSVの体重上限・未来日検証）、`tests/authorization.test.ts`（Household所属判定）。
 - **関連設定:** `src/lib/weight-rules.ts`、`src/lib/date.ts`、`src/lib/dashboard-settings.ts`（選択 UI）。
-- **依存関係:** 管理外ハムスターは作成・編集・削除不可。履歴一覧は 20 件ページングだがグラフは同一条件の全レコードを使うため、両方のクエリ条件を揃える。
+- **依存関係:** 管理外ハムスターとVIEWERは作成・編集・削除不可。VIEWERは検索・フィルター・並び替え・ページ移動・グラフ・CSVエクスポートを利用できる。履歴一覧は 20 件ページングだがグラフは同一条件の全レコードを使うため、両方のクエリ条件を揃える。
 
 ## 体重 CSV エクスポート
 
@@ -88,7 +88,7 @@
 - **バリデーション:** `parseAppWeightCsvImport`（`src/lib/weight-csv-app-import.ts`）、`parseWeightCsvImport`（`src/lib/weight-csv-import.ts`）、`weight-rules.ts`（2MB・10,000行・500g上限・0.1g単位）。アプリ版は出力元識別・スキーマバージョン・ID所属・CSV内/変更先重複を検証し、エラー時は全件未反映。両方とも管理外・未登録の名前を拒否。
 - **関連テスト:** `tests/csv-and-realtime.test.ts`。
 - **関連設定:** `next.config.mjs` の Server Action body size（3MB）はファイル上限以上を受け取れる必要がある。
-- **依存関係:** 通常の体重登録と同じ制約を保つ。GAS `id` は DB ID に流用せず、アプリ版 `record_id` と区別する。CSVでの削除は行わない。エラー詳細の形式を変える場合はフォーム表示も更新する。
+- **依存関係:** 通常の体重登録と同じ制約を保ち、両インポートActionはVIEWERをファイル読込前に拒否する。VIEWER画面にはインポートフォームを描画しない。GAS `id` は DB ID に流用せず、アプリ版 `record_id` と区別する。
 
 ## 掃除記録
 
@@ -99,7 +99,7 @@
 - **バリデーション:** `cleaningMonthSchema`、`yearMonthSchema`、日付・未来日チェック（`src/lib/date.ts`）。
 - **関連テスト:** `tests/authorization.test.ts`（Household所属判定）。
 - **関連設定:** `src/lib/dashboard-settings.ts`（Hamster 選択形式）、`src/app/globals.css`（PC表 / モバイルカードの表示）。
-- **依存関係:** 記録が全て空なら行を削除する。掃除種別・メモのフィールドを変える場合、schema、Action 差分判定、`getCleaningPageData`、ダッシュボード最新掃除表示、Prisma migration をまとめて変更する。管理外の編集ロックも必須。
+- **依存関係:** 記録が全て空なら行を削除する。VIEWERは表・モバイルカードとも入力と保存を無効化し、ActionでもDB処理前に拒否する。掃除種別・メモのフィールドを変える場合、schema、Action 差分判定、`getCleaningPageData`、ダッシュボード最新掃除表示、Prisma migration をまとめて変更する。
 
 ## 設定（プロフィール・ダッシュボード）
 
@@ -110,7 +110,7 @@
 - **バリデーション:** `updateUserProfileSchema`（表示名）、`dashboardSettingsSchema`、`normalizeDashboardBoardCount` / `normalizeHamsterSelectorMode`。
 - **関連テスト:** 専用テストなし。
 - **関連設定:** `src/lib/dashboard-settings.ts`、`src/lib/search.ts`。
-- **依存関係:** 表示名変更時は自動生成された個人用 Household 名も更新する。ダッシュボード対象の保存は一旦全 `DashboardHamster` を削除して作り直すため、順序と上限を Action と UI で一致させる。
+- **依存関係:** 表示名とユーザー・Household別ダッシュボード設定は個人設定のためVIEWERにも更新を許可する。表示名変更時は自動生成された個人用 Household 名も更新する。ダッシュボード対象の保存は一旦全 `DashboardHamster` を削除して作り直すため、順序と上限を Action と UI で一致させる。
 
 ## アプリ全体管理
 

@@ -2,7 +2,13 @@ import { headers } from "next/headers";
 import { Users } from "lucide-react";
 
 import { HouseholdInvitationForm } from "@/components/household-invitation-form";
-import { getRequiredHouseholdContext, hasHouseholdRole } from "@/lib/auth-context";
+import {
+  canManageHouseholdInvitations,
+  canManageHouseholdMemberRoles,
+  canRemoveHouseholdMembers,
+  HOUSEHOLD_ROLE_LABELS
+} from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { formatDateJp } from "@/lib/date";
 import { INVITATION_TTL_DAYS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
@@ -11,12 +17,6 @@ import { MemberRoleForm } from "@/components/member-role-form";
 import { StatusMessage } from "@/components/status-message";
 
 export const dynamic = "force-dynamic";
-
-const roleLabels = {
-  OWNER: "オーナー",
-  ADMIN: "管理者",
-  MEMBER: "メンバー"
-} as const;
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -60,9 +60,9 @@ export default async function MembersPage({
   const params = await searchParams;
   const invitationOrigin = await getInvitationOrigin();
   const { context, members } = await getMembersPageData();
-  const canManageInvitations = hasHouseholdRole(context.membership.role, ["OWNER", "ADMIN"]);
-  const canManageMemberRoles = context.membership.role === "OWNER";
-  const canRemoveMembers = hasHouseholdRole(context.membership.role, ["OWNER", "ADMIN"]);
+  const canManageInvitations = canManageHouseholdInvitations(context.membership.role);
+  const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
+  const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
   const hasMemberActions = canManageMemberRoles || canRemoveMembers;
 
   return (
@@ -108,19 +108,19 @@ export default async function MembersPage({
             <tbody>
               {members.map((member) => {
                 const memberDisplayName = member.user.name || member.user.email || "未設定";
-                const manageableMemberRole = member.role === "ADMIN" || member.role === "MEMBER" ? member.role : null;
+                const manageableMemberRole = member.role === "OWNER" ? null : member.role;
                 const canUpdateThisMemberRole =
                   canManageMemberRoles && member.userId !== context.user.id && manageableMemberRole !== null;
                 const canRemoveThisMember =
                   canRemoveMembers &&
                   member.userId !== context.user.id &&
-                  (context.membership.role === "OWNER" || member.role === "MEMBER");
+                  (context.membership.role === "OWNER" || member.role === "MEMBER" || member.role === "VIEWER");
 
                 return (
                   <tr key={member.id}>
                     <td className="font-semibold text-ink">{member.user.name || "未設定"}</td>
                     <td>{member.user.email || "未設定"}</td>
-                    <td>{roleLabels[member.role]}</td>
+                    <td>{HOUSEHOLD_ROLE_LABELS[member.role]}</td>
                     <td>{formatDateJp(member.createdAt)}</td>
                     {hasMemberActions ? (
                       <td>
@@ -154,13 +154,13 @@ export default async function MembersPage({
         <div className="grid gap-3 md:hidden">
           {members.map((member) => {
             const memberDisplayName = member.user.name || member.user.email || "未設定";
-            const manageableMemberRole = member.role === "ADMIN" || member.role === "MEMBER" ? member.role : null;
+            const manageableMemberRole = member.role === "OWNER" ? null : member.role;
             const canUpdateThisMemberRole =
               canManageMemberRoles && member.userId !== context.user.id && manageableMemberRole !== null;
             const canRemoveThisMember =
               canRemoveMembers &&
               member.userId !== context.user.id &&
-              (context.membership.role === "OWNER" || member.role === "MEMBER");
+              (context.membership.role === "OWNER" || member.role === "MEMBER" || member.role === "VIEWER");
 
             return (
               <article key={member.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
@@ -170,7 +170,7 @@ export default async function MembersPage({
                     <p className="mt-1 break-words text-slate-600">{member.user.email || "未設定"}</p>
                   </div>
                   <span className="shrink-0 rounded-md bg-straw/40 px-2 py-1 text-xs font-semibold text-slate-700">
-                    {roleLabels[member.role]}
+                    {HOUSEHOLD_ROLE_LABELS[member.role]}
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

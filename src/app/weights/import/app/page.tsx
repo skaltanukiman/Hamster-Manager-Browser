@@ -2,10 +2,15 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { WeightCsvImportForm } from "@/components/weight-csv-import-form";
+import { canEditHouseholdSharedData } from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 
 export const dynamic = "force-dynamic";
 
-export default function AppWeightCsvImportPage() {
+export default async function AppWeightCsvImportPage() {
+  const context = await getRequiredHouseholdContext();
+  const canEdit = canEditHouseholdSharedData(context.membership.role);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -33,7 +38,11 @@ export default function AppWeightCsvImportPage() {
         </p>
       </section>
 
-      <WeightCsvImportForm mode="app" />
+      {canEdit ? <WeightCsvImportForm mode="app" /> : (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          閲覧者は体重CSVによる一括編集を実行できません。
+        </p>
+      )}
     </div>
   );
 }

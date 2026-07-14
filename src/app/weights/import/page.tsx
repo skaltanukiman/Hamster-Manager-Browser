@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft, DatabaseZap, FilePenLine } from "lucide-react";
+import { canEditHouseholdSharedData } from "@/lib/authorization";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 
 export const dynamic = "force-dynamic";
 
-export default function WeightCsvImportPage() {
+export default async function WeightCsvImportPage() {
+  const context = await getRequiredHouseholdContext();
+  const canEdit = canEditHouseholdSharedData(context.membership.role);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -20,7 +25,7 @@ export default function WeightCsvImportPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {canEdit ? <div className="grid gap-4 md:grid-cols-2">
         <Link href="/weights/import/app" className="rounded-md border border-moss bg-white p-5 shadow-sm transition hover:bg-moss/5">
           <FilePenLine className="h-7 w-7 text-moss" aria-hidden />
           <h3 className="mt-3 text-base font-bold text-ink">アプリ版CSVで一括編集</h3>
@@ -35,7 +40,11 @@ export default function WeightCsvImportPage() {
             GAS版から出力したCSVを新規登録します。既存のハムスター・測定日は更新せずスキップします。
           </p>
         </Link>
-      </div>
+      </div> : (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          閲覧者は体重CSVのインポート・一括編集を実行できません。
+        </p>
+      )}
     </div>
   );
 }
