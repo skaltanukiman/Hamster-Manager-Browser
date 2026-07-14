@@ -8,7 +8,7 @@ import {
   USED_INVITATION_RETENTION_DAYS
 } from "../src/lib/invitation-cleanup";
 
-test("使用済み90日・期限切れ30日より古い招待だけを削除条件にする", () => {
+test("使用済み90日・未使用（無効化済みを含む）期限切れ30日より古い招待だけを削除条件にする", () => {
   const now = new Date("2026-07-13T00:00:00.000Z");
   const where = invitationCleanupWhere(now);
 

@@ -25,6 +25,7 @@ const messages: Record<string, string> = {
   future: "未来日には記録できません。",
   locked: "管理外のハムスターは編集できません。管理中に戻してから操作してください。",
   invitationCreated: "招待リンクを作成しました。",
+  invitationRevoked: "招待リンクを無効化しました。",
   joined: "共有に参加しました。",
   memberRemoved: "メンバーの共有を解除しました。",
   roleUpdated: "権限を更新しました。",
@@ -39,6 +40,8 @@ const messages: Record<string, string> = {
   viewerForbidden: "閲覧者はこの操作を実行できません。",
   invitationExpired: "招待リンクの有効期限が切れています。",
   invitationUsed: "この招待リンクは既に使用されています。",
+  invitationAlreadyRevoked: "この招待リンクは既に無効化されています。",
+  invitationRevokedAccess: "この招待リンクは無効化されています。共有画面で新しい招待リンクを作成してください。",
   systemError: "処理中に予期しないエラーが発生しました。時間をおいて再度お試しください。"
 };
 
@@ -68,6 +71,8 @@ const errorStatuses = new Set([
   "cannotRemoveLastSuperAdmin",
   "invitationExpired",
   "invitationUsed",
+  "invitationAlreadyRevoked",
+  "invitationRevokedAccess",
   "systemError"
 ]);
 

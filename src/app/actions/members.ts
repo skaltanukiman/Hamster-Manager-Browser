@@ -18,9 +18,14 @@ import {
 import {
   createInvitationToken,
   hashInvitationToken,
+  invitationAcceptanceFailure,
   invitationExpiresAt,
   isValidInvitationToken
 } from "@/lib/invitations";
+import {
+  createRateLimitedHouseholdInvitation,
+  revokeHouseholdInvitationMutation
+} from "@/lib/invitation-mutations";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 import {
@@ -32,11 +37,27 @@ import {
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
 import { handleServerActionError, logUnexpectedError } from "@/lib/server-errors";
 
-class InvitationUnavailableError extends Error {}
+type InvitationUnavailableStatus = "accepted" | "expired" | "revoked" | "invalid";
+
+class InvitationUnavailableError extends Error {
+  constructor(readonly status: InvitationUnavailableStatus) {
+    super(`Invitation is unavailable: ${status}`);
+  }
+}
 
 export type CreateHouseholdInvitationState = {
   inviteToken: string | null;
+  errorCode: "cooldown" | "hourlyLimit" | null;
+  errorMessage: string | null;
+  retryAfterSeconds: number | null;
 };
+
+function redirectInvitationFailure(status: InvitationUnavailableStatus): never {
+  if (status === "accepted") redirect("/invitations/accept?status=invitationUsed");
+  if (status === "expired") redirect("/invitations/accept?status=invitationExpired");
+  if (status === "revoked") redirect("/invitations/accept?status=invitationRevokedAccess");
+  redirect("/invitations/accept?status=invalid");
+}
 
 function parseManageableMemberRole(value: FormDataEntryValue | null) {
   return value === "ADMIN" || value === "MEMBER" || value === "VIEWER" ? value : null;
@@ -52,35 +73,83 @@ export async function createHouseholdInvitation(
       redirect("/settings/members?status=forbidden");
     }
 
+    const now = new Date();
     const token = createInvitationToken();
-    const { change, result: invitation } = await commitHouseholdMutation({
+    const result = await createRateLimitedHouseholdInvitation({
       householdId: context.household.id,
-      source: "member",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
-      mutate: (tx) =>
-        tx.householdInvitation.create({
-          data: {
-            householdId: context.household.id,
-            tokenHash: hashInvitationToken(token),
-            expiresAt: invitationExpiresAt()
-          }
-        })
+      tokenHash: hashInvitationToken(token),
+      now,
+      expiresAt: invitationExpiresAt(now)
     });
+    if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
+    if (result.status === "limited") {
+      return {
+        inviteToken: null,
+        errorCode: result.code,
+        errorMessage:
+          result.code === "cooldown"
+            ? "招待リンクを作成したばかりです。しばらくしてから再度お試しください。"
+            : "短時間に作成できる招待リンクの上限に達しました。時間を空けて再度お試しください。",
+        retryAfterSeconds: Math.max(1, Math.ceil((result.retryAt.getTime() - now.getTime()) / 1000))
+      };
+    }
     writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.invitationCreated, {
       actorUserId: context.user.id,
       actorHouseholdRole: context.membership.role,
       householdId: context.household.id,
-      invitationId: invitation.id,
-      expiresAt: invitation.expiresAt.toISOString()
+      invitationId: result.invitation.id,
+      expiresAt: result.invitation.expiresAt.toISOString()
     });
-    publishHouseholdChangeSafely(change);
+    publishHouseholdChangeSafely(result.change);
     revalidatePathsSafely([{ path: "/settings/members" }], "members.createInvitation.revalidate", {
       householdId: context.household.id
     });
-    return { inviteToken: token };
+    return { inviteToken: token, errorCode: null, errorMessage: null, retryAfterSeconds: null };
   } catch (error) {
     handleServerActionError(error, { operation: "members.createInvitation", pathname: "/settings/members" });
+  }
+}
+
+export async function revokeHouseholdInvitation(formData: FormData) {
+  try {
+    const invitationId = formData.get("invitationId");
+    if (typeof invitationId !== "string" || !invitationId) redirect("/settings/members?status=invalid");
+
+    const context = await getRequiredHouseholdContext();
+    if (!canManageHouseholdInvitations(context.membership.role)) {
+      redirect("/settings/members?status=forbidden");
+    }
+
+    const result = await revokeHouseholdInvitationMutation({
+      householdId: context.household.id,
+      actorUserId: context.user.id,
+      actorClientId: getRealtimeActorId(formData),
+      invitationId,
+      now: new Date()
+    });
+    if (result.status !== "revoked") {
+      if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
+      if (result.status === "notFound") redirect("/settings/members?status=invalid");
+      if (result.status === "accepted") redirect("/settings/members?status=invitationUsed");
+      if (result.status === "expired") redirect("/settings/members?status=invitationExpired");
+      redirect("/settings/members?status=invitationAlreadyRevoked");
+    }
+
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.invitationRevoked, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: context.membership.role,
+      householdId: context.household.id,
+      invitationId: result.invitationId
+    });
+    publishHouseholdChangeSafely(result.change);
+    revalidatePathsSafely([{ path: "/settings/members" }], "members.revokeInvitation.revalidate", {
+      householdId: context.household.id
+    });
+    redirect("/settings/members?status=invitationRevoked");
+  } catch (error) {
+    handleServerActionError(error, { operation: "members.revokeInvitation", pathname: "/settings/members" });
   }
 }
 
@@ -93,24 +162,31 @@ export async function acceptHouseholdInvitation(formData: FormData) {
     const now = new Date();
     const invitation = await prisma.householdInvitation.findUnique({
       where: { tokenHash: hashInvitationToken(token) },
-      select: { id: true, householdId: true, expiresAt: true, acceptedAt: true }
+      select: { id: true, householdId: true, expiresAt: true, acceptedAt: true, revokedAt: true }
     });
     if (!invitation) redirect("/invitations/accept?status=invalid");
-    if (invitation.acceptedAt) redirect("/invitations/accept?status=invitationUsed");
-    if (invitation.expiresAt.getTime() <= now.getTime()) redirect("/invitations/accept?status=invitationExpired");
+    const initialFailure = invitationAcceptanceFailure(invitation, now);
+    if (initialFailure) redirectInvitationFailure(initialFailure);
 
     const change = await prisma.$transaction(async (tx) => {
       const updateResult = await tx.householdInvitation.updateMany({
         where: {
           id: invitation.id,
           acceptedAt: null,
+          revokedAt: null,
           expiresAt: { gt: now }
         },
         data: { acceptedAt: now }
       });
 
       if (updateResult.count !== 1) {
-        throw new InvitationUnavailableError("Invitation is no longer usable.");
+        const current = await tx.householdInvitation.findUnique({
+          where: { id: invitation.id },
+          select: { acceptedAt: true, revokedAt: true, expiresAt: true }
+        });
+        throw new InvitationUnavailableError(
+          current ? (invitationAcceptanceFailure(current, now) ?? "invalid") : "invalid"
+        );
       }
 
       // 招待URLは共有され得るため、参加先HouseholdへのmembershipをDB側で一意に確定する。
@@ -168,7 +244,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
     });
     redirect("/settings/members?status=joined");
   } catch (error) {
-    if (error instanceof InvitationUnavailableError) redirect("/invitations/accept?status=invitationUsed");
+    if (error instanceof InvitationUnavailableError) redirectInvitationFailure(error.status);
     handleServerActionError(error, { operation: "members.acceptInvitation", pathname: "/invitations/accept" });
   }
 }

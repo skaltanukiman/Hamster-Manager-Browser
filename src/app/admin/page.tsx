@@ -20,7 +20,11 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function invitationStatus(invitation: Pick<HouseholdInvitation, "acceptedAt" | "expiresAt">, now: Date) {
+function invitationStatus(invitation: Pick<HouseholdInvitation, "acceptedAt" | "expiresAt" | "revokedAt">, now: Date) {
+  if (invitation.revokedAt) {
+    return "無効化済み";
+  }
+
   if (invitation.acceptedAt) {
     return "承認済み";
   }
@@ -116,7 +120,9 @@ export default async function AdminPage({
   const currentUser = await getRequiredAppAdminUser();
   const canEditAppRoles = currentUser.appRole === "SUPER_ADMIN";
   const { users, households, invitations, now } = await getAdminPageData();
-  const activeInvitationCount = invitations.filter((invitation) => !invitation.acceptedAt && invitation.expiresAt > now).length;
+  const activeInvitationCount = invitations.filter(
+    (invitation) => !invitation.acceptedAt && !invitation.revokedAt && invitation.expiresAt > now
+  ).length;
 
   return (
     <div className="space-y-6">

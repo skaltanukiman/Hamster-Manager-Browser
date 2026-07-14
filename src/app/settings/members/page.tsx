@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { Users } from "lucide-react";
 
 import { HouseholdInvitationForm } from "@/components/household-invitation-form";
+import { HouseholdInvitationList } from "@/components/household-invitation-list";
 import {
   canManageHouseholdInvitations,
   canManageHouseholdMemberRoles,
@@ -41,15 +42,24 @@ async function getInvitationOrigin() {
 
 async function getMembersPageData() {
   const context = await getRequiredHouseholdContext();
-  const members = await prisma.householdMember.findMany({
-    where: { householdId: context.household.id },
-    include: {
-      user: true
-    },
-    orderBy: { createdAt: "asc" }
-  });
+  const [members, invitations] = await Promise.all([
+    prisma.householdMember.findMany({
+      where: { householdId: context.household.id },
+      include: { user: true },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.householdInvitation.findMany({
+      where: { householdId: context.household.id },
+      include: {
+        createdBy: {
+          select: { name: true, email: true }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    })
+  ]);
 
-  return { context, members };
+  return { context, members, invitations };
 }
 
 export default async function MembersPage({
@@ -59,7 +69,7 @@ export default async function MembersPage({
 }) {
   const params = await searchParams;
   const invitationOrigin = await getInvitationOrigin();
-  const { context, members } = await getMembersPageData();
+  const { context, members, invitations } = await getMembersPageData();
   const canManageInvitations = canManageHouseholdInvitations(context.membership.role);
   const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
   const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
@@ -87,6 +97,8 @@ export default async function MembersPage({
           </p>
         </section>
       )}
+
+      <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={new Date()} />
 
       <section className="space-y-3">
         <div className="flex items-center gap-2">

@@ -27,7 +27,7 @@ model Hamster {
   dashboardEntries     DashboardHamster[]
 
   @@unique([householdId, name])
-  @@index([householdId])
+  @@index([householdId, createdAt])
   @@map("hamsters")
 }
 
@@ -100,18 +100,19 @@ model DashboardHamster {
 }
 
 model User {
-  id            String            @id @default(cuid())
-  name          String?
-  email         String?           @unique
-  emailVerified DateTime?         @map("email_verified")
-  image         String?
-  appRole       AppRole           @default(USER) @map("app_role")
-  accounts      Account[]
-  sessions      Session[]
-  memberships   HouseholdMember[]
-  appSettings   AppSetting[]
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  id                          String                @id @default(cuid())
+  name                        String?
+  email                       String?               @unique
+  emailVerified               DateTime?             @map("email_verified")
+  image                       String?
+  appRole                     AppRole               @default(USER) @map("app_role")
+  accounts                    Account[]
+  sessions                    Session[]
+  memberships                 HouseholdMember[]
+  appSettings                 AppSetting[]
+  createdHouseholdInvitations HouseholdInvitation[] @relation("HouseholdInvitationCreator")
+  createdAt                   DateTime              @default(now()) @map("created_at")
+  updatedAt                   DateTime              @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -186,15 +187,19 @@ model HouseholdMember {
 }
 
 model HouseholdInvitation {
-  id          String    @id @default(cuid())
-  householdId String    @map("household_id")
-  tokenHash   String    @unique @map("token_hash")
-  expiresAt   DateTime  @map("expires_at")
-  acceptedAt  DateTime? @map("accepted_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  householdId     String    @map("household_id")
+  createdByUserId String?   @map("created_by_user_id")
+  tokenHash       String    @unique @map("token_hash")
+  expiresAt       DateTime  @map("expires_at")
+  acceptedAt      DateTime? @map("accepted_at")
+  revokedAt       DateTime? @map("revoked_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  household       Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  createdBy       User?     @relation("HouseholdInvitationCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([createdByUserId, createdAt])
   @@map("household_invitations")
 }
 

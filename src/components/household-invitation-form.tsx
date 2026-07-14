@@ -7,7 +7,12 @@ import { useFormStatus } from "react-dom";
 import { createHouseholdInvitation, type CreateHouseholdInvitationState } from "@/app/actions/members";
 import { buildInvitationUrl } from "@/lib/invitations";
 
-const INITIAL_STATE: CreateHouseholdInvitationState = { inviteToken: null };
+const INITIAL_STATE: CreateHouseholdInvitationState = {
+  inviteToken: null,
+  errorCode: null,
+  errorMessage: null,
+  retryAfterSeconds: null
+};
 
 function CreateInvitationButton() {
   const { pending } = useFormStatus();
@@ -41,7 +46,14 @@ export function HouseholdInvitationForm({ invitationOrigin, ttlDays }: { invitat
       </div>
 
       <div aria-live="polite">
-        {inviteUrl ? (
+        {state.errorMessage ? (
+          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p>{state.errorMessage}</p>
+            {state.retryAfterSeconds ? (
+              <p className="mt-1 text-xs">再度作成できるまで、あと約 {state.retryAfterSeconds} 秒です。</p>
+            ) : null}
+          </div>
+        ) : inviteUrl ? (
           <label className="mt-4 grid gap-1 text-sm font-medium text-slate-700">
             招待相手に共有するリンク
             <span className="relative block">

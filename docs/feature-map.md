@@ -26,13 +26,13 @@
 ## Household 共有・メンバー管理
 
 - **画面または URL:** ヘッダーの操作対象切替、`/settings/members`、`/invitations/accept#token=...`。
-- **主なコンポーネント:** `HouseholdSwitcher`、`HouseholdInvitationForm`、`InvitationAcceptForm`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
-- **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
+- **主なコンポーネント:** `HouseholdSwitcher`、`HouseholdInvitationForm`、`HouseholdInvitationList`、`InvitationRevokeForm`、`InvitationAcceptForm`、`MemberRoleForm`、`MemberRemoveForm`、`StatusMessage`。
+- **Server Action または API:** `switchCurrentHousehold`（`actions/households.ts`）、`createHouseholdInvitation`、`revokeHouseholdInvitation`、`acceptHouseholdInvitation`、`removeHouseholdMember`、`updateHouseholdMemberRole`（`actions/members.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredHouseholdContext` / `getCurrentHouseholdSwitcherData`、`Household`、`HouseholdMember`、`HouseholdInvitation`、参加時の `AppSetting`。
-- **バリデーション:** `idSchema`、招待 token の SHA-256（`src/lib/invitations.ts`）。OWNER / ADMIN / MEMBER / VIEWER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。招待参加時の初期ロールはMEMBERのまま。
-- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenを拒否する）、`tests/invitation-cleanup.test.ts`（使用済み90日・期限切れ30日の削除条件）、`tests/authorization.test.ts`（招待・削除・権限変更ポリシー）、`tests/audit-log.test.ts`（成功監査ログ）。
+- **バリデーション:** `idSchema`、招待 token の SHA-256、作成間隔30秒・ユーザー単位で過去1時間5件（`src/lib/invitations.ts`、`src/lib/invitation-mutations.ts`）。制限はHousehold横断で、PostgreSQL advisory transaction lockにより同一ユーザーの同時作成を直列化する。有効な招待総数による上限は設けない。OWNER / ADMIN / MEMBER / VIEWER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。招待参加時の初期ロールはMEMBERのまま。
+- **関連テスト:** `tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenと無効化済みtokenを拒否する）、`tests/invitation-management.test.ts`（30秒・1時間・別ユーザー・別Household・同時実行・無効化・権限）、`tests/invitation-cleanup.test.ts`（使用済み90日・未使用期限切れ30日の削除条件）、`tests/authorization.test.ts`（招待・削除・権限変更ポリシー）、`tests/audit-log.test.ts`（成功監査ログ）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限、`src/lib/invitation-cleanup.ts`、`scripts/cleanup-invitations.ts`、`npm run invitations:cleanup`。
-- **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。使用済みは90日、未使用の期限切れは30日保持してVPS cronから整理する。有効な招待は削除しない。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
+- **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。共有画面は作成日時・期限・状態・作成者を表示し、未使用かつ期限内だけOWNER / ADMINが無効化できる。受諾は未使用・未無効化・期限内を同一更新条件で確定する。使用済みは90日、未使用（無効化済みを含む）の期限切れは元の期限から30日保持してVPS cronから整理し、有効な招待は削除しない。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
 ## ダッシュボード
 

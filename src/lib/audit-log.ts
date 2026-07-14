@@ -4,6 +4,7 @@ import { writeServerLog } from "@/lib/logger";
 
 export const HOUSEHOLD_AUDIT_EVENTS = {
   invitationCreated: "household_invitation_created",
+  invitationRevoked: "household_invitation_revoked",
   memberRemoved: "household_member_removed",
   memberRoleUpdated: "household_member_role_updated"
 } as const;

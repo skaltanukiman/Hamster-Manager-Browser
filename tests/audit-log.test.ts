@@ -8,6 +8,7 @@ import { HOUSEHOLD_AUDIT_EVENTS, writeHouseholdAuditLog } from "../src/lib/audit
 import { closeServerLogger, createServerLogger } from "../src/lib/logger";
 
 test("Household管理操作の成功監査ログを識別可能な項目だけで記録する", async () => {
+  assert.equal(HOUSEHOLD_AUDIT_EVENTS.invitationRevoked, "household_invitation_revoked");
   let output = "";
   const stream = new Writable({
     write(chunk, _encoding, callback) {
