@@ -43,7 +43,7 @@ export default async function HamstersPage({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-ink">ハムスター管理</h2>
-        <p className="mt-1 text-sm text-slate-600">名前、メモ、誕生日、お迎え日を管理します。</p>
+        <p className="mt-1 text-sm text-slate-600">ハムスターの情報を管理します。</p>
       </div>
 
       <StatusMessage status={status} errorId={getParam(params.errorId)} />
