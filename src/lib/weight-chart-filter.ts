@@ -19,3 +19,8 @@ export function getAppliedWeightChartRange(
 ): WeightChartRange {
   return filterMode === "all" ? normalizeWeightChartRange(from, to) : {};
 }
+
+export function isCompleteWeightChartRange(from: string, to: string) {
+  const normalized = normalizeWeightChartRange(from, to);
+  return Boolean(normalized.from && normalized.to && normalized.from <= normalized.to);
+}

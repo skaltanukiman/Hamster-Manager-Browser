@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, RotateCcw, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Upload } from "lucide-react";
 
 import { createWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
+import { WeightChartFilterForm } from "@/components/weight-chart-filter-form";
 import { WeightHistoryList } from "@/components/weight-history-list";
 import { canEditHouseholdSharedData } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
@@ -287,62 +288,16 @@ export default async function WeightsPage({
           {filterMode === "all" && hasWeightRecords ? (
             <section className="space-y-3">
               <h3 className="text-base font-bold text-ink">グラフの絞り込み</h3>
-              <form method="get" className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                <input type="hidden" name="hamsterId" value={selectedHamster.id} />
-                <input type="hidden" name="filter" value="all" />
-                <input type="hidden" name="sort" value={sortTarget} />
-                <input type="hidden" name="direction" value={sortDirection} />
-                {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
-                <div className="flex flex-wrap items-end gap-2">
-                  <span className="self-center text-sm font-medium text-slate-700">期間</span>
-                  <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
-                    <span className="sr-only">開始日</span>
-                    <input
-                      type="date"
-                      name="chartFrom"
-                      defaultValue={chartRange.from}
-                      max={chartRange.to ?? today}
-                      required
-                    />
-                  </label>
-                  <span className="self-center text-sm text-slate-600">～</span>
-                  <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
-                    <span className="sr-only">終了日</span>
-                    <input
-                      type="date"
-                      name="chartTo"
-                      defaultValue={chartRange.to}
-                      min={chartRange.from}
-                      max={today}
-                      required
-                    />
-                  </label>
-                  <span className="self-center text-sm text-slate-600">まで</span>
-                  <button
-                    type="submit"
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90"
-                  >
-                    絞り込む
-                  </button>
-                  {chartRange.from || chartRange.to ? (
-                    <Link
-                      href={buildWeightsHref({
-                        hamsterId: selectedHamster.id,
-                        filterMode,
-                        month: selectedMonth,
-                        page: 1,
-                        sortTarget,
-                        sortDirection,
-                        includeInactive
-                      })}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      <RotateCcw className="h-4 w-4" aria-hidden />
-                      解除
-                    </Link>
-                  ) : null}
-                </div>
-              </form>
+              <WeightChartFilterForm
+                key={`${chartRange.from ?? ""}-${chartRange.to ?? ""}`}
+                hamsterId={selectedHamster.id}
+                sortTarget={sortTarget}
+                sortDirection={sortDirection}
+                includeInactive={includeInactive}
+                defaultFrom={chartRange.from}
+                defaultTo={chartRange.to}
+                maxDate={today}
+              />
             </section>
           ) : null}
 
