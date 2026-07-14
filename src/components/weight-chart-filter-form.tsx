@@ -64,9 +64,9 @@ export function WeightChartFilterForm({
       <input type="hidden" name="sort" value={sortTarget} />
       <input type="hidden" name="direction" value={sortDirection} />
       {includeInactive ? <input type="hidden" name="includeInactive" value="1" /> : null}
-      <div className="flex flex-wrap items-end gap-2">
-        <span className="self-center text-sm font-medium text-slate-700">期間</span>
-        <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
+      <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-end">
+        <span className="text-sm font-medium text-slate-700 sm:self-center">期間</span>
+        <label className="w-full sm:min-w-[150px] sm:max-w-[200px] sm:flex-1">
           <span className="sr-only">開始日</span>
           <input
             ref={fromInputRef}
@@ -77,8 +77,8 @@ export function WeightChartFilterForm({
             onChange={handleFromChange}
           />
         </label>
-        <span className="self-center text-sm text-slate-600">～</span>
-        <label className="min-w-[150px] flex-1 sm:max-w-[200px]">
+        <span className="text-center text-sm text-slate-500 sm:self-center sm:text-slate-600">～</span>
+        <label className="w-full sm:min-w-[150px] sm:max-w-[200px] sm:flex-1">
           <span className="sr-only">終了日</span>
           <input
             ref={toInputRef}
@@ -90,12 +90,12 @@ export function WeightChartFilterForm({
             onChange={handleToChange}
           />
         </label>
-        <span className="self-center text-sm text-slate-600">まで</span>
+        <span className="text-right text-sm text-slate-600 sm:self-center">まで</span>
         <button
           type="button"
           onClick={handleClear}
           disabled={!from && !to}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
         >
           <RotateCcw className="h-4 w-4" aria-hidden />
           クリア
