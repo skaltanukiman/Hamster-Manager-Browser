@@ -1,0 +1,116 @@
+"use client";
+
+import { HeartPulse, ImagePlus, Stethoscope } from "lucide-react";
+import { useRef, useState } from "react";
+
+import { createHealthRecord, createMedicalRecord, createMemoryRecord } from "@/app/actions/records";
+import { RecordImageField } from "@/components/record-image-field";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
+import {
+  HEALTH_AMOUNT_CONDITIONS,
+  HEALTH_EXCRETION_CONDITIONS,
+  HEALTH_OVERALL_CONDITIONS,
+  HEALTH_SYMPTOMS
+} from "@/lib/record-schemas";
+import {
+  HEALTH_AMOUNT_LABELS,
+  HEALTH_EXCRETION_LABELS,
+  HEALTH_OVERALL_LABELS,
+  HEALTH_SYMPTOM_LABELS,
+  MEMORY_TAG_SUGGESTIONS
+} from "@/lib/records";
+
+type CreateKind = "health" | "medical" | "memory";
+
+const fieldClass = "grid gap-1 text-sm font-medium text-slate-700";
+
+export function RecordCreateForms({ hamsterId, hamsterIsActive, today }: { hamsterId: string; hamsterIsActive: boolean; today: string }) {
+  const [kind, setKind] = useState<CreateKind>(hamsterIsActive ? "health" : "memory");
+  const healthFormRef = useRef<HTMLFormElement>(null);
+
+  function setUsualCondition() {
+    const form = healthFormRef.current;
+    if (!form) return;
+    const values: Record<string, string> = {
+      overallCondition: "GOOD",
+      appetite: "NORMAL",
+      activityLevel: "NORMAL",
+      stoolCondition: "NORMAL",
+      urineCondition: "NORMAL"
+    };
+    for (const [name, value] of Object.entries(values)) {
+      const input = form.elements.namedItem(name);
+      if (input instanceof HTMLSelectElement) {
+        input.value = value;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+  }
+
+  return (
+    <UnsavedChangesGuard>
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap gap-2" aria-label="登録する記録種類">
+          <button type="button" onClick={() => setKind("health")} disabled={!hamsterIsActive} className={`inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-semibold ${kind === "health" ? "border-moss bg-moss text-white" : "border-slate-200 text-slate-700"} disabled:cursor-not-allowed disabled:opacity-50`}>
+            <HeartPulse className="h-4 w-4" aria-hidden />体調を記録
+          </button>
+          <button type="button" onClick={() => setKind("medical")} disabled={!hamsterIsActive} className={`inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-semibold ${kind === "medical" ? "border-moss bg-moss text-white" : "border-slate-200 text-slate-700"} disabled:cursor-not-allowed disabled:opacity-50`}>
+            <Stethoscope className="h-4 w-4" aria-hidden />通院を記録
+          </button>
+          <button type="button" onClick={() => setKind("memory")} className={`inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-semibold ${kind === "memory" ? "border-moss bg-moss text-white" : "border-slate-200 text-slate-700"}`}>
+            <ImagePlus className="h-4 w-4" aria-hidden />思い出を追加
+          </button>
+        </div>
+        {!hamsterIsActive ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">管理外のハムスターには体調・通院記録を追加できません。思い出記録は追加できます。</p> : null}
+
+        {hamsterIsActive ? (
+          <div className={kind === "health" ? "" : "hidden"}>
+          <form ref={healthFormRef} action={createHealthRecord} data-dirty-watch className="mt-5 grid gap-4">
+            <input type="hidden" name="hamsterId" value={hamsterId} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
+              <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button>
+            </div>
+            <p className="text-xs text-slate-500">「いつも通り」は5つの状態だけを正常値へ設定します。症状とメモは消去しません。</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <label className={fieldClass}>総合状態<select name="overallCondition" defaultValue="GOOD">{HEALTH_OVERALL_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_OVERALL_LABELS[value]}</option>)}</select></label>
+              <label className={fieldClass}>食欲<select name="appetite" defaultValue="NORMAL">{HEALTH_AMOUNT_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_AMOUNT_LABELS[value]}</option>)}</select></label>
+              <label className={fieldClass}>活動量<select name="activityLevel" defaultValue="NORMAL">{HEALTH_AMOUNT_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_AMOUNT_LABELS[value]}</option>)}</select></label>
+              <label className={fieldClass}>便<select name="stoolCondition" defaultValue="NORMAL">{HEALTH_EXCRETION_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_EXCRETION_LABELS[value]}</option>)}</select></label>
+              <label className={fieldClass}>尿<select name="urineCondition" defaultValue="NORMAL">{HEALTH_EXCRETION_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_EXCRETION_LABELS[value]}</option>)}</select></label>
+            </div>
+            <fieldset className="grid gap-2"><legend className="text-sm font-semibold text-slate-700">気になる症状（複数選択可）</legend><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{HEALTH_SYMPTOMS.map((symptom) => <label key={symptom} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"><input type="checkbox" name="symptoms" value={symptom} />{HEALTH_SYMPTOM_LABELS[symptom]}</label>)}</div></fieldset>
+            <label className={fieldClass}>メモ<textarea name="memo" maxLength={2000} placeholder="その他の症状や気になったことを入力" /></label>
+            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">体調記録を保存</button>
+          </form>
+          </div>
+        ) : null}
+
+        {hamsterIsActive ? (
+          <div className={kind === "medical" ? "" : "hidden"}>
+          <form action={createMedicalRecord} data-dirty-watch className="mt-5 grid gap-4">
+            <input type="hidden" name="hamsterId" value={hamsterId} />
+            <div className="grid gap-3 sm:grid-cols-2"><label className={fieldClass}>通院日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>動物病院名（任意）<input name="hospitalName" maxLength={120} /></label></div>
+            <label className={fieldClass}>通院理由・症状<textarea name="reason" maxLength={2000} required /></label>
+            <div className="grid gap-3 md:grid-cols-2"><label className={fieldClass}>診断内容<textarea name="diagnosis" maxLength={2000} /></label><label className={fieldClass}>検査内容<textarea name="examination" maxLength={2000} /></label><label className={fieldClass}>処置・治療内容<textarea name="treatment" maxLength={2000} /></label><label className={fieldClass}>処方薬<textarea name="medication" maxLength={2000} /></label><label className={fieldClass}>投薬方法<textarea name="medicationInstructions" maxLength={2000} /></label><label className={fieldClass}>メモ<textarea name="memo" maxLength={2000} /></label></div>
+            <div className="grid gap-3 sm:grid-cols-2"><label className={fieldClass}>次回通院予定日（任意）<input type="date" name="nextVisitDate" /></label><label className={fieldClass}>診察費（円・整数）<input type="number" name="consultationFee" min="0" max="99999999" step="1" inputMode="numeric" /></label></div>
+            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">通院記録を保存</button>
+          </form>
+          </div>
+        ) : null}
+
+        <div className={kind === "memory" ? "" : "hidden"}>
+          <form action={createMemoryRecord} data-dirty-watch className="mt-5 grid gap-4">
+            <input type="hidden" name="hamsterId" value={hamsterId} />
+            <div className="grid gap-3 sm:grid-cols-[180px_1fr]"><label className={fieldClass}>日付<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>タイトル<input name="title" maxLength={100} required placeholder="初めて手の上で寝てくれた" /></label></div>
+            <label className={fieldClass}>内容<textarea name="content" maxLength={5000} required /></label>
+            <label className={fieldClass}>タグ（「、」またはカンマ区切り・最大20件）<input name="tags" maxLength={619} placeholder={MEMORY_TAG_SUGGESTIONS.slice(0, 4).join("、")} /><span className="text-xs font-normal text-slate-500">候補: {MEMORY_TAG_SUGGESTIONS.join("、")}</span></label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" name="isFavorite" value="true" />お気に入りにする</label>
+            <RecordImageField />
+            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">思い出を保存</button>
+          </form>
+        </div>
+      </section>
+    </UnsavedChangesGuard>
+  );
+}

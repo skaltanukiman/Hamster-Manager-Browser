@@ -23,6 +23,7 @@ const ALLOWED_CONTEXT_KEYS = new Set([
   "memberId",
   "cleaningRecordId",
   "weightRecordId",
+  "recordId",
   "requestId",
   "source",
   "revision",

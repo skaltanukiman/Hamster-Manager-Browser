@@ -10,7 +10,8 @@ export type HouseholdChangeSource =
   | "weight"
   | "settings"
   | "member"
-  | "profile";
+  | "profile"
+  | "record";
 
 export type HouseholdChangeEvent = {
   id: number;

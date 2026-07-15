@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, ShieldCheck, Users } from "lucide-react";
+import { BookHeart, ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, ShieldCheck, Users } from "lucide-react";
 
 const baseNavItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/hamsters", label: "ハムスター", icon: PawPrint },
+  { href: "/records", label: "記録", icon: BookHeart },
   { href: "/cleaning", label: "衛生管理", icon: ClipboardCheck },
   { href: "/weights", label: "体重管理", icon: LineChart },
   { href: "/settings", label: "設定", icon: Settings },

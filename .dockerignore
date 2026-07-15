@@ -9,4 +9,5 @@ npm-debug.log*
 .reference-HamsterManagerTable
 coverage
 logs
+uploads
 README.md

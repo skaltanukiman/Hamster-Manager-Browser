@@ -15,6 +15,7 @@ import {
 } from "@/lib/hamster-image";
 import { writeServerLog } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { deleteRecordImage } from "@/lib/record-image";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
 import { handleServerActionError, isPrismaUniqueConstraintError } from "@/lib/server-errors";
@@ -72,6 +73,27 @@ async function deleteImageAfterMutation(householdId: string, fileName: string, o
         errorName: error instanceof Error ? error.name : typeof error
       }
     });
+  }
+}
+
+async function deleteRecordImagesAfterHamsterMutation(
+  householdId: string,
+  records: Array<{ id: string; memoryDetail: { images: Array<{ fileName: string }> } | null }>,
+  operation: string
+) {
+  for (const record of records) {
+    for (const image of record.memoryDetail?.images ?? []) {
+      try {
+        await deleteRecordImage(householdId, image.fileName);
+      } catch (error) {
+        writeServerLog("warn", {
+          event: "record_image_delete_failed",
+          message: "ハムスター削除後の思い出画像削除に失敗しました。",
+          operation,
+          context: { householdId, hamsterRecordId: record.id, errorName: error instanceof Error ? error.name : typeof error }
+        });
+      }
+    }
   }
 }
 
@@ -248,7 +270,12 @@ export async function deleteHamster(formData: FormData) {
 
     const hamster = await prisma.hamster.findFirst({
       where: { id: result.data.id, householdId: context.household.id },
-      select: { profileImageFileName: true }
+      select: {
+        profileImageFileName: true,
+        records: {
+          select: { id: true, memoryDetail: { select: { images: { select: { fileName: true } } } } }
+        }
+      }
     });
     if (!hamster) redirect("/hamsters?status=invalid");
 
@@ -271,7 +298,12 @@ export async function deleteHamster(formData: FormData) {
         record.id
       )
     );
-    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.delete.revalidate", {
+    await deleteRecordImagesAfterHamsterMutation(
+      context.household.id,
+      hamster.records,
+      "hamsters.delete.deleteRecordImages"
+    );
+    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }, { path: "/records" }], "hamsters.delete.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.id
     });
@@ -289,7 +321,13 @@ export async function deleteHamsters(formData: FormData) {
 
     const hamsters = await prisma.hamster.findMany({
       where: { id: { in: result.data.ids }, householdId: context.household.id },
-      select: { id: true, profileImageFileName: true }
+      select: {
+        id: true,
+        profileImageFileName: true,
+        records: {
+          select: { id: true, memoryDetail: { select: { images: { select: { fileName: true } } } } }
+        }
+      }
     });
     if (hamsters.length !== result.data.ids.length) redirect("/hamsters?status=invalid");
 
@@ -314,8 +352,13 @@ export async function deleteHamsters(formData: FormData) {
         hamster.id
       )
     );
+    await deleteRecordImagesAfterHamsterMutation(
+      context.household.id,
+      hamsters.flatMap((hamster) => hamster.records),
+      "hamsters.deleteMany.deleteRecordImages"
+    );
     revalidatePathsSafely(
-      ["/", "/hamsters", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
+      ["/", "/hamsters", "/records", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
       "hamsters.deleteMany.revalidate",
       { householdId: context.household.id, targetCount: result.data.ids.length }
     );

@@ -25,6 +25,7 @@ model Hamster {
   cleaningRecords      CleaningRecord[]
   weightRecords        WeightRecord[]
   dashboardEntries     DashboardHamster[]
+  records              HamsterRecord[]
 
   @@unique([householdId, name])
   @@index([householdId, createdAt])
@@ -111,6 +112,7 @@ model User {
   memberships                 HouseholdMember[]
   appSettings                 AppSetting[]
   createdHouseholdInvitations HouseholdInvitation[] @relation("HouseholdInvitationCreator")
+  createdHamsterRecords       HamsterRecord[]       @relation("HamsterRecordCreator")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
@@ -214,4 +216,119 @@ enum AppRole {
   USER
   ADMIN
   SUPER_ADMIN
+}
+
+model HamsterRecord {
+  id              String              @id @default(cuid())
+  hamsterId       String              @map("hamster_id")
+  hamster         Hamster             @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
+  recordType      HamsterRecordType   @map("record_type")
+  recordDate      DateTime            @map("record_date") @db.Date
+  title           String
+  memo            String?             @db.Text
+  searchText      String              @map("search_text") @db.Text
+  createdByUserId String?             @map("created_by_user_id")
+  createdBy       User?               @relation("HamsterRecordCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  healthDetail    HealthRecordDetail?
+  medicalDetail   MedicalVisitDetail?
+  memoryDetail    MemoryRecordDetail?
+
+  @@index([hamsterId, recordDate, createdAt])
+  @@index([hamsterId, recordType, recordDate])
+  @@map("hamster_records")
+}
+
+model HealthRecordDetail {
+  hamsterRecordId  String                   @id @map("hamster_record_id")
+  hamsterRecord    HamsterRecord            @relation(fields: [hamsterRecordId], references: [id], onDelete: Cascade)
+  overallCondition HealthOverallCondition   @map("overall_condition")
+  appetite         HealthAmountCondition
+  activityLevel    HealthAmountCondition    @map("activity_level")
+  stoolCondition   HealthExcretionCondition @map("stool_condition")
+  urineCondition   HealthExcretionCondition @map("urine_condition")
+  symptoms         HealthSymptom[]          @default([])
+
+  @@map("health_record_details")
+}
+
+model MedicalVisitDetail {
+  hamsterRecordId        String        @id @map("hamster_record_id")
+  hamsterRecord          HamsterRecord @relation(fields: [hamsterRecordId], references: [id], onDelete: Cascade)
+  hospitalName           String?       @map("hospital_name")
+  reason                 String        @db.Text
+  diagnosis              String?       @db.Text
+  examination            String?       @db.Text
+  treatment              String?       @db.Text
+  medication             String?       @db.Text
+  medicationInstructions String?       @map("medication_instructions") @db.Text
+  nextVisitDate          DateTime?     @map("next_visit_date") @db.Date
+  consultationFee        Decimal?      @map("consultation_fee") @db.Decimal(10, 0)
+
+  @@index([nextVisitDate])
+  @@map("medical_visit_details")
+}
+
+model MemoryRecordDetail {
+  hamsterRecordId String              @id @map("hamster_record_id")
+  hamsterRecord   HamsterRecord       @relation(fields: [hamsterRecordId], references: [id], onDelete: Cascade)
+  tags            String[]            @default([])
+  isFavorite      Boolean             @default(false) @map("is_favorite")
+  images          MemoryRecordImage[]
+
+  @@index([isFavorite])
+  @@map("memory_record_details")
+}
+
+model MemoryRecordImage {
+  id             String             @id @default(cuid())
+  memoryRecordId String             @map("memory_record_id")
+  memoryRecord   MemoryRecordDetail @relation(fields: [memoryRecordId], references: [hamsterRecordId], onDelete: Cascade)
+  fileName       String             @map("file_name")
+  sortOrder      Int                @default(0) @map("sort_order")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@unique([memoryRecordId, sortOrder])
+  @@map("memory_record_images")
+}
+
+enum HamsterRecordType {
+  HEALTH
+  MEDICAL
+  MEMORY
+}
+
+enum HealthOverallCondition {
+  GOOD
+  CONCERN
+  WARNING
+}
+
+enum HealthAmountCondition {
+  NORMAL
+  LOW
+  NONE
+  UNKNOWN
+}
+
+enum HealthExcretionCondition {
+  NORMAL
+  LOW
+  ABNORMAL
+  UNKNOWN
+}
+
+enum HealthSymptom {
+  SNEEZING
+  RUNNY_NOSE
+  EYE_DISCHARGE
+  HAIR_LOSS
+  BLEEDING
+  LUMP
+  DIARRHEA
+  UNSTEADY
+  ABNORMAL_BREATHING
+  LOSS_OF_APPETITE
+  OTHER
 }

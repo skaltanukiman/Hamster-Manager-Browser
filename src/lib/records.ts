@@ -1,0 +1,128 @@
+import type {
+  HealthAmountCondition,
+  HealthExcretionCondition,
+  HealthOverallCondition,
+  HealthSymptom,
+  HamsterRecordType
+} from "@prisma/client";
+
+import { isValidDateInput } from "@/lib/date";
+import type { HealthRecordInput, MedicalRecordInput, MemoryRecordInput } from "@/lib/record-schemas";
+
+export const RECORD_PAGE_SIZE = 20;
+
+export const RECORD_TYPE_LABELS: Record<HamsterRecordType, string> = {
+  HEALTH: "健康・体調",
+  MEDICAL: "通院",
+  MEMORY: "思い出"
+};
+
+export const HEALTH_OVERALL_LABELS: Record<HealthOverallCondition, string> = {
+  GOOD: "良好",
+  CONCERN: "少し気になる",
+  WARNING: "要注意"
+};
+
+export const HEALTH_AMOUNT_LABELS: Record<HealthAmountCondition, string> = {
+  NORMAL: "普通",
+  LOW: "少ない",
+  NONE: "なし・ほとんどない",
+  UNKNOWN: "未確認"
+};
+
+export const HEALTH_EXCRETION_LABELS: Record<HealthExcretionCondition, string> = {
+  NORMAL: "通常",
+  LOW: "少ない",
+  ABNORMAL: "異常あり",
+  UNKNOWN: "未確認"
+};
+
+export const HEALTH_SYMPTOM_LABELS: Record<HealthSymptom, string> = {
+  SNEEZING: "くしゃみ",
+  RUNNY_NOSE: "鼻水",
+  EYE_DISCHARGE: "目やに",
+  HAIR_LOSS: "脱毛",
+  BLEEDING: "出血",
+  LUMP: "しこり",
+  DIARRHEA: "軟便・下痢",
+  UNSTEADY: "ふらつき",
+  ABNORMAL_BREATHING: "呼吸の異常",
+  LOSS_OF_APPETITE: "食欲低下",
+  OTHER: "その他"
+};
+
+export const MEMORY_TAG_SUGGESTIONS = [
+  "お迎え",
+  "初めて",
+  "日常",
+  "かわいい行動",
+  "寝姿",
+  "食事",
+  "遊び",
+  "誕生日",
+  "記念日"
+] as const;
+
+export type RecordTypeFilter = "all" | "health" | "medical" | "memory";
+
+export function normalizeRecordTypeFilter(value?: string): RecordTypeFilter {
+  return value === "health" || value === "medical" || value === "memory" ? value : "all";
+}
+
+export function filterToRecordType(value: RecordTypeFilter): HamsterRecordType | undefined {
+  if (value === "health") return "HEALTH";
+  if (value === "medical") return "MEDICAL";
+  if (value === "memory") return "MEMORY";
+  return undefined;
+}
+
+export function normalizeRecordPage(value?: string) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+export function normalizeRecordDateFilter(value?: string) {
+  return value && isValidDateInput(value) ? value : "";
+}
+
+export function normalizeRecordKeyword(value?: string) {
+  return value?.trim().slice(0, 100) ?? "";
+}
+
+export function buildHealthRecordTitle(overallCondition: HealthOverallCondition) {
+  return `体調: ${HEALTH_OVERALL_LABELS[overallCondition]}`;
+}
+
+export function buildMedicalRecordTitle(hospitalName: string | null) {
+  return hospitalName ? `通院: ${hospitalName}` : "通院記録";
+}
+
+function joinSearchText(values: Array<string | null | undefined>) {
+  return values.filter((value): value is string => Boolean(value)).join("\n").toLocaleLowerCase("ja-JP");
+}
+
+export function buildHealthSearchText(input: HealthRecordInput) {
+  return joinSearchText([
+    buildHealthRecordTitle(input.overallCondition),
+    input.memo,
+    ...input.symptoms.map((symptom) => HEALTH_SYMPTOM_LABELS[symptom])
+  ]);
+}
+
+export function buildMedicalSearchText(input: MedicalRecordInput) {
+  return joinSearchText([
+    buildMedicalRecordTitle(input.hospitalName),
+    input.hospitalName,
+    input.reason,
+    input.diagnosis,
+    input.examination,
+    input.treatment,
+    input.medication,
+    input.medicationInstructions,
+    input.memo
+  ]);
+}
+
+export function buildMemorySearchText(input: MemoryRecordInput) {
+  return joinSearchText([input.title, input.content, ...input.tags]);
+}

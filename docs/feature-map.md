@@ -50,12 +50,23 @@
 - **画面または URL:** `/hamsters`。
 - **主なコンポーネント:** `HamsterList`、`HamsterImageField`、`HamsterThumbnail`、`SelectionActionBar`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。
 - **Server Action または API:** `createHamster`、`updateHamster`、`updateHamsterActiveStatus`、`deleteHamster`、`deleteHamsters`（`src/app/actions/hamsters.ts`）、認証付き画像配信 `/api/hamsters/[id]/image`。
-- **データアクセス・Prismaモデル:** `getHamsterManagementData`、`Hamster`。削除は関連 `CleaningRecord` / `WeightRecord` / `DashboardHamster` が schema の Cascade により連動する。
+- **データアクセス・Prismaモデル:** `getHamsterManagementData`、`Hamster`。削除は関連 `CleaningRecord` / `WeightRecord` / `DashboardHamster` / `HamsterRecord` と種類別詳細が schema の Cascade により連動し、思い出画像ファイルはActionが削除後に整理する。
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
 - **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
 - **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
+
+## 健康・通院・思い出記録
+
+- **画面または URL:** `/records`、認証付き思い出画像 `/api/records/[id]/image`。
+- **主なコンポーネント:** `RecordCreateForms`、`RecordTimeline`、`RecordImageField`、`HamsterSelectorInput`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。登録フォームは健康・通院・思い出で分け、閲覧は同じカード型タイムラインへ統合する。
+- **Server Action または API:** `createHealthRecord`、`updateHealthRecord`、`createMedicalRecord`、`updateMedicalRecord`、`createMemoryRecord`、`updateMemoryRecord`、`deleteHamsterRecord`（`src/app/actions/records.ts`）。画像Routeは認証後、記録に紐づくハムスターの現在のHousehold所属を確認してWebPだけを配信する。
+- **データアクセス・Prismaモデル:** `getRecordsPageData`（`src/lib/record-queries.ts`）が対象ハムスター、種類、暦日期間、検索用テキスト、お気に入りをDB側で絞り込み、記録日・作成日時・IDの降順で20件ページングする。`HamsterRecord` を親に、`HealthRecordDetail`、`MedicalVisitDetail`、`MemoryRecordDetail` を1対1、`MemoryRecordImage` を画像用の子として持つ。症状はenum配列、タグは自由文字列配列、横断キーワードは親の `searchText` と `pg_trgm` GIN索引を利用する。
+- **バリデーション:** `src/lib/record-schemas.ts`。健康の各enum・複数症状、通院理由、0円以上の整数診察費、思い出のタイトル・内容・最大20タグ、全項目の文字数上限を検証する。記録日は `src/lib/date.ts` の暦日変換を再利用して未来日を拒否し、次回通院予定日だけ未来日を許可する。画像は `src/lib/record-image.ts` が既存のSharp変換・MIME/実体・2MB制限・安全なUUID名・原子的保存を再利用する。
+- **関連テスト:** `tests/records.test.ts`（種類別入力、診察費、enum、タグ、検索対象、Household絞り込み、ページング、データモデル、画像変換/分離/後片付け、realtime構造）、`tests/authorization.test.ts`（全記録ActionのVIEWER共通拒否）。
+- **関連設定:** `RECORD_IMAGE_DIR`（Dockerは `/app/uploads/records`）、`docker-compose.yml` の `./uploads:/app/uploads`、migration `20260715120000_add_hamster_records`、`package.json` のテスト列挙。
+- **依存関係:** OWNER / ADMIN / MEMBERは更新可能、VIEWERは閲覧・検索・絞り込み・ページ移動だけでActionも拒否する。全取得・更新は対象ハムスターが現在のHousehold所属であることをDB条件に含める。管理外ハムスターの健康・通院は閲覧のみ、思い出は登録・編集・削除可能。全更新は `source: "record"` の realtime mutation を通し、業務データとrevisionを同一トランザクションで確定する。画像差し替え・記録削除・ハムスター削除後は旧ファイルを削除し、失敗は警告ログへ残す。初回は1記録1枚だが画像別テーブルと表示順で複数枚へ拡張できる。
 
 ## 体重履歴
 
@@ -128,7 +139,7 @@
 - **画面または URL:** ログイン後の全画面（`RootLayout`）、SSE `/api/realtime/household`、revision API `/api/realtime/household/revision`。
 - **主なコンポーネント:** `RealtimeRefreshListener`、`AutoSubmitInput`、`AutoSubmitSelect`、`DirtySubmitButton`、`form-dirty-state.ts`。
 - **Server Action または API:** 更新系 Action は `commitHouseholdMutation` / `publishHouseholdChangeSafely`（`src/lib/realtime.ts`）を利用。SSE Route はメモリ内 subscribe、revision Route は DB read。
-- **データアクセス・Prismaモデル:** `Household.realtimeRevision`、`realtimeActorClientId`、`realtimeActorUserId`、`HouseholdMember` による API 認可。業務データ更新と revision 増加は同一 transaction。
+- **データアクセス・Prismaモデル:** `Household.realtimeRevision`、`realtimeActorClientId`、`realtimeActorUserId`、`HouseholdMember` による API 認可。業務データ更新と revision 増加は同一 transaction。更新元 `source` はハムスター、掃除、体重、記録、設定、共有などを区別する。
 - **バリデーション:** API はログイン・`householdId`・所属を確認。クライアントは `realtimeActorId`、現在ユーザー、未保存フォームを照合する。
 - **関連テスト:** `tests/csv-and-realtime.test.ts`、`tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/realtime-constants.ts`、`src/lib/realtime-health.ts`。SSE は Node runtime / force-dynamic 指定。
@@ -139,4 +150,4 @@
 - **対象:** `prisma/schema.prisma`、`prisma/migrations/`、`src/lib/prisma.ts`、`src/lib/health.ts`、`src/app/api/health/route.ts`、`docker-compose.yml`、`Dockerfile`、`next.config.mjs`、`.env*.example`、`package.json`。
 - **役割:** PostgreSQL 接続と Prisma Client、migration、Docker の app / db 分離、standalone build、環境変数・依存ライブラリを定義する。app のホスト側ポートは `127.0.0.1:3001` に限定し、本番アクセスは Nginx / HTTPS を経由させる。`/api/health` とapp healthcheckでNext.js応答・DB接続を確認し、`next.config.mjs` で最低限のセキュリティヘッダーと `X-Powered-By` 無効化を設定する。
 - **関連テスト:** `tests/logger.test.ts`（ログ出力）、`tests/audit-log.test.ts`（Household管理操作の成功監査ログ）、`tests/health.test.ts`（DBヘルス判定）、`tests/security-headers.test.ts`（セキュリティヘッダー設定）、`scripts/log-smoke.ts`。変更内容に応じて `npm.cmd run lint`、`npm.cmd run build`、`npm.cmd test` を実行する。
-- **依存関係:** Prismaモデル変更は migration・生成 Client・関連 Action / query / schema の更新が必要。`Dockerfile` は Prisma generate と migrate deploy を行う。デプロイは `docker compose up -d --wait --wait-timeout 120` でDB・app双方のhealthyを確認する。CSV 上限を変更する際は `next.config.mjs` の Action body size と整合させる。
+- **依存関係:** Prismaモデル変更は migration・生成 Client・関連 Action / query / schema の更新が必要。`Dockerfile` は Prisma generate と migrate deploy を行う。デプロイは `docker compose up -d --wait --wait-timeout 120` でDB・app双方のhealthyを確認する。プロフィール画像は `HAMSTER_IMAGE_DIR`、思い出画像は `RECORD_IMAGE_DIR` を使い、どちらもComposeの `./uploads:/app/uploads` で永続化する。CSV 上限を変更する際は `next.config.mjs` の Action body size と整合させる。
