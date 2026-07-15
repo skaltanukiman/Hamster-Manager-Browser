@@ -10,7 +10,7 @@ import {
   HOUSEHOLD_ROLE_LABELS
 } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
-import { formatDateJp } from "@/lib/date";
+import { formatDateJst } from "@/lib/date";
 import { INVITATION_TTL_DAYS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
 import { MemberRemoveForm } from "@/components/member-remove-form";
@@ -137,7 +137,7 @@ export default async function MembersPage({
                     <td className="font-semibold text-ink">{member.user.name || "未設定"}</td>
                     <td>{member.user.email || "未設定"}</td>
                     <td>{HOUSEHOLD_ROLE_LABELS[member.role]}</td>
-                    <td>{formatDateJp(member.createdAt)}</td>
+                    <td>{formatDateJst(member.createdAt)}</td>
                     {hasMemberActions ? (
                       <td>
                         {canUpdateThisMemberRole || canRemoveThisMember ? (
@@ -190,7 +190,7 @@ export default async function MembersPage({
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs text-slate-500">参加日: {formatDateJp(member.createdAt)}</p>
+                  <p className="text-xs text-slate-500">参加日: {formatDateJst(member.createdAt)}</p>
                   {canUpdateThisMemberRole || canRemoveThisMember ? (
                     <div className="flex w-full flex-col gap-2">
                       {canUpdateThisMemberRole ? (

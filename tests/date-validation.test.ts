@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  formatDateJp,
+  formatDateJst,
+  formatDateTimeJst,
   getDaysInMonth,
   isValidDateInput,
   isValidYearMonthInput,
@@ -27,6 +30,21 @@ test("実在する日付と閏日だけを受け付ける", () => {
 test("不正日付を別の日へ正規化せず例外にする", () => {
   assert.equal(toDateInputValue(parseDateInput("2024-02-29")), "2024-02-29");
   assert.throws(() => parseDateInput("2026-02-31"), /Invalid date input/);
+});
+
+test("時刻を持つUTC timestampはJSTの日付と日時へ変換して表示する", () => {
+  const beforeJstMidnight = new Date("2026-07-14T14:59:00.000Z");
+  const afterJstMidnight = new Date("2026-07-14T15:01:00.000Z");
+
+  assert.equal(formatDateJst(beforeJstMidnight), "2026/07/14");
+  assert.equal(formatDateTimeJst(beforeJstMidnight), "2026/07/14 23:59");
+  assert.equal(formatDateJst(afterJstMidnight), "2026/07/15");
+  assert.equal(formatDateTimeJst(afterJstMidnight), "2026/07/15 00:01");
+  assert.equal(formatDateTimeJst(undefined), "未記録");
+});
+
+test("日付のみのDB値はタイムゾーン変換せず同じ暦日を表示する", () => {
+  assert.equal(formatDateJp(new Date("2026-07-14T00:00:00.000Z")), "2026/07/14");
 });
 
 test("年月は1月から12月だけを受け付ける", () => {

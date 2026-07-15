@@ -1,4 +1,5 @@
 import { InvitationRevokeForm } from "@/components/invitation-revoke-form";
+import { formatDateTimeJst } from "@/lib/date";
 import {
   getHouseholdInvitationStatus,
   type HouseholdInvitationStatus
@@ -26,17 +27,6 @@ const statusClasses: Record<HouseholdInvitationStatus, string> = {
   expired: "bg-amber-50 text-amber-700",
   revoked: "bg-red-50 text-red-700"
 };
-
-function formatDateTimeJp(date: Date) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
-}
 
 function InvitationStatusBadge({ status }: { status: HouseholdInvitationStatus }) {
   return (
@@ -90,8 +80,8 @@ export function HouseholdInvitationList({
               const status = getHouseholdInvitationStatus(invitation, now);
               return (
                 <tr key={invitation.id}>
-                  <td>{formatDateTimeJp(invitation.createdAt)}</td>
-                  <td>{formatDateTimeJp(invitation.expiresAt)}</td>
+                  <td>{formatDateTimeJst(invitation.createdAt)}</td>
+                  <td>{formatDateTimeJst(invitation.expiresAt)}</td>
                   <td>
                     <InvitationStatusBadge status={status} />
                   </td>
@@ -114,11 +104,11 @@ export function HouseholdInvitationList({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-ink">{creatorName(invitation)}</p>
-                  <p className="mt-1 text-xs text-slate-500">作成: {formatDateTimeJp(invitation.createdAt)}</p>
+                  <p className="mt-1 text-xs text-slate-500">作成: {formatDateTimeJst(invitation.createdAt)}</p>
                 </div>
                 <InvitationStatusBadge status={status} />
               </div>
-              <p className="mt-3 text-xs text-slate-600">有効期限: {formatDateTimeJp(invitation.expiresAt)}</p>
+              <p className="mt-3 text-xs text-slate-600">有効期限: {formatDateTimeJst(invitation.expiresAt)}</p>
               {canManage && status === "active" ? (
                 <div className="mt-3">
                   <InvitationRevokeForm invitationId={invitation.id} />

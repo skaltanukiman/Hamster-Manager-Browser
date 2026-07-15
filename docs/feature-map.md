@@ -1,6 +1,6 @@
 # 機能マップ
 
-最終確認: 2026-07-14。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、共有データ更新Actionは `getRequiredHouseholdMutationContext()` でVIEWERをDB処理前に拒否します。Action / API 側でも対象の所属・管理状態を確認します。
+最終確認: 2026-07-15。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、共有データ更新Actionは `getRequiredHouseholdMutationContext()` でVIEWERをDB処理前に拒否します。Action / API 側でも対象の所属・管理状態を確認します。
 
 ## 共通の起点
 
@@ -9,7 +9,7 @@
 | 認証ガード・ログイン遷移 | `src/proxy.ts`, `src/auth.ts`, `src/app/login/page.tsx`, `src/app/api/auth/[...nextauth]/route.ts` | `/login`、`/api/auth`、`/api/health`以外は認証必須。Auth.js は DB セッションを使用し、認証・認可ポリシーは `tests/authorization.test.ts` で検証する。 |
 | 現在の Household と権限 | `src/lib/authorization.ts`, `src/lib/auth-context.ts`, `src/app/actions/households.ts`, `src/components/household-switcher.tsx` | `OWNER` / `ADMIN` / `MEMBER` / `VIEWER` の閲覧・共有データ編集・招待・解除・権限変更を共通判定する。`hamster_current_household` Cookie は所属確認後にのみ更新する。 |
 | レイアウト・ナビゲーション | `src/app/layout.tsx`, `src/components/app-nav.tsx`, `src/app/globals.css` | ログイン済み画面には Household 切替とリアルタイム監視が常設される。 |
-| 日付・検索・フォーム状態 | `src/lib/date.ts`, `src/lib/search.ts`, `src/components/form-dirty-state.ts`, `src/components/unsaved-changes-guard.tsx`, `src/components/dirty-submit-button.tsx` | 日付は JST の入力値を用い、形式だけでなく実在する暦日・年月を `tests/date-validation.test.ts` で検証する。未保存ガードと保存ボタン活性は一覧・掃除・体重で共有する。 |
+| 日付・検索・フォーム状態 | `src/lib/date.ts`, `src/lib/search.ts`, `src/components/form-dirty-state.ts`, `src/components/unsaved-changes-guard.tsx`, `src/components/dirty-submit-button.tsx` | 測定日・掃除日などの日付のみの値は暦日を維持し、`createdAt`・`expiresAt`など時刻を持つUTC timestampは画面表示時にJSTへ変換する。形式だけでなく実在する暦日・年月とJST日付境界を `tests/date-validation.test.ts` で検証する。未保存ガードと保存ボタン活性は一覧・掃除・体重で共有する。 |
 | エラー・ログ | `src/lib/server-errors.ts`, `src/lib/logger.ts`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/components/status-message.tsx`, `src/components/unexpected-error-panel.tsx` | 利用者には内部例外を出さず errorId を表示する。`tests/error-handling.test.ts`、`tests/logger.test.ts` を併せて更新する。 |
 
 ## ログイン・認証
@@ -121,7 +121,7 @@
 - **バリデーション:** Action 内で `AppRole` を許可値として確認。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。
 - **関連テスト:** `tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）。
 - **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。
-- **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく page / Action の両方でアプリ管理者を確認する。
+- **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく page / Action の両方でアプリ管理者を確認する。ユーザー・共有の作成日はJST日付、招待の作成・期限・承認はJST日時で表示する。
 
 ## リアルタイム同期
 

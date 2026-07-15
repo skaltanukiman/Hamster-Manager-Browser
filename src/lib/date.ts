@@ -1,4 +1,5 @@
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -55,10 +56,33 @@ export function formatDateJp(date: Date | null | undefined) {
   return toDateInputValue(date).split("-").join("/");
 }
 
+function getJstDate(date: Date) {
+  return new Date(date.getTime() + JST_OFFSET_MS);
+}
+
+// createdAtなど時刻を持つtimestampは、DBのUTC値をJSTへ変換してから表示する。
+export function formatDateJst(date: Date | null | undefined) {
+  if (!date) {
+    return "未記録";
+  }
+
+  const jst = getJstDate(date);
+  return `${jst.getUTCFullYear()}/${pad(jst.getUTCMonth() + 1)}/${pad(jst.getUTCDate())}`;
+}
+
+export function formatDateTimeJst(date: Date | null | undefined) {
+  if (!date) {
+    return "未記録";
+  }
+
+  const jst = getJstDate(date);
+  return `${formatDateJst(date)} ${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}`;
+}
+
 export function todayInputJst() {
   const now = new Date();
   // 入力上限や経過日数は日本での運用を前提に、JSTの日付境界で判定する。
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const jst = getJstDate(now);
   return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}`;
 }
 

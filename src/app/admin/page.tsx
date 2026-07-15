@@ -5,7 +5,7 @@ import { updateUserAppRole } from "@/app/actions/admin";
 import { StatusMessage } from "@/components/status-message";
 import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
-import { formatDateJp } from "@/lib/date";
+import { formatDateJst, formatDateTimeJst } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -179,7 +179,7 @@ export default async function AdminPage({
                   </td>
                   <td>{user._count.memberships}</td>
                   <td>{user._count.sessions}</td>
-                  <td>{formatDateJp(user.createdAt)}</td>
+                  <td>{formatDateJst(user.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -202,7 +202,7 @@ export default async function AdminPage({
                     メンバー {household._count.members} 人 / ハムスター {household._count.hamsters} 件 / 招待 {household._count.invitations} 件
                   </p>
                 </div>
-                <span className="text-xs text-slate-500">作成日: {formatDateJp(household.createdAt)}</span>
+                <span className="text-xs text-slate-500">作成日: {formatDateJst(household.createdAt)}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {household.members.map((member) => (
@@ -224,9 +224,9 @@ export default async function AdminPage({
               <tr>
                 <th>共有</th>
                 <th>状態</th>
-                <th>作成日</th>
-                <th>期限</th>
-                <th>承認日</th>
+                <th>作成日時</th>
+                <th>有効期限</th>
+                <th>承認日時</th>
               </tr>
             </thead>
             <tbody>
@@ -235,9 +235,9 @@ export default async function AdminPage({
                   <tr key={invitation.id}>
                     <td className="font-semibold text-ink">{invitation.household.name}</td>
                     <td>{invitationStatus(invitation, now)}</td>
-                    <td>{formatDateJp(invitation.createdAt)}</td>
-                    <td>{formatDateJp(invitation.expiresAt)}</td>
-                    <td>{invitation.acceptedAt ? formatDateJp(invitation.acceptedAt) : "-"}</td>
+                    <td>{formatDateTimeJst(invitation.createdAt)}</td>
+                    <td>{formatDateTimeJst(invitation.expiresAt)}</td>
+                    <td>{invitation.acceptedAt ? formatDateTimeJst(invitation.acceptedAt) : "-"}</td>
                   </tr>
                 ))
               ) : (
