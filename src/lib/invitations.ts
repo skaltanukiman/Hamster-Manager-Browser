@@ -16,6 +16,10 @@ type InvitationLifecycle = {
   expiresAt: Date;
 };
 
+type InvitationCreator = {
+  createdBy: { name: string | null; email: string | null } | null;
+};
+
 export function createInvitationToken() {
   return randomBytes(32).toString("base64url");
 }
@@ -69,6 +73,10 @@ export function getHouseholdInvitationStatus(
   if (invitation.acceptedAt) return "accepted";
   if (invitation.expiresAt.getTime() <= now.getTime()) return "expired";
   return "active";
+}
+
+export function getInvitationCreatorDisplayName(invitation: InvitationCreator) {
+  return invitation.createdBy?.name || invitation.createdBy?.email || "不明（既存データ）";
 }
 
 export function invitationAcceptanceFailure(

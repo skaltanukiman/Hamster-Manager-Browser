@@ -1,8 +1,9 @@
 import { InvitationRevokeForm } from "@/components/invitation-revoke-form";
+import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { formatDateTimeJst } from "@/lib/date";
 import {
+  getInvitationCreatorDisplayName,
   getHouseholdInvitationStatus,
-  type HouseholdInvitationStatus
 } from "@/lib/invitations";
 
 type HouseholdInvitationListItem = {
@@ -13,32 +14,6 @@ type HouseholdInvitationListItem = {
   revokedAt: Date | null;
   createdBy: { name: string | null; email: string | null } | null;
 };
-
-const statusLabels: Record<HouseholdInvitationStatus, string> = {
-  active: "有効",
-  accepted: "使用済み",
-  expired: "期限切れ",
-  revoked: "無効化済み"
-};
-
-const statusClasses: Record<HouseholdInvitationStatus, string> = {
-  active: "bg-emerald-50 text-emerald-700",
-  accepted: "bg-slate-100 text-slate-700",
-  expired: "bg-amber-50 text-amber-700",
-  revoked: "bg-red-50 text-red-700"
-};
-
-function InvitationStatusBadge({ status }: { status: HouseholdInvitationStatus }) {
-  return (
-    <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${statusClasses[status]}`}>
-      {statusLabels[status]}
-    </span>
-  );
-}
-
-function creatorName(invitation: HouseholdInvitationListItem) {
-  return invitation.createdBy?.name || invitation.createdBy?.email || "不明（既存データ）";
-}
 
 export function HouseholdInvitationList({
   invitations,
@@ -85,7 +60,7 @@ export function HouseholdInvitationList({
                   <td>
                     <InvitationStatusBadge status={status} />
                   </td>
-                  <td>{creatorName(invitation)}</td>
+                  <td>{getInvitationCreatorDisplayName(invitation)}</td>
                   {canManage ? (
                     <td>{status === "active" ? <InvitationRevokeForm invitationId={invitation.id} /> : "-"}</td>
                   ) : null}
@@ -103,7 +78,7 @@ export function HouseholdInvitationList({
             <article key={invitation.id} className="rounded-md border border-slate-200 bg-white p-4 text-sm shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-ink">{creatorName(invitation)}</p>
+                  <p className="font-semibold text-ink">{getInvitationCreatorDisplayName(invitation)}</p>
                   <p className="mt-1 text-xs text-slate-500">作成: {formatDateTimeJst(invitation.createdAt)}</p>
                 </div>
                 <InvitationStatusBadge status={status} />

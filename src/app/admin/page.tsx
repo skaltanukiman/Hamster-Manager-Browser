@@ -1,11 +1,22 @@
-import { ShieldCheck, Users } from "lucide-react";
-import type { AppRole, HouseholdInvitation } from "@prisma/client";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Users } from "lucide-react";
+import type { AppRole } from "@prisma/client";
 
 import { updateUserAppRole } from "@/app/actions/admin";
+import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
+import {
+  ADMIN_INVITATION_SEARCH_MAX_LENGTH,
+  buildAdminInvitationHref,
+  getActiveInvitationCount,
+  getAdminInvitationPage,
+  parseAdminInvitationQuery,
+  type AdminInvitationQuery
+} from "@/lib/admin-invitations";
 import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
 import { formatDateJst, formatDateTimeJst } from "@/lib/date";
+import { getHouseholdInvitationStatus, getInvitationCreatorDisplayName } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -20,25 +31,9 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function invitationStatus(invitation: Pick<HouseholdInvitation, "acceptedAt" | "expiresAt" | "revokedAt">, now: Date) {
-  if (invitation.revokedAt) {
-    return "無効化済み";
-  }
-
-  if (invitation.acceptedAt) {
-    return "承認済み";
-  }
-
-  if (invitation.expiresAt.getTime() <= now.getTime()) {
-    return "期限切れ";
-  }
-
-  return "有効";
-}
-
-async function getAdminPageData() {
+async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
   const now = new Date();
-  const [users, households, invitations] = await Promise.all([
+  const [users, households, invitationPage, activeInvitationCount] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ createdAt: "asc" }],
       include: {
@@ -66,16 +61,18 @@ async function getAdminPageData() {
         }
       }
     }),
-    prisma.householdInvitation.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: {
-        household: true
-      }
-    })
+    getAdminInvitationPage(invitationQuery, now),
+    getActiveInvitationCount(now)
   ]);
 
-  return { users, households, invitations, now };
+  return {
+    users,
+    households,
+    invitationPage,
+    activeInvitationCount,
+    hasAnyInvitations: households.some((household) => household._count.invitations > 0),
+    now
+  };
 }
 
 function RoleSelect({
@@ -114,15 +111,25 @@ function RoleSelect({
 export default async function AdminPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
+  searchParams: Promise<{
+    status?: string | string[];
+    errorId?: string | string[];
+    inviteStatus?: string | string[];
+    inviteSearch?: string | string[];
+    inviteSort?: string | string[];
+    invitePage?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const currentUser = await getRequiredAppAdminUser();
   const canEditAppRoles = currentUser.appRole === "SUPER_ADMIN";
-  const { users, households, invitations, now } = await getAdminPageData();
-  const activeInvitationCount = invitations.filter(
-    (invitation) => !invitation.acceptedAt && !invitation.revokedAt && invitation.expiresAt > now
-  ).length;
+  const invitationQuery = parseAdminInvitationQuery(params);
+  const { users, households, invitationPage, activeInvitationCount, hasAnyInvitations, now } =
+    await getAdminPageData(invitationQuery);
+  const { invitations, pagination } = invitationPage;
+  const firstVisibleNumber =
+    pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
+  const lastVisibleNumber = (pagination.currentPage - 1) * pagination.pageSize + invitations.length;
 
   return (
     <div className="space-y-6">
@@ -218,36 +225,189 @@ export default async function AdminPage({
 
       <section className="space-y-3">
         <h3 className="text-base font-bold text-ink">招待一覧</h3>
+        <form
+          action="/admin"
+          method="get"
+          className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(130px,0.7fr)_minmax(220px,1.4fr)_minmax(220px,1fr)_auto] lg:items-end"
+        >
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            状態
+            <select name="inviteStatus" defaultValue={invitationQuery.status}>
+              <option value="all">すべて</option>
+              <option value="active">有効</option>
+              <option value="accepted">使用済み</option>
+              <option value="expired">期限切れ</option>
+              <option value="revoked">無効化済み</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            共有名
+            <input
+              type="search"
+              name="inviteSearch"
+              defaultValue={invitationQuery.search}
+              maxLength={ADMIN_INVITATION_SEARCH_MAX_LENGTH}
+              placeholder="共有名で検索"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            並び順
+            <select name="inviteSort" defaultValue={invitationQuery.sort}>
+              <option value="created-desc">作成日時：新しい順</option>
+              <option value="created-asc">作成日時：古い順</option>
+              <option value="expires-asc">有効期限：近い順</option>
+              <option value="expires-desc">有効期限：遠い順</option>
+            </select>
+          </label>
+          <input type="hidden" name="invitePage" value="1" />
+          <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss-dark"
+            >
+              絞り込む
+            </button>
+            <Link
+              href="/admin"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              条件をクリア
+            </Link>
+          </div>
+        </form>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+          {pagination.totalCount === 0 ? (
+            <span>条件に一致する招待はありません。</span>
+          ) : (
+            <span>
+              全{pagination.totalCount}件中 {firstVisibleNumber}～{lastVisibleNumber}件を表示しています。
+            </span>
+          )}
+          <span>
+            {pagination.currentPage} / {pagination.totalPages} ページ
+          </span>
+        </div>
+
         <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
           <table className="data-table">
             <thead>
               <tr>
                 <th>共有</th>
                 <th>状態</th>
+                <th>作成者</th>
                 <th>作成日時</th>
                 <th>有効期限</th>
-                <th>承認日時</th>
+                <th>使用日時</th>
               </tr>
             </thead>
             <tbody>
               {invitations.length > 0 ? (
-                invitations.map((invitation) => (
-                  <tr key={invitation.id}>
-                    <td className="font-semibold text-ink">{invitation.household.name}</td>
-                    <td>{invitationStatus(invitation, now)}</td>
-                    <td>{formatDateTimeJst(invitation.createdAt)}</td>
-                    <td>{formatDateTimeJst(invitation.expiresAt)}</td>
-                    <td>{invitation.acceptedAt ? formatDateTimeJst(invitation.acceptedAt) : "-"}</td>
-                  </tr>
-                ))
+                invitations.map((invitation) => {
+                  const status = getHouseholdInvitationStatus(invitation, now);
+                  return (
+                    <tr key={invitation.id}>
+                      <td className="font-semibold text-ink">{invitation.household.name}</td>
+                      <td>
+                        <InvitationStatusBadge status={status} />
+                      </td>
+                      <td>{getInvitationCreatorDisplayName(invitation)}</td>
+                      <td>{formatDateTimeJst(invitation.createdAt)}</td>
+                      <td>{formatDateTimeJst(invitation.expiresAt)}</td>
+                      <td>{invitation.acceptedAt ? formatDateTimeJst(invitation.acceptedAt) : "-"}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={5}>招待リンクはまだありません。</td>
+                  <td colSpan={6}>{hasAnyInvitations ? "条件に一致する招待はありません。" : "招待リンクはまだありません。"}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {pagination.totalCount > 0 ? (
+          <nav
+            className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end"
+            aria-label="招待一覧のページ移動"
+          >
+            {pagination.currentPage > 1 ? (
+              <Link
+                href={buildAdminInvitationHref(invitationQuery, 1)}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                <ChevronsLeft className="h-4 w-4" aria-hidden />
+                最初へ
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
+              >
+                <ChevronsLeft className="h-4 w-4" aria-hidden />
+                最初へ
+              </button>
+            )}
+            {pagination.currentPage > 1 ? (
+              <Link
+                href={buildAdminInvitationHref(invitationQuery, pagination.currentPage - 1)}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+                前へ
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+                前へ
+              </button>
+            )}
+            <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
+              {pagination.currentPage} / {pagination.totalPages} ページ
+            </span>
+            {pagination.currentPage < pagination.totalPages ? (
+              <Link
+                href={buildAdminInvitationHref(invitationQuery, pagination.currentPage + 1)}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                次へ
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
+              >
+                次へ
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+            {pagination.currentPage < pagination.totalPages ? (
+              <Link
+                href={buildAdminInvitationHref(invitationQuery, pagination.totalPages)}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                最後へ
+                <ChevronsRight className="h-4 w-4" aria-hidden />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
+              >
+                最後へ
+                <ChevronsRight className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+          </nav>
+        ) : null}
       </section>
     </div>
   );
