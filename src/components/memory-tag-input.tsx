@@ -68,10 +68,12 @@ export function MemoryTagInput({ savedTags }: { savedTags: string[] }) {
           placeholder={MEMORY_TAG_SUGGESTIONS.slice(0, 4).join("、")}
         />
       </label>
-      <div className="grid gap-2">
-        <span className="text-xs font-medium text-slate-600">保存済みタグ</span>
-        {reusableTags.length > 0 ? <div className="flex flex-wrap gap-2">{tagButtons(reusableTags)}</div> : <span className="text-xs text-slate-500">保存済みタグはありません。</span>}
-      </div>
+      <details className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-medium text-slate-700 select-none">保存済みタグ（{reusableTags.length}件）</summary>
+        <div className="mt-3">
+          {reusableTags.length > 0 ? <div className="flex flex-wrap gap-2">{tagButtons(reusableTags)}</div> : <span className="text-xs text-slate-500">保存済みタグはありません。</span>}
+        </div>
+      </details>
       <div className="grid gap-2">
         <span className="text-xs font-medium text-slate-600">候補</span>
         <div className="flex flex-wrap gap-2">{tagButtons(initialSuggestions)}</div>
