@@ -46,9 +46,12 @@ type RecordCreateErrorStatus =
   | "recordImageInvalid";
 
 export type RecordCreateActionResult = {
+  success: true;
+} | {
+  success: false;
   errorMessage: string;
   errorId?: string;
-} | null;
+};
 
 const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
   invalid: "入力内容を確認してください。",
@@ -61,7 +64,7 @@ const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
 };
 
 function recordCreateError(status: RecordCreateErrorStatus): RecordCreateActionResult {
-  return { errorMessage: recordCreateErrorMessages[status] };
+  return { success: false, errorMessage: recordCreateErrorMessages[status] };
 }
 
 function unexpectedRecordCreateError(
@@ -74,7 +77,7 @@ function unexpectedRecordCreateError(
     operation,
     context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
   });
-  return { errorMessage: "処理に失敗しました。時間を空けて再度お試しください。", errorId };
+  return { success: false, errorMessage: "処理に失敗しました。時間を空けて再度お試しください。", errorId };
 }
 
 function recordUrl(hamsterId: string | null | undefined, status: string) {
@@ -180,7 +183,7 @@ export async function createHealthRecord(formData: FormData): Promise<RecordCrea
         })
     });
     publishAndRevalidate(change, context.household.id, "records.health.create");
-    recordRedirect(result.data.hamsterId, "recordCreated");
+    return { success: true };
   } catch (error) {
     return unexpectedRecordCreateError(error, "records.health.create", hamsterId);
   }
@@ -227,7 +230,7 @@ export async function createMedicalRecord(formData: FormData): Promise<RecordCre
         })
     });
     publishAndRevalidate(change, context.household.id, "records.medical.create");
-    recordRedirect(result.data.hamsterId, "recordCreated");
+    return { success: true };
   } catch (error) {
     return unexpectedRecordCreateError(error, "records.medical.create", hamsterId);
   }
@@ -281,7 +284,7 @@ export async function createMemoryRecord(formData: FormData): Promise<RecordCrea
       ? await commitWithNewRecordImage({ householdId: context.household.id, image: preparedImage, commit })
       : await commit();
     publishAndRevalidate(change, context.household.id, "records.memory.create");
-    recordRedirect(result.data.hamsterId, "recordCreated");
+    return { success: true };
   } catch (error) {
     if (error instanceof RecordImageError) {
       return recordCreateError(imageValidationStatus(error));
