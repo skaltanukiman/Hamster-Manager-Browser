@@ -24,7 +24,7 @@ export type RecordPageFilters = {
 
 export async function getRecordsPageData(filters: RecordPageFilters) {
   const context = await getRequiredHouseholdContext();
-  const [hamsters, setting] = await Promise.all([
+  const [hamsters, setting, savedMemoryTagRows] = await Promise.all([
     prisma.hamster.findMany({
       where: { householdId: context.household.id },
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
@@ -33,8 +33,14 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     prisma.appSetting.findUnique({
       where: { userId_householdId: { userId: context.user.id, householdId: context.household.id } },
       select: { hamsterSelectorMode: true }
+    }),
+    prisma.savedMemoryTag.findMany({
+      where: { householdId: context.household.id },
+      orderBy: [{ createdAt: "desc" }, { name: "asc" }],
+      select: { name: true }
     })
   ]);
+  const savedMemoryTags = savedMemoryTagRows.map((tag) => tag.name);
   const selectedHamster =
     hamsters.find((hamster) => hamster.id === filters.selectedHamsterId) ?? hamsters.find((hamster) => hamster.isActive) ?? hamsters[0] ?? null;
 
@@ -44,6 +50,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       hamsters,
       selectedHamster: null,
       selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+      savedMemoryTags,
       tagSuggestions: [],
       records: [],
       pagination: { currentPage: 1, totalPages: 1, totalCount: 0, pageSize: RECORD_PAGE_SIZE }
@@ -99,6 +106,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     hamsters,
     selectedHamster,
     selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+    savedMemoryTags,
     tagSuggestions: collectRecordTagSuggestions(tagRows),
     records: rows.map((record) => ({
       id: record.id,

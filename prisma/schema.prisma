@@ -113,6 +113,7 @@ model User {
   appSettings                 AppSetting[]
   createdHouseholdInvitations HouseholdInvitation[] @relation("HouseholdInvitationCreator")
   createdHamsterRecords       HamsterRecord[]       @relation("HamsterRecordCreator")
+  createdSavedMemoryTags      SavedMemoryTag[]      @relation("SavedMemoryTagCreator")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
@@ -169,6 +170,7 @@ model Household {
   hamsters              Hamster[]
   appSettings           AppSetting[]
   invitations           HouseholdInvitation[]
+  savedMemoryTags       SavedMemoryTag[]
 
   @@map("households")
 }
@@ -291,6 +293,22 @@ model MemoryRecordImage {
 
   @@unique([memoryRecordId, sortOrder])
   @@map("memory_record_images")
+}
+
+model SavedMemoryTag {
+  id              String    @id @default(cuid())
+  householdId     String    @map("household_id")
+  household       Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name            String
+  normalizedName  String    @map("normalized_name")
+  createdByUserId String?   @map("created_by_user_id")
+  createdBy       User?     @relation("SavedMemoryTagCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@unique([householdId, normalizedName])
+  @@index([householdId, createdAt])
+  @@index([createdByUserId])
+  @@map("saved_memory_tags")
 }
 
 enum HamsterRecordType {

@@ -116,7 +116,7 @@ export default async function RecordsPage({
             </AutoSubmitFilterForm>
           </section>
 
-          {canEdit && data.selectedHamster ? <RecordCreateForms hamsterId={selectedHamsterId} hamsterIsActive={data.selectedHamster.isActive} today={today} /> : !canEdit ? <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">閲覧者は記録の検索・閲覧のみ利用できます。</p> : null}
+          {canEdit && data.selectedHamster ? <RecordCreateForms hamsterId={selectedHamsterId} hamsterIsActive={data.selectedHamster.isActive} today={today} savedMemoryTags={data.savedMemoryTags} /> : !canEdit ? <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">閲覧者は記録の検索・閲覧のみ利用できます。</p> : null}
 
           <section className="grid gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

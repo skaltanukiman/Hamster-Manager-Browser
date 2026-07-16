@@ -26,6 +26,7 @@ import {
 import {
   buildHealthRecordTitle,
   buildHealthSearchText,
+  buildSavedMemoryTagRows,
   buildMedicalRecordTitle,
   buildMedicalSearchText,
   buildMemorySearchText
@@ -214,8 +215,14 @@ export async function createMemoryRecord(formData: FormData) {
         source: "record",
         actorClientId: getRealtimeActorId(formData),
         actorUserId: context.user.id,
-        mutate: (tx) =>
-          tx.hamsterRecord.create({
+        mutate: async (tx) => {
+          if (result.data.saveTags && result.data.tags.length > 0) {
+            await tx.savedMemoryTag.createMany({
+              data: buildSavedMemoryTagRows(context.household.id, context.user.id, result.data.tags),
+              skipDuplicates: true
+            });
+          }
+          return tx.hamsterRecord.create({
             data: {
               hamsterId: result.data.hamsterId,
               recordType: "MEMORY",
@@ -232,7 +239,8 @@ export async function createMemoryRecord(formData: FormData) {
                 }
               }
             }
-          })
+          });
+        }
       });
     const { change } = preparedImage
       ? await commitWithNewRecordImage({ householdId: context.household.id, image: preparedImage, commit })

@@ -158,6 +158,15 @@ export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[]
   return Array.from(tagsByNormalizedValue.values()).sort((left, right) => left.localeCompare(right, "ja"));
 }
 
+export function buildSavedMemoryTagRows(householdId: string, createdByUserId: string, tags: readonly string[]) {
+  return tags.map((name) => ({
+    householdId,
+    createdByUserId,
+    name,
+    normalizedName: normalizeSearchText(name)
+  }));
+}
+
 export function buildHealthRecordTitle(overallCondition: HealthOverallCondition) {
   return `体調: ${HEALTH_OVERALL_LABELS[overallCondition]}`;
 }

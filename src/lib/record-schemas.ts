@@ -88,7 +88,9 @@ const memoryBaseSchema = z.object({
   isFavorite: z.preprocess((value) => value === "true" || value === "on", z.boolean())
 });
 
-export const createMemoryRecordSchema = memoryBaseSchema;
+export const createMemoryRecordSchema = memoryBaseSchema.extend({
+  saveTags: z.preprocess((value) => value === "true" || value === "on", z.boolean())
+});
 export const updateMemoryRecordSchema = memoryBaseSchema.extend({ id: idSchema });
 
 export const deleteHamsterRecordSchema = z.object({

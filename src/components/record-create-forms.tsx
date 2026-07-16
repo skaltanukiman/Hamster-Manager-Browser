@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { createHealthRecord, createMedicalRecord, createMemoryRecord } from "@/app/actions/records";
 import { RecordImageField } from "@/components/record-image-field";
+import { MemoryTagInput } from "@/components/memory-tag-input";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import {
   HEALTH_AMOUNT_CONDITIONS,
@@ -16,15 +17,14 @@ import {
   HEALTH_AMOUNT_LABELS,
   HEALTH_EXCRETION_LABELS,
   HEALTH_OVERALL_LABELS,
-  HEALTH_SYMPTOM_LABELS,
-  MEMORY_TAG_SUGGESTIONS
+  HEALTH_SYMPTOM_LABELS
 } from "@/lib/records";
 
 type CreateKind = "health" | "medical" | "memory";
 
 const fieldClass = "grid gap-1 text-sm font-medium text-slate-700";
 
-export function RecordCreateForms({ hamsterId, hamsterIsActive, today }: { hamsterId: string; hamsterIsActive: boolean; today: string }) {
+export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemoryTags }: { hamsterId: string; hamsterIsActive: boolean; today: string; savedMemoryTags: string[] }) {
   const [kind, setKind] = useState<CreateKind>(hamsterIsActive ? "health" : "memory");
   const healthFormRef = useRef<HTMLFormElement>(null);
 
@@ -104,7 +104,7 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today }: { hamst
             <input type="hidden" name="hamsterId" value={hamsterId} />
             <div className="grid gap-3 sm:grid-cols-[180px_1fr]"><label className={fieldClass}>日付<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>タイトル<input name="title" maxLength={100} required placeholder="初めて手の上で寝てくれた" /></label></div>
             <label className={fieldClass}>内容<textarea name="content" maxLength={5000} required /></label>
-            <label className={fieldClass}>タグ（「、」またはカンマ区切り・最大20件）<input name="tags" maxLength={619} placeholder={MEMORY_TAG_SUGGESTIONS.slice(0, 4).join("、")} /><span className="text-xs font-normal text-slate-500">候補: {MEMORY_TAG_SUGGESTIONS.join("、")}</span></label>
+            <MemoryTagInput savedTags={savedMemoryTags} />
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" name="isFavorite" value="true" />お気に入りにする</label>
             <RecordImageField />
             <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">思い出を保存</button>
