@@ -183,5 +183,5 @@ export function buildMedicalSearchText(input: MedicalRecordInput) {
 }
 
 export function buildMemorySearchText(input: MemoryRecordInput) {
-  return joinSearchText([input.title, input.content, ...input.tags]);
+  return joinSearchText([input.title, input.content]);
 }
