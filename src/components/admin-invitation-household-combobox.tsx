@@ -21,7 +21,8 @@ export function AdminInvitationHouseholdCombobox({
   defaultValue: string;
   maxLength: number;
 }) {
-  const [inputValue, setInputValue] = useState(defaultValue);
+  const [inputState, setInputState] = useState(() => ({ sourceValue: defaultValue, value: defaultValue }));
+  const inputValue = inputState.sourceValue === defaultValue ? inputState.value : defaultValue;
   const [isOpen, setIsOpen] = useState(false);
   const listboxId = `${name}-suggestions`;
   const uniqueOptions = useMemo(
@@ -33,6 +34,10 @@ export function AdminInvitationHouseholdCombobox({
     if (!normalizedInput) return uniqueOptions;
     return uniqueOptions.filter((option) => normalizeSearchText(option.name).includes(normalizedInput));
   }, [inputValue, uniqueOptions]);
+
+  function setInputValue(value: string) {
+    setInputState({ sourceValue: defaultValue, value });
+  }
 
   return (
     <div
@@ -90,9 +95,11 @@ export function AdminInvitationHouseholdCombobox({
                 role="option"
                 aria-selected={option.name === inputValue}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
+                onClick={(event) => {
+                  const form = event.currentTarget.form;
                   setInputValue(option.name);
                   setIsOpen(false);
+                  setTimeout(() => form?.requestSubmit(), 0);
                 }}
                 className="block w-full rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
               >

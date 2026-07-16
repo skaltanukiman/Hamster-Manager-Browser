@@ -1,10 +1,10 @@
 import Link from "next/link";
-import Form from "next/form";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Users } from "lucide-react";
 import type { AppRole } from "@prisma/client";
 
 import { updateUserAppRole } from "@/app/actions/admin";
 import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
+import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
 import {
@@ -232,9 +232,8 @@ export default async function AdminPage({
 
       <section className="space-y-3">
         <h3 className="text-base font-bold text-ink">招待一覧</h3>
-        <Form
+        <AutoSubmitFilterForm
           action="/admin"
-          scroll={false}
           className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(130px,0.7fr)_minmax(220px,1.4fr)_minmax(220px,1fr)_auto] lg:items-end"
         >
           <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -250,7 +249,6 @@ export default async function AdminPage({
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             共有名
             <AdminInvitationHouseholdCombobox
-              key={invitationQuery.search}
               name="inviteSearch"
               defaultValue={invitationQuery.search}
               maxLength={ADMIN_INVITATION_SEARCH_MAX_LENGTH}
@@ -268,12 +266,6 @@ export default async function AdminPage({
           </label>
           <input type="hidden" name="invitePage" value="1" />
           <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss-dark"
-            >
-              絞り込む
-            </button>
             <Link
               href="/admin"
               scroll={false}
@@ -282,7 +274,7 @@ export default async function AdminPage({
               条件をクリア
             </Link>
           </div>
-        </Form>
+        </AutoSubmitFilterForm>
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
           {pagination.totalCount === 0 ? (

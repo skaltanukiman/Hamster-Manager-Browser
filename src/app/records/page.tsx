@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
 
+import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { RecordCreateForms } from "@/components/record-create-forms";
@@ -98,21 +99,20 @@ export default async function RecordsPage({
       ) : (
         <>
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <form method="get" className="grid gap-4">
+            <AutoSubmitFilterForm action="/records" ignoreFieldNames={["hamsterId"]} className="grid gap-4">
               <input type="hidden" name="type" value={filters.type} />
               <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_180px]">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">対象ハムスター<HamsterSelectorInput mode={data.selectorMode} name="hamsterId" selectedId={selectedHamsterId} options={data.hamsters} /></label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">開始日<input type="date" name="from" defaultValue={filters.from} max={today} /></label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">終了日<input type="date" name="to" defaultValue={filters.to} max={today} /></label>
               </div>
-              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+              <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">キーワード<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden /><input name="keyword" defaultValue={filters.keyword} maxLength={100} className="pl-9" placeholder="症状、診断、薬、タイトル、タグなど" /></div></label>
                 <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" name="favorite" value="1" defaultChecked={filters.favoriteOnly} />お気に入りの思い出のみ</label>
-                <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90"><Filter className="h-4 w-4" aria-hidden />絞り込む</button>
               </div>
               {invalidRange ? <p className="text-sm text-red-600">開始日は終了日以前の日付を指定してください。</p> : null}
-              <div><Link href={recordsHref({ ...currentFilters, from: "", to: "", keyword: "", favoriteOnly: false, page: 1 })} className="text-sm font-semibold text-moss hover:underline">絞り込みをクリア</Link></div>
-            </form>
+              <div><Link href={recordsHref({ ...currentFilters, from: "", to: "", keyword: "", favoriteOnly: false, page: 1 })} scroll={false} className="text-sm font-semibold text-moss hover:underline">絞り込みをクリア</Link></div>
+            </AutoSubmitFilterForm>
           </section>
 
           {canEdit && data.selectedHamster ? <RecordCreateForms hamsterId={selectedHamsterId} hamsterIsActive={data.selectedHamster.isActive} today={today} /> : !canEdit ? <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">閲覧者は記録の検索・閲覧のみ利用できます。</p> : null}
