@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { normalizeSearchText } from "@/lib/search";
 
 export const ADMIN_INVITATION_PAGE_SIZE = 20;
 export const ADMIN_INVITATION_SEARCH_MAX_LENGTH = 100;
@@ -131,7 +132,8 @@ export function buildActiveInvitationWhere(now: Date): Prisma.HouseholdInvitatio
 
 export function buildAdminInvitationWhere(
   query: Pick<AdminInvitationQuery, "status" | "search">,
-  now: Date
+  now: Date,
+  matchingHouseholdIds: string[] = []
 ): Prisma.HouseholdInvitationWhereInput {
   const where: Prisma.HouseholdInvitationWhereInput = {};
 
@@ -151,15 +153,22 @@ export function buildAdminInvitationWhere(
   }
 
   if (query.search) {
-    where.household = {
-      name: {
-        contains: query.search,
-        mode: "insensitive"
-      }
-    };
+    where.householdId = { in: matchingHouseholdIds };
   }
 
   return where;
+}
+
+export function findMatchingAdminInvitationHouseholdIds(
+  search: string,
+  households: ReadonlyArray<{ id: string; name: string }>
+) {
+  const normalizedSearch = normalizeSearchText(search);
+  if (!normalizedSearch) return households.map((household) => household.id);
+
+  return households
+    .filter((household) => normalizeSearchText(household.name).includes(normalizedSearch))
+    .map((household) => household.id);
 }
 
 export function buildAdminInvitationOrderBy(
@@ -194,9 +203,10 @@ export function buildAdminInvitationHref(query: AdminInvitationQuery, page: numb
 export async function getAdminInvitationPage(
   query: AdminInvitationQuery,
   now: Date,
+  matchingHouseholdIds: string[] = [],
   reader: AdminInvitationReader = adminInvitationReader
 ) {
-  const where = buildAdminInvitationWhere(query, now);
+  const where = buildAdminInvitationWhere(query, now, matchingHouseholdIds);
   const totalCount = await reader.count({ where });
   const totalPages = Math.max(Math.ceil(totalCount / ADMIN_INVITATION_PAGE_SIZE), 1);
   const currentPage = Math.min(query.page, totalPages);

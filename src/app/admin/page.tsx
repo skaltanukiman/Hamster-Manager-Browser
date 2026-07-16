@@ -4,11 +4,13 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Us
 import type { AppRole } from "@prisma/client";
 
 import { updateUserAppRole } from "@/app/actions/admin";
+import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
 import {
   ADMIN_INVITATION_SEARCH_MAX_LENGTH,
   buildAdminInvitationHref,
+  findMatchingAdminInvitationHouseholdIds,
   getActiveInvitationCount,
   getAdminInvitationPage,
   parseAdminInvitationQuery,
@@ -34,7 +36,7 @@ function getParam(value: string | string[] | undefined) {
 
 async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
   const now = new Date();
-  const [users, households, invitationPage, activeInvitationCount] = await Promise.all([
+  const [users, households, activeInvitationCount] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ createdAt: "asc" }],
       include: {
@@ -62,9 +64,13 @@ async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
         }
       }
     }),
-    getAdminInvitationPage(invitationQuery, now),
     getActiveInvitationCount(now)
   ]);
+  const matchingHouseholdIds = findMatchingAdminInvitationHouseholdIds(
+    invitationQuery.search,
+    households
+  );
+  const invitationPage = await getAdminInvitationPage(invitationQuery, now, matchingHouseholdIds);
 
   return {
     users,
@@ -243,12 +249,12 @@ export default async function AdminPage({
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             共有名
-            <input
-              type="search"
+            <AdminInvitationHouseholdCombobox
+              key={invitationQuery.search}
               name="inviteSearch"
               defaultValue={invitationQuery.search}
               maxLength={ADMIN_INVITATION_SEARCH_MAX_LENGTH}
-              placeholder="共有名で検索"
+              options={households.map((household) => ({ id: household.id, name: household.name }))}
             />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
