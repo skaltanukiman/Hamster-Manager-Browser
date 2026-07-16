@@ -15,6 +15,7 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
   const inputId = useId();
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const removeInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [removeCurrent, setRemoveCurrent] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -23,6 +24,10 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+
+  useEffect(() => {
+    removeInputRef.current?.form?.dispatchEvent(new Event("change", { bubbles: true }));
+  }, [removeCurrent]);
 
   function clearSelection() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -38,7 +43,13 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
   return (
     <div className="grid gap-2">
       <span className="text-sm font-medium text-slate-700">写真（JPEG / PNG / WebP、元画像10MBまで）</span>
-      <input type="hidden" name="removeImage" value={removeCurrent ? "true" : "false"} />
+      <input
+        ref={removeInputRef}
+        type="hidden"
+        name="removeImage"
+        value={removeCurrent ? "true" : "false"}
+        data-dirty-control
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="grid h-36 w-full place-items-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 sm:w-48">
           {previewUrl ? (
@@ -105,9 +116,8 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
           ) : hasCurrentImage && !removeCurrent ? (
             <button
               type="button"
-              onClick={(event) => {
+              onClick={() => {
                 setRemoveCurrent(true);
-                event.currentTarget.form?.dispatchEvent(new Event("change", { bubbles: true }));
               }}
               className="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
             >

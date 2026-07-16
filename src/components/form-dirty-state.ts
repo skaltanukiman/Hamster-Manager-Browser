@@ -76,7 +76,11 @@ function shouldTrackControl(control: HTMLInputElement | HTMLSelectElement | HTML
   }
 
   if (control instanceof HTMLInputElement) {
-    return !["button", "hidden", "reset", "submit"].includes(control.type);
+    if (control.type === "hidden") {
+      return control.hasAttribute("data-dirty-control");
+    }
+
+    return !["button", "reset", "submit"].includes(control.type);
   }
 
   return true;
