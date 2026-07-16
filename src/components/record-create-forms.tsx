@@ -1,9 +1,14 @@
 "use client";
 
 import { HeartPulse, ImagePlus, Stethoscope } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
 
-import { createHealthRecord, createMedicalRecord, createMemoryRecord } from "@/app/actions/records";
+import {
+  createHealthRecord,
+  createMedicalRecord,
+  createMemoryRecord,
+  type RecordCreateActionResult
+} from "@/app/actions/records";
 import { RecordImageField } from "@/components/record-image-field";
 import { MemoryTagInput } from "@/components/memory-tag-input";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
@@ -24,9 +29,39 @@ type CreateKind = "health" | "medical" | "memory";
 
 const fieldClass = "grid gap-1 text-sm font-medium text-slate-700";
 
+type CreateAction = (formData: FormData) => Promise<RecordCreateActionResult>;
+type CreateError = Exclude<RecordCreateActionResult, null>;
+
+function RecordCreateError({ error }: { error?: CreateError }) {
+  if (!error) return null;
+  return (
+    <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <p>{error.errorMessage}</p>
+      {error.errorId ? <p className="mt-1 break-all text-xs">エラーID: {error.errorId}</p> : null}
+    </div>
+  );
+}
+
 export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemoryTags }: { hamsterId: string; hamsterIsActive: boolean; today: string; savedMemoryTags: string[] }) {
   const [kind, setKind] = useState<CreateKind>(hamsterIsActive ? "health" : "memory");
   const healthFormRef = useRef<HTMLFormElement>(null);
+  const [pendingKind, setPendingKind] = useState<CreateKind | null>(null);
+  const [submitErrors, setSubmitErrors] = useState<Partial<Record<CreateKind, CreateError>>>({});
+  const [, startTransition] = useTransition();
+
+  function submitRecord(recordKind: CreateKind, action: CreateAction) {
+    return (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      setSubmitErrors((current) => ({ ...current, [recordKind]: undefined }));
+      setPendingKind(recordKind);
+      startTransition(async () => {
+        const result = await action(new FormData(form));
+        setSubmitErrors((current) => ({ ...current, [recordKind]: result ?? undefined }));
+        setPendingKind(null);
+      });
+    };
+  }
 
   function setUsualCondition() {
     const form = healthFormRef.current;
@@ -65,8 +100,9 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
 
         {hamsterIsActive ? (
           <div className={kind === "health" ? "" : "hidden"}>
-          <form ref={healthFormRef} action={createHealthRecord} data-dirty-watch className="mt-5 grid gap-4">
+          <form ref={healthFormRef} onSubmit={submitRecord("health", createHealthRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
+            <RecordCreateError error={submitErrors.health} />
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
               <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button>
@@ -81,33 +117,35 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
             </div>
             <fieldset className="grid gap-2"><legend className="text-sm font-semibold text-slate-700">気になる症状（複数選択可）</legend><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{HEALTH_SYMPTOMS.map((symptom) => <label key={symptom} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"><input type="checkbox" name="symptoms" value={symptom} />{HEALTH_SYMPTOM_LABELS[symptom]}</label>)}</div></fieldset>
             <label className={fieldClass}>メモ<textarea name="memo" maxLength={2000} placeholder="その他の症状や気になったことを入力" /></label>
-            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">体調記録を保存</button>
+            <button type="submit" disabled={pendingKind !== null} className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-wait disabled:opacity-60 sm:w-fit">{pendingKind === "health" ? "保存中..." : "体調記録を保存"}</button>
           </form>
           </div>
         ) : null}
 
         {hamsterIsActive ? (
           <div className={kind === "medical" ? "" : "hidden"}>
-          <form action={createMedicalRecord} data-dirty-watch className="mt-5 grid gap-4">
+          <form onSubmit={submitRecord("medical", createMedicalRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
+            <RecordCreateError error={submitErrors.medical} />
             <div className="grid gap-3 sm:grid-cols-2"><label className={fieldClass}>通院日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>動物病院名（任意）<input name="hospitalName" maxLength={120} /></label></div>
             <label className={fieldClass}>通院理由・症状<textarea name="reason" maxLength={2000} required /></label>
             <div className="grid gap-3 md:grid-cols-2"><label className={fieldClass}>診断内容<textarea name="diagnosis" maxLength={2000} /></label><label className={fieldClass}>検査内容<textarea name="examination" maxLength={2000} /></label><label className={fieldClass}>処置・治療内容<textarea name="treatment" maxLength={2000} /></label><label className={fieldClass}>処方薬<textarea name="medication" maxLength={2000} /></label><label className={fieldClass}>投薬方法<textarea name="medicationInstructions" maxLength={2000} /></label><label className={fieldClass}>メモ<textarea name="memo" maxLength={2000} /></label></div>
             <div className="grid gap-3 sm:grid-cols-2"><label className={fieldClass}>次回通院予定日（任意）<input type="date" name="nextVisitDate" /></label><label className={fieldClass}>診察費（円・整数）<input type="number" name="consultationFee" min="0" max="99999999" step="1" inputMode="numeric" /></label></div>
-            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">通院記録を保存</button>
+            <button type="submit" disabled={pendingKind !== null} className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-wait disabled:opacity-60 sm:w-fit">{pendingKind === "medical" ? "保存中..." : "通院記録を保存"}</button>
           </form>
           </div>
         ) : null}
 
         <div className={kind === "memory" ? "" : "hidden"}>
-          <form action={createMemoryRecord} data-dirty-watch className="mt-5 grid gap-4">
+          <form onSubmit={submitRecord("memory", createMemoryRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
+            <RecordCreateError error={submitErrors.memory} />
             <div className="grid gap-3 sm:grid-cols-[180px_1fr]"><label className={fieldClass}>日付<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>タイトル<input name="title" maxLength={100} required placeholder="初めて手の上で寝てくれた" /></label></div>
             <label className={fieldClass}>内容<textarea name="content" maxLength={5000} required /></label>
             <MemoryTagInput savedTags={savedMemoryTags} />
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" name="isFavorite" value="true" />お気に入りにする</label>
             <RecordImageField />
-            <button type="submit" className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 sm:w-fit">思い出を保存</button>
+            <button type="submit" disabled={pendingKind !== null} className="inline-flex h-11 items-center justify-center rounded-md bg-moss px-5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-wait disabled:opacity-60 sm:w-fit">{pendingKind === "memory" ? "保存中..." : "思い出を保存"}</button>
           </form>
         </div>
       </section>

@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
@@ -34,7 +34,48 @@ import {
 } from "@/lib/records";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
-import { handleServerActionError } from "@/lib/server-errors";
+import { handleServerActionError, logUnexpectedError } from "@/lib/server-errors";
+
+type RecordCreateErrorStatus =
+  | "invalid"
+  | "invalidDate"
+  | "feeInvalid"
+  | "future"
+  | "recordImageTooLarge"
+  | "recordImageUnsupported"
+  | "recordImageInvalid";
+
+export type RecordCreateActionResult = {
+  errorMessage: string;
+  errorId?: string;
+} | null;
+
+const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
+  invalid: "入力内容を確認してください。",
+  invalidDate: "日付を確認してください。",
+  feeInvalid: "診察費は0円以上の整数で入力してください。",
+  future: "未来日には記録できません。",
+  recordImageTooLarge: "思い出の写真は2MB以内で選択してください。",
+  recordImageUnsupported: "思い出の写真はJPEG、PNG、WebP形式を選択してください。",
+  recordImageInvalid: "思い出の写真を読み込めませんでした。別の画像を選択してください。"
+};
+
+function recordCreateError(status: RecordCreateErrorStatus): RecordCreateActionResult {
+  return { errorMessage: recordCreateErrorMessages[status] };
+}
+
+function unexpectedRecordCreateError(
+  error: unknown,
+  operation: string,
+  hamsterId: FormDataEntryValue | null
+): RecordCreateActionResult {
+  unstable_rethrow(error);
+  const errorId = logUnexpectedError(error, {
+    operation,
+    context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
+  });
+  return { errorMessage: "処理に失敗しました。時間を空けて再度お試しください。", errorId };
+}
 
 function recordUrl(hamsterId: string | null | undefined, status: string) {
   const params = new URLSearchParams({ status });
@@ -46,13 +87,13 @@ function recordRedirect(hamsterId: string | null | undefined, status: string): n
   redirect(recordUrl(hamsterId, status));
 }
 
-function validationStatus(issues: ZodIssue[]) {
+function validationStatus(issues: ZodIssue[]): RecordCreateErrorStatus {
   if (issues.some((issue) => issue.path[0] === "consultationFee")) return "feeInvalid";
   if (issues.some((issue) => issue.path[0] === "recordDate" || issue.path[0] === "nextVisitDate")) return "invalidDate";
   return "invalid";
 }
 
-function imageValidationStatus(error: InstanceType<typeof RecordImageError>) {
+function imageValidationStatus(error: InstanceType<typeof RecordImageError>): RecordCreateErrorStatus {
   if (error.code === "tooLarge") return "recordImageTooLarge";
   if (error.code === "unsupported") return "recordImageUnsupported";
   return "recordImageInvalid";
@@ -101,13 +142,13 @@ function publishAndRevalidate(change: Parameters<typeof publishHouseholdChangeSa
   revalidatePathsSafely([{ path: "/records" }], `${operation}.revalidate`, { householdId });
 }
 
-export async function createHealthRecord(formData: FormData) {
+export async function createHealthRecord(formData: FormData): Promise<RecordCreateActionResult> {
   const hamsterId = formData.get("hamsterId");
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = createHealthRecordSchema.safeParse(parseHealthForm(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
+    if (!result.success) return recordCreateError(validationStatus(result.error.issues));
+    if (isFutureDateInput(result.data.recordDate)) return recordCreateError("future");
     await getMutationHamster(result.data.hamsterId, context.household.id, false);
 
     const { change } = await commitHouseholdMutation({
@@ -141,21 +182,17 @@ export async function createHealthRecord(formData: FormData) {
     publishAndRevalidate(change, context.household.id, "records.health.create");
     recordRedirect(result.data.hamsterId, "recordCreated");
   } catch (error) {
-    handleServerActionError(error, {
-      operation: "records.health.create",
-      pathname: "/records",
-      context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
-    });
+    return unexpectedRecordCreateError(error, "records.health.create", hamsterId);
   }
 }
 
-export async function createMedicalRecord(formData: FormData) {
+export async function createMedicalRecord(formData: FormData): Promise<RecordCreateActionResult> {
   const hamsterId = formData.get("hamsterId");
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = createMedicalRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
+    if (!result.success) return recordCreateError(validationStatus(result.error.issues));
+    if (isFutureDateInput(result.data.recordDate)) return recordCreateError("future");
     await getMutationHamster(result.data.hamsterId, context.household.id, false);
 
     const { change } = await commitHouseholdMutation({
@@ -192,21 +229,17 @@ export async function createMedicalRecord(formData: FormData) {
     publishAndRevalidate(change, context.household.id, "records.medical.create");
     recordRedirect(result.data.hamsterId, "recordCreated");
   } catch (error) {
-    handleServerActionError(error, {
-      operation: "records.medical.create",
-      pathname: "/records",
-      context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
-    });
+    return unexpectedRecordCreateError(error, "records.medical.create", hamsterId);
   }
 }
 
-export async function createMemoryRecord(formData: FormData) {
+export async function createMemoryRecord(formData: FormData): Promise<RecordCreateActionResult> {
   const hamsterId = formData.get("hamsterId");
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = createMemoryRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
+    if (!result.success) return recordCreateError(validationStatus(result.error.issues));
+    if (isFutureDateInput(result.data.recordDate)) return recordCreateError("future");
     await getMutationHamster(result.data.hamsterId, context.household.id, true);
     const imageFile = getOptionalRecordImageFile(formData.get("image"));
     const preparedImage = imageFile ? await prepareRecordImage(imageFile) : null;
@@ -251,13 +284,9 @@ export async function createMemoryRecord(formData: FormData) {
     recordRedirect(result.data.hamsterId, "recordCreated");
   } catch (error) {
     if (error instanceof RecordImageError) {
-      recordRedirect(typeof hamsterId === "string" ? hamsterId : null, imageValidationStatus(error));
+      return recordCreateError(imageValidationStatus(error));
     }
-    handleServerActionError(error, {
-      operation: "records.memory.create",
-      pathname: "/records",
-      context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
-    });
+    return unexpectedRecordCreateError(error, "records.memory.create", hamsterId);
   }
 }
 

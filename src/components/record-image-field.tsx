@@ -3,6 +3,8 @@
 import { ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { MAX_IMAGE_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
+
 type RecordImageFieldProps = {
   recordId?: string;
   hasCurrentImage?: boolean;
@@ -11,10 +13,12 @@ type RecordImageFieldProps = {
 
 export function RecordImageField({ recordId, hasCurrentImage = false, disabled = false }: RecordImageFieldProps) {
   const inputId = useId();
+  const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [removeCurrent, setRemoveCurrent] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -23,7 +27,9 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
   function clearSelection() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
+    setValidationError(null);
     if (inputRef.current) {
+      inputRef.current.setCustomValidity("");
       inputRef.current.value = "";
       inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -68,17 +74,31 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
             accept="image/jpeg,image/png,image/webp"
             disabled={disabled}
             className="sr-only"
+            aria-invalid={validationError ? "true" : undefined}
+            aria-describedby={validationError ? errorId : undefined}
             onChange={(event) => {
               const file = event.target.files?.[0];
+              event.currentTarget.setCustomValidity("");
+              setValidationError(null);
               if (previewUrl) URL.revokeObjectURL(previewUrl);
               setPreviewUrl(null);
               if (file) {
+                const error = file.size > MAX_IMAGE_SIZE_BYTES
+                  ? "思い出の写真は2MB以内で選択してください。"
+                  : !(SUPPORTED_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
+                    ? "思い出の写真はJPEG、PNG、WebP形式を選択してください。"
+                    : null;
+                if (error) {
+                  event.currentTarget.setCustomValidity(error);
+                  setValidationError(error);
+                  return;
+                }
                 setPreviewUrl(URL.createObjectURL(file));
                 setRemoveCurrent(false);
               }
             }}
           />
-          {previewUrl ? (
+          {previewUrl || validationError ? (
             <button type="button" onClick={clearSelection} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               <X className="h-4 w-4" aria-hidden />選択解除
             </button>
@@ -96,6 +116,7 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
           ) : null}
         </div>
       </div>
+      {validationError ? <p id={errorId} role="alert" className="text-sm text-red-600">{validationError}</p> : null}
     </div>
   );
 }

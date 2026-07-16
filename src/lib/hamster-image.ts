@@ -4,9 +4,11 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-export const MAX_HAMSTER_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+import { MAX_IMAGE_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
+
+export const MAX_HAMSTER_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_BYTES;
 export const HAMSTER_IMAGE_SIZE = 512;
-export const HAMSTER_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const HAMSTER_IMAGE_MIME_TYPES = SUPPORTED_IMAGE_MIME_TYPES;
 
 const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const SAFE_FILE_NAME_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i;
