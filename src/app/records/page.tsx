@@ -108,7 +108,7 @@ export default async function RecordsPage({
                 <label className="grid gap-1 text-sm font-medium text-slate-700">終了日<input type="date" name="to" defaultValue={filters.to} max={today} /></label>
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                <label className="grid gap-1 text-sm font-medium text-slate-700">キーワード<RecordKeywordInput name="keyword" defaultValue={filters.keyword} tagSuggestions={data.tagSuggestions} /><span className="text-xs font-normal text-slate-500">カンマ区切りでOR検索。#を入力すると使用済みタグを選べます。</span></label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">キーワード<RecordKeywordInput name="keyword" defaultValue={filters.keyword} tagSuggestions={data.tagSuggestions} /><span className="text-xs font-normal text-slate-500">キーワード同士・タグ同士はOR、キーワードと#タグはANDで検索します。</span></label>
                 <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" name="favorite" value="1" defaultChecked={filters.favoriteOnly} />お気に入りの思い出のみ</label>
               </div>
               {invalidRange ? <p className="text-sm text-red-600">開始日は終了日以前の日付を指定してください。</p> : null}

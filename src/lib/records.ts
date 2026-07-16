@@ -123,18 +123,28 @@ export function getRecordSearchVariants(value: string) {
 }
 
 export function buildRecordKeywordWhere(keyword: string): Prisma.HamsterRecordWhereInput | undefined {
-  const conditions = parseRecordSearchTerms(keyword).flatMap<Prisma.HamsterRecordWhereInput>((term) =>
-    getRecordSearchVariants(term.value).map((variant) =>
-      term.isTag
-        ? {
-            recordType: "MEMORY",
-            memoryDetail: { is: { tags: { has: variant } } }
-          }
-        : { searchText: { contains: variant, mode: "insensitive" } }
-    )
-  );
+  const terms = parseRecordSearchTerms(keyword);
+  const keywordConditions = terms
+    .filter((term) => !term.isTag)
+    .flatMap<Prisma.HamsterRecordWhereInput>((term) =>
+      getRecordSearchVariants(term.value).map((variant) => ({
+        searchText: { contains: variant, mode: "insensitive" }
+      }))
+    );
+  const tagConditions = terms
+    .filter((term) => term.isTag)
+    .flatMap<Prisma.HamsterRecordWhereInput>((term) =>
+      getRecordSearchVariants(term.value).map((variant) => ({
+        recordType: "MEMORY",
+        memoryDetail: { is: { tags: { has: variant } } }
+      }))
+    );
+  const groups = [keywordConditions, tagConditions]
+    .filter((conditions) => conditions.length > 0)
+    .map<Prisma.HamsterRecordWhereInput>((conditions) => ({ OR: conditions }));
 
-  return conditions.length > 0 ? { OR: conditions } : undefined;
+  if (groups.length === 0) return undefined;
+  return groups.length === 1 ? groups[0] : { AND: groups };
 }
 
 export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[] }>) {
