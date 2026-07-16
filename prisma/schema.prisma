@@ -276,10 +276,12 @@ model MemoryRecordDetail {
   hamsterRecordId String              @id @map("hamster_record_id")
   hamsterRecord   HamsterRecord       @relation(fields: [hamsterRecordId], references: [id], onDelete: Cascade)
   tags            String[]            @default([])
+  searchTags      String[]            @default([]) @map("search_tags")
   isFavorite      Boolean             @default(false) @map("is_favorite")
   images          MemoryRecordImage[]
 
   @@index([isFavorite])
+  @@index([searchTags], type: Gin)
   @@map("memory_record_details")
 }
 

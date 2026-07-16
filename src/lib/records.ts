@@ -137,7 +137,7 @@ export function buildRecordKeywordWhere(keyword: string): Prisma.HamsterRecordWh
     .flatMap<Prisma.HamsterRecordWhereInput>((term) =>
       getRecordSearchVariants(term.value).map((variant) => ({
         recordType: "MEMORY",
-        memoryDetail: { is: { tags: { has: variant } } }
+        memoryDetail: { is: { searchTags: { has: variant } } }
       }))
     );
   const groups = [keywordConditions, tagConditions]
@@ -164,6 +164,12 @@ export function buildSavedMemoryTagRows(householdId: string, createdByUserId: st
     const name = normalizeTagStorageValue(value);
     return { householdId, createdByUserId, name, normalizedName: name };
   });
+}
+
+export function buildMemoryTagSearchValues(tags: readonly string[]) {
+  return Array.from(
+    new Set(tags.map((tag) => normalizeTagStorageValue(tag).toLocaleLowerCase("ja-JP")).filter(Boolean))
+  );
 }
 
 export function buildHealthRecordTitle(overallCondition: HealthOverallCondition) {

@@ -29,7 +29,8 @@ import {
   buildSavedMemoryTagRows,
   buildMedicalRecordTitle,
   buildMedicalSearchText,
-  buildMemorySearchText
+  buildMemorySearchText,
+  buildMemoryTagSearchValues
 } from "@/lib/records";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
@@ -234,6 +235,7 @@ export async function createMemoryRecord(formData: FormData) {
               memoryDetail: {
                 create: {
                   tags: result.data.tags,
+                  searchTags: buildMemoryTagSearchValues(result.data.tags),
                   isFavorite: result.data.isFavorite,
                   ...(fileName ? { images: { create: { fileName, sortOrder: 0 } } } : {})
                 }
@@ -436,7 +438,11 @@ export async function updateMemoryRecord(formData: FormData) {
           });
           await tx.memoryRecordDetail.update({
             where: { hamsterRecordId: record.id },
-            data: { tags: result.data.tags, isFavorite: result.data.isFavorite }
+            data: {
+              tags: result.data.tags,
+              searchTags: buildMemoryTagSearchValues(result.data.tags),
+              isFavorite: result.data.isFavorite
+            }
           });
           if (fileName !== undefined) {
             await tx.memoryRecordImage.deleteMany({ where: { memoryRecordId: record.id } });
