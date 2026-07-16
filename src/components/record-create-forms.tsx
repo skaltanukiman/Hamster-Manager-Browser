@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/records";
 import { RecordImageField } from "@/components/record-image-field";
 import { MemoryTagInput } from "@/components/memory-tag-input";
+import { AutoDismissSuccessMessage } from "@/components/status-message";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import {
   HEALTH_AMOUNT_CONDITIONS,
@@ -41,10 +42,6 @@ function RecordCreateError({ error }: { error?: CreateError }) {
       {error.errorId ? <p className="mt-1 break-all text-xs">エラーID: {error.errorId}</p> : null}
     </div>
   );
-}
-
-function RecordCreateSuccess({ visible }: { visible?: boolean }) {
-  return visible ? <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">記録を登録しました。</p> : null;
 }
 
 export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemoryTags }: { hamsterId: string; hamsterIsActive: boolean; today: string; savedMemoryTags: string[] }) {
@@ -118,7 +115,7 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
           <form key={formVersions.health} ref={healthFormRef} onSubmit={submitRecord("health", createHealthRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
             <RecordCreateError error={submitErrors.health} />
-            <RecordCreateSuccess visible={submitSuccesses.health} />
+            {submitSuccesses.health ? <AutoDismissSuccessMessage message="記録を登録しました。" /> : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
               <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button>
@@ -143,7 +140,7 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
           <form key={formVersions.medical} onSubmit={submitRecord("medical", createMedicalRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
             <RecordCreateError error={submitErrors.medical} />
-            <RecordCreateSuccess visible={submitSuccesses.medical} />
+            {submitSuccesses.medical ? <AutoDismissSuccessMessage message="記録を登録しました。" /> : null}
             <div className="grid gap-3 sm:grid-cols-2"><label className={fieldClass}>通院日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>動物病院名（任意）<input name="hospitalName" maxLength={120} /></label></div>
             <label className={fieldClass}>通院理由・症状<textarea name="reason" maxLength={2000} required /></label>
             <div className="grid gap-3 md:grid-cols-2"><label className={fieldClass}>診断内容<textarea name="diagnosis" maxLength={2000} /></label><label className={fieldClass}>検査内容<textarea name="examination" maxLength={2000} /></label><label className={fieldClass}>処置・治療内容<textarea name="treatment" maxLength={2000} /></label><label className={fieldClass}>処方薬<textarea name="medication" maxLength={2000} /></label><label className={fieldClass}>投薬方法<textarea name="medicationInstructions" maxLength={2000} /></label><label className={fieldClass}>メモ<textarea name="memo" maxLength={2000} /></label></div>
@@ -157,7 +154,7 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
           <form key={formVersions.memory} onSubmit={submitRecord("memory", createMemoryRecord)} data-dirty-watch className="mt-5 grid gap-4">
             <input type="hidden" name="hamsterId" value={hamsterId} />
             <RecordCreateError error={submitErrors.memory} />
-            <RecordCreateSuccess visible={submitSuccesses.memory} />
+            {submitSuccesses.memory ? <AutoDismissSuccessMessage message="記録を登録しました。" /> : null}
             <div className="grid gap-3 sm:grid-cols-[180px_1fr]"><label className={fieldClass}>日付<input type="date" name="recordDate" defaultValue={today} max={today} required /></label><label className={fieldClass}>タイトル<input name="title" maxLength={100} required placeholder="初めて手の上で寝てくれた" /></label></div>
             <label className={fieldClass}>内容<textarea name="content" maxLength={5000} required /></label>
             <MemoryTagInput savedTags={savedMemoryTags} />

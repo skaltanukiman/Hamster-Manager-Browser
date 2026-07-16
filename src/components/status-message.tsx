@@ -157,6 +157,10 @@ function AnimatedStatusMessage({ status, message, errorId }: { status: string; m
   );
 }
 
+export function AutoDismissSuccessMessage({ message }: { message: string }) {
+  return <AnimatedStatusMessage status="success" message={message} />;
+}
+
 export function StatusMessage({ status, errorId }: { status?: string; errorId?: string }) {
   if (!status || !messages[status]) {
     return null;
