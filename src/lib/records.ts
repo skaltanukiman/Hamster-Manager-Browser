@@ -10,6 +10,7 @@ import type {
 import { isValidDateInput } from "@/lib/date";
 import type { HealthRecordInput, MedicalRecordInput, MemoryRecordInput } from "@/lib/record-schemas";
 import { normalizeSearchText } from "@/lib/search";
+import { normalizeTagStorageValue } from "@/lib/tags";
 
 export const RECORD_PAGE_SIZE = 20;
 
@@ -151,7 +152,7 @@ export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[]
   const tagsByNormalizedValue = new Map<string, string>();
   for (const { tags } of rows) {
     for (const tag of tags) {
-      const normalized = normalizeSearchText(tag);
+      const normalized = normalizeTagStorageValue(tag);
       if (normalized && !tagsByNormalizedValue.has(normalized)) tagsByNormalizedValue.set(normalized, tag);
     }
   }
@@ -159,12 +160,10 @@ export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[]
 }
 
 export function buildSavedMemoryTagRows(householdId: string, createdByUserId: string, tags: readonly string[]) {
-  return tags.map((name) => ({
-    householdId,
-    createdByUserId,
-    name,
-    normalizedName: normalizeSearchText(name)
-  }));
+  return tags.map((value) => {
+    const name = normalizeTagStorageValue(value);
+    return { householdId, createdByUserId, name, normalizedName: name };
+  });
 }
 
 export function buildHealthRecordTitle(overallCondition: HealthOverallCondition) {

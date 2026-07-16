@@ -3,18 +3,18 @@
 import { useRef, useState } from "react";
 
 import { MEMORY_TAG_SUGGESTIONS } from "@/lib/records";
-import { normalizeSearchText } from "@/lib/search";
+import { normalizeTagStorageValue } from "@/lib/tags";
 
 const separatorPattern = /[、,]/;
 
 function splitTags(value: string) {
-  return value.split(separatorPattern).map((tag) => tag.trim()).filter(Boolean);
+  return value.normalize("NFKC").split(separatorPattern).map(normalizeTagStorageValue).filter(Boolean);
 }
 
 function dedupeTags(tags: readonly string[]) {
   const byNormalizedName = new Map<string, string>();
   for (const tag of tags) {
-    const normalized = normalizeSearchText(tag);
+    const normalized = normalizeTagStorageValue(tag);
     if (normalized && !byNormalizedName.has(normalized)) byNormalizedName.set(normalized, tag);
   }
   return Array.from(byNormalizedName.values());
@@ -23,15 +23,16 @@ function dedupeTags(tags: readonly string[]) {
 export function MemoryTagInput({ savedTags }: { savedTags: string[] }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const enteredTagNames = new Set(splitTags(value).map(normalizeSearchText));
+  const enteredTagNames = new Set(splitTags(value).map(normalizeTagStorageValue));
   const reusableTags = dedupeTags(savedTags);
+  const reusableTagNames = new Set(reusableTags.map(normalizeTagStorageValue));
   const initialSuggestions = dedupeTags(MEMORY_TAG_SUGGESTIONS).filter(
-    (tag) => !new Set(reusableTags.map(normalizeSearchText)).has(normalizeSearchText(tag))
+    (tag) => !reusableTagNames.has(normalizeTagStorageValue(tag))
   );
 
   function addTag(tag: string) {
     const currentTags = splitTags(value);
-    if (currentTags.length >= 20 || enteredTagNames.has(normalizeSearchText(tag))) return;
+    if (currentTags.length >= 20 || enteredTagNames.has(normalizeTagStorageValue(tag))) return;
     const input = inputRef.current;
     setValue([...currentTags, tag].join("、"));
     window.setTimeout(() => input?.dispatchEvent(new Event("input", { bubbles: true })), 0);
@@ -39,7 +40,7 @@ export function MemoryTagInput({ savedTags }: { savedTags: string[] }) {
 
   function tagButtons(tags: readonly string[]) {
     return tags.map((tag) => {
-      const selected = enteredTagNames.has(normalizeSearchText(tag));
+      const selected = enteredTagNames.has(normalizeTagStorageValue(tag));
       return (
         <button
           key={tag}

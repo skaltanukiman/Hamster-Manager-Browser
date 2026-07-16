@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { normalizeTagStorageValue } from "@/lib/tags";
+
 import { isValidDateInput, parseDateInput } from "@/lib/date";
 
 const idSchema = z.string().trim().min(1);
@@ -76,7 +78,7 @@ export const updateMedicalRecordSchema = medicalBaseSchema.extend({ id: idSchema
 
 function normalizeTags(value: unknown) {
   if (typeof value !== "string") return value;
-  return [...new Set(value.split(/[、,]/).map((tag) => tag.trim()).filter(Boolean))];
+  return [...new Set(value.normalize("NFKC").split(/[、,]/).map(normalizeTagStorageValue).filter(Boolean))];
 }
 
 const memoryBaseSchema = z.object({
