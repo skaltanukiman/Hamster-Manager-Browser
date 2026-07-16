@@ -3,11 +3,13 @@ import type {
   HealthExcretionCondition,
   HealthOverallCondition,
   HealthSymptom,
-  HamsterRecordType
+  HamsterRecordType,
+  Prisma
 } from "@prisma/client";
 
 import { isValidDateInput } from "@/lib/date";
 import type { HealthRecordInput, MedicalRecordInput, MemoryRecordInput } from "@/lib/record-schemas";
+import { normalizeSearchText } from "@/lib/search";
 
 export const RECORD_PAGE_SIZE = 20;
 
@@ -87,6 +89,63 @@ export function normalizeRecordDateFilter(value?: string) {
 
 export function normalizeRecordKeyword(value?: string) {
   return value?.trim().slice(0, 100) ?? "";
+}
+
+export type RecordSearchTerm = {
+  value: string;
+  isTag: boolean;
+};
+
+export function parseRecordSearchTerms(keyword: string): RecordSearchTerm[] {
+  return keyword
+    .split(/[,，、]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const normalizedPart = part.normalize("NFKC");
+      const isTag = normalizedPart.startsWith("#");
+      return { value: (isTag ? normalizedPart.slice(1) : part).trim(), isTag };
+    })
+    .filter((term) => Boolean(term.value));
+}
+
+function toKatakana(value: string) {
+  return value.replace(/[\u3041-\u3096]/g, (character) =>
+    String.fromCharCode(character.charCodeAt(0) + 0x60)
+  );
+}
+
+export function getRecordSearchVariants(value: string) {
+  const original = value.trim().toLocaleLowerCase("ja-JP");
+  const nfkc = original.normalize("NFKC");
+  const hiragana = normalizeSearchText(original);
+  return Array.from(new Set([original, nfkc, hiragana, toKatakana(hiragana)].filter(Boolean)));
+}
+
+export function buildRecordKeywordWhere(keyword: string): Prisma.HamsterRecordWhereInput | undefined {
+  const conditions = parseRecordSearchTerms(keyword).flatMap<Prisma.HamsterRecordWhereInput>((term) =>
+    getRecordSearchVariants(term.value).map((variant) =>
+      term.isTag
+        ? {
+            recordType: "MEMORY",
+            memoryDetail: { is: { tags: { has: variant } } }
+          }
+        : { searchText: { contains: variant, mode: "insensitive" } }
+    )
+  );
+
+  return conditions.length > 0 ? { OR: conditions } : undefined;
+}
+
+export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[] }>) {
+  const tagsByNormalizedValue = new Map<string, string>();
+  for (const { tags } of rows) {
+    for (const tag of tags) {
+      const normalized = normalizeSearchText(tag);
+      if (normalized && !tagsByNormalizedValue.has(normalized)) tagsByNormalizedValue.set(normalized, tag);
+    }
+  }
+  return Array.from(tagsByNormalizedValue.values()).sort((left, right) => left.localeCompare(right, "ja"));
 }
 
 export function buildHealthRecordTitle(overallCondition: HealthOverallCondition) {

@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { AutoSubmitFilterForm, FilterClearButton } from "@/components/auto-submit-filter-form";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { RecordCreateForms } from "@/components/record-create-forms";
+import { RecordKeywordInput } from "@/components/record-keyword-input";
 import { RecordTimeline } from "@/components/record-timeline";
 import { StatusMessage } from "@/components/status-message";
 import { canEditHouseholdSharedData } from "@/lib/authorization";
@@ -107,7 +108,7 @@ export default async function RecordsPage({
                 <label className="grid gap-1 text-sm font-medium text-slate-700">終了日<input type="date" name="to" defaultValue={filters.to} max={today} /></label>
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                <label className="grid gap-1 text-sm font-medium text-slate-700">キーワード<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden /><input name="keyword" defaultValue={filters.keyword} maxLength={100} className="pl-9" placeholder="症状、診断、薬、タイトル、タグなど" /></div></label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">キーワード<RecordKeywordInput name="keyword" defaultValue={filters.keyword} tagSuggestions={data.tagSuggestions} /><span className="text-xs font-normal text-slate-500">カンマ区切りでOR検索。#を入力すると使用済みタグを選べます。</span></label>
                 <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" name="favorite" value="1" defaultChecked={filters.favoriteOnly} />お気に入りの思い出のみ</label>
               </div>
               {invalidRange ? <p className="text-sm text-red-600">開始日は終了日以前の日付を指定してください。</p> : null}

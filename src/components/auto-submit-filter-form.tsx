@@ -30,7 +30,12 @@ export function FilterClearButton({
       if (control instanceof HTMLInputElement && ["checkbox", "radio"].includes(control.type)) {
         control.checked = false;
       } else {
-        control.value = "";
+        const valueSetter = Object.getOwnPropertyDescriptor(
+          control instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype,
+          "value"
+        )?.set;
+        valueSetter?.call(control, "");
+        control.dispatchEvent(new Event("input", { bubbles: true }));
       }
     }
 

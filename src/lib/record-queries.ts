@@ -5,6 +5,8 @@ import { normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
 import { parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
+  buildRecordKeywordWhere,
+  collectRecordTagSuggestions,
   filterToRecordType,
   RECORD_PAGE_SIZE,
   type RecordTypeFilter
@@ -42,12 +44,14 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       hamsters,
       selectedHamster: null,
       selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+      tagSuggestions: [],
       records: [],
       pagination: { currentPage: 1, totalPages: 1, totalCount: 0, pageSize: RECORD_PAGE_SIZE }
     };
   }
 
   const recordType = filterToRecordType(filters.recordType);
+  const keywordWhere = buildRecordKeywordWhere(filters.keyword);
   const where: Prisma.HamsterRecordWhereInput = {
     hamsterId: selectedHamster.id,
     ...(recordType ? { recordType } : {}),
@@ -59,11 +63,22 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
           }
         }
       : {}),
-    ...(filters.keyword ? { searchText: { contains: filters.keyword, mode: "insensitive" } } : {}),
+    ...(keywordWhere ?? {}),
     ...(filters.favoriteOnly ? { recordType: "MEMORY", memoryDetail: { is: { isFavorite: true } } } : {})
   };
 
-  const totalCount = await prisma.hamsterRecord.count({ where });
+  const [totalCount, tagRows] = await Promise.all([
+    prisma.hamsterRecord.count({ where }),
+    prisma.memoryRecordDetail.findMany({
+      where: {
+        hamsterRecord: {
+          hamsterId: selectedHamster.id,
+          hamster: { householdId: context.household.id }
+        }
+      },
+      select: { tags: true }
+    })
+  ]);
   const totalPages = Math.max(Math.ceil(totalCount / RECORD_PAGE_SIZE), 1);
   const currentPage = Math.min(Math.max(filters.page, 1), totalPages);
   const rows = await prisma.hamsterRecord.findMany({
@@ -84,6 +99,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     hamsters,
     selectedHamster,
     selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+    tagSuggestions: collectRecordTagSuggestions(tagRows),
     records: rows.map((record) => ({
       id: record.id,
       recordType: record.recordType,
