@@ -3,7 +3,7 @@
 import { ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { MAX_IMAGE_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
+import { MAX_IMAGE_UPLOAD_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
 
 type RecordImageFieldProps = {
   recordId?: string;
@@ -37,7 +37,7 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
 
   return (
     <div className="grid gap-2">
-      <span className="text-sm font-medium text-slate-700">写真（JPEG / PNG / WebP、2MBまで）</span>
+      <span className="text-sm font-medium text-slate-700">写真（JPEG / PNG / WebP、元画像10MBまで）</span>
       <input type="hidden" name="removeImage" value={removeCurrent ? "true" : "false"} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="grid h-36 w-full place-items-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 sm:w-48">
@@ -83,8 +83,8 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
               if (previewUrl) URL.revokeObjectURL(previewUrl);
               setPreviewUrl(null);
               if (file) {
-                const error = file.size > MAX_IMAGE_SIZE_BYTES
-                  ? "思い出の写真は2MB以内で選択してください。"
+                const error = file.size > MAX_IMAGE_UPLOAD_SIZE_BYTES
+                  ? "思い出の写真は10MB以内で選択してください。"
                   : !(SUPPORTED_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
                     ? "思い出の写真はJPEG、PNG、WebP形式を選択してください。"
                     : null;
@@ -116,6 +116,7 @@ export function RecordImageField({ recordId, hasCurrentImage = false, disabled =
           ) : null}
         </div>
       </div>
+      <p className="text-xs text-slate-500">縦横比を保ったまま長辺1920px以内のWebPへ変換し、2MB以下に圧縮して保存します。</p>
       {validationError ? <p id={errorId} role="alert" className="text-sm text-red-600">{validationError}</p> : null}
     </div>
   );

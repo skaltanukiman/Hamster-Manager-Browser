@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { File } from "node:buffer";
+import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,10 +13,13 @@ import {
   canServeRecordImage,
   commitWithNewRecordImage,
   deleteRecordImage,
+  MAX_RECORD_IMAGE_SIZE_BYTES,
   prepareRecordImage,
   readRecordImage,
+  RECORD_IMAGE_MAX_DIMENSION,
   RecordImageError
 } from "../src/lib/record-image";
+import { MAX_STORED_IMAGE_SIZE_BYTES } from "../src/lib/image-constraints";
 import {
   createHealthRecordSchema,
   createMedicalRecordSchema,
@@ -262,6 +266,13 @@ async function pngFile() {
   return new File([buffer], "memory.png", { type: "image/png" });
 }
 
+async function largeMemoryPngFile(width = 1800, height = 1200) {
+  const buffer = await sharp(randomBytes(width * height * 3), {
+    raw: { width, height, channels: 3 }
+  }).png().toBuffer();
+  return new File([buffer], "large-memory.png", { type: "image/png" });
+}
+
 test("思い出画像は変換・Household分離・保存失敗時の後片付けに対応する", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "record-image-"));
   const image = await prepareRecordImage(await pngFile());
@@ -282,8 +293,39 @@ test("思い出画像は変換・Household分離・保存失敗時の後片付�
 });
 
 test("不正な思い出画像を拒否する", async () => {
+  await assert.rejects(
+    prepareRecordImage(new File([Buffer.alloc(MAX_RECORD_IMAGE_SIZE_BYTES + 1)], "large.jpg", { type: "image/jpeg" })),
+    (error: unknown) => error instanceof RecordImageError && error.code === "tooLarge"
+  );
   await assert.rejects(prepareRecordImage(new File(["GIF89a"], "memory.gif", { type: "image/gif" })), (error: unknown) => error instanceof RecordImageError && error.code === "unsupported");
 });
+
+test("2MBを超える思い出画像を縦横比を保って長辺1920px以内・2MB以下へ圧縮する", async () => {
+  const source = await largeMemoryPngFile();
+  assert.ok(source.size > MAX_STORED_IMAGE_SIZE_BYTES);
+  assert.ok(source.size <= MAX_RECORD_IMAGE_SIZE_BYTES);
+
+  const converted = await prepareRecordImage(source);
+  const metadata = await sharp(converted.buffer).metadata();
+  assert.ok(converted.buffer.byteLength <= MAX_STORED_IMAGE_SIZE_BYTES);
+  assert.equal(metadata.width, 1800);
+  assert.equal(metadata.height, 1200);
+
+  const wide = await prepareRecordImage(await pngFileForDimensions(2400, 1200));
+  const wideMetadata = await sharp(wide.buffer).metadata();
+  assert.equal(wideMetadata.width, RECORD_IMAGE_MAX_DIMENSION);
+  assert.equal(wideMetadata.height, RECORD_IMAGE_MAX_DIMENSION / 2);
+
+  const small = await prepareRecordImage(await pngFileForDimensions(320, 180));
+  const smallMetadata = await sharp(small.buffer).metadata();
+  assert.equal(smallMetadata.width, 320);
+  assert.equal(smallMetadata.height, 180);
+});
+
+async function pngFileForDimensions(width: number, height: number) {
+  const buffer = await sharp({ create: { width, height, channels: 3, background: "orange" } }).png().toBuffer();
+  return new File([buffer], "dimensions.png", { type: "image/png" });
+}
 
 test("記録フィルターは変更時に自動適用し、スクロール位置を維持する", () => {
   const page = source("src/app/records/page.tsx");
@@ -346,8 +388,9 @@ test("記録作成エラーは画面遷移せず入力を保持し、画像を�
   assert.doesNotMatch(forms, /action=\{create(?:Health|Medical|Memory)Record\}/);
   assert.match(actions, /return recordCreateError\(imageValidationStatus\(error\)\)/);
   assert.match(actions, /logUnexpectedError\(error/);
-  assert.match(imageField, /file\.size > MAX_IMAGE_SIZE_BYTES/);
+  assert.match(imageField, /file\.size > MAX_IMAGE_UPLOAD_SIZE_BYTES/);
   assert.match(imageField, /setCustomValidity\(error\)/);
   assert.match(imageField, /role="alert"/);
-  assert.match(imageRules, /2 \* 1024 \* 1024/);
+  assert.match(imageRules, /MAX_IMAGE_UPLOAD_SIZE_BYTES = 10 \* 1024 \* 1024/);
+  assert.match(imageRules, /MAX_STORED_IMAGE_SIZE_BYTES = 2 \* 1024 \* 1024/);
 });

@@ -2,26 +2,31 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 
-import sharp from "sharp";
+import { MAX_IMAGE_UPLOAD_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
+import {
+  ImageProcessingError,
+  type ImageProcessingErrorCode,
+  prepareWebpWithinStorageLimit,
+  type WebpCandidate
+} from "@/lib/image-processing";
 
-import { MAX_IMAGE_SIZE_BYTES, SUPPORTED_IMAGE_MIME_TYPES } from "@/lib/image-constraints";
-
-export const MAX_HAMSTER_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_BYTES;
+export const MAX_HAMSTER_IMAGE_SIZE_BYTES = MAX_IMAGE_UPLOAD_SIZE_BYTES;
 export const HAMSTER_IMAGE_SIZE = 512;
 export const HAMSTER_IMAGE_MIME_TYPES = SUPPORTED_IMAGE_MIME_TYPES;
 
 const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const SAFE_FILE_NAME_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i;
-const MAX_INPUT_PIXELS = 40_000_000;
+const PROFILE_IMAGE_CANDIDATES: readonly WebpCandidate[] = [
+  { maxSize: HAMSTER_IMAGE_SIZE, quality: 82 },
+  { maxSize: HAMSTER_IMAGE_SIZE, quality: 76 },
+  { maxSize: HAMSTER_IMAGE_SIZE, quality: 70 },
+  { maxSize: 448, quality: 76 },
+  { maxSize: 384, quality: 70 },
+  { maxSize: 320, quality: 64 }
+];
 
-export type HamsterImageErrorCode = "tooLarge" | "unsupported" | "invalid";
-
-export class HamsterImageError extends Error {
-  constructor(public readonly code: HamsterImageErrorCode) {
-    super(code);
-    this.name = "HamsterImageError";
-  }
-}
+export type HamsterImageErrorCode = ImageProcessingErrorCode;
+export { ImageProcessingError as HamsterImageError };
 
 export type PreparedHamsterImage = {
   fileName: string;
@@ -56,7 +61,7 @@ export function getHamsterImageRoot() {
 
 function assertSafeHouseholdId(householdId: string) {
   if (!SAFE_ID_PATTERN.test(householdId)) {
-    throw new HamsterImageError("invalid");
+    throw new ImageProcessingError("invalid");
   }
 }
 
@@ -64,7 +69,7 @@ export function getHamsterImagePath(householdId: string, fileName: string, rootD
   assertSafeHouseholdId(householdId);
 
   if (!isSafeHamsterImageFileName(fileName)) {
-    throw new HamsterImageError("invalid");
+    throw new ImageProcessingError("invalid");
   }
 
   const root = path.resolve(/* turbopackIgnore: true */ rootDir);
@@ -74,7 +79,7 @@ export function getHamsterImagePath(householdId: string, fileName: string, rootD
   const householdPrefix = `${householdDir}${path.sep}`;
 
   if (!householdDir.startsWith(rootPrefix) || !filePath.startsWith(householdPrefix)) {
-    throw new HamsterImageError("invalid");
+    throw new ImageProcessingError("invalid");
   }
 
   return { root, householdDir, filePath };
@@ -85,38 +90,11 @@ export function getOptionalImageFile(value: FormDataEntryValue | null) {
 }
 
 export async function prepareHamsterImage(file: HamsterImageInput): Promise<PreparedHamsterImage> {
-  if (file.size > MAX_HAMSTER_IMAGE_SIZE_BYTES) {
-    throw new HamsterImageError("tooLarge");
-  }
-
-  if (!(HAMSTER_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
-    throw new HamsterImageError("unsupported");
-  }
-
-  const input = Buffer.from(await file.arrayBuffer());
-
-  try {
-    const decoder = sharp(input, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS, sequentialRead: true });
-    const metadata = await decoder.metadata();
-
-    if (!metadata.format || !["jpeg", "png", "webp"].includes(metadata.format)) {
-      throw new HamsterImageError("unsupported");
-    }
-
-    const buffer = await sharp(input, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS, sequentialRead: true })
-      .rotate()
-      .resize(HAMSTER_IMAGE_SIZE, HAMSTER_IMAGE_SIZE, { fit: "cover", position: "centre" })
-      .webp({ quality: 82 })
-      .toBuffer();
-
-    return { fileName: createHamsterImageFileName(), buffer };
-  } catch (error) {
-    if (error instanceof HamsterImageError) {
-      throw error;
-    }
-
-    throw new HamsterImageError("invalid");
-  }
+  const buffer = await prepareWebpWithinStorageLimit(file, {
+    candidates: PROFILE_IMAGE_CANDIDATES,
+    fit: "cover"
+  });
+  return { fileName: createHamsterImageFileName(), buffer };
 }
 
 export async function saveHamsterImage(

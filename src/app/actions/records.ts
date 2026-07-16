@@ -55,7 +55,7 @@ const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
   invalidDate: "日付を確認してください。",
   feeInvalid: "診察費は0円以上の整数で入力してください。",
   future: "未来日には記録できません。",
-  recordImageTooLarge: "思い出の写真は2MB以内で選択してください。",
+  recordImageTooLarge: "思い出の写真は10MB以内で選択してください。",
   recordImageUnsupported: "思い出の写真はJPEG、PNG、WebP形式を選択してください。",
   recordImageInvalid: "思い出の写真を読み込めませんでした。別の画像を選択してください。"
 };
