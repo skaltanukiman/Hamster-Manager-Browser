@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Form from "next/form";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Users } from "lucide-react";
 import type { AppRole } from "@prisma/client";
 
@@ -225,9 +226,9 @@ export default async function AdminPage({
 
       <section className="space-y-3">
         <h3 className="text-base font-bold text-ink">招待一覧</h3>
-        <form
+        <Form
           action="/admin"
-          method="get"
+          scroll={false}
           className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(130px,0.7fr)_minmax(220px,1.4fr)_minmax(220px,1fr)_auto] lg:items-end"
         >
           <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -269,12 +270,13 @@ export default async function AdminPage({
             </button>
             <Link
               href="/admin"
+              scroll={false}
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               条件をクリア
             </Link>
           </div>
-        </form>
+        </Form>
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
           {pagination.totalCount === 0 ? (
@@ -334,6 +336,7 @@ export default async function AdminPage({
             {pagination.currentPage > 1 ? (
               <Link
                 href={buildAdminInvitationHref(invitationQuery, 1)}
+                scroll={false}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
               >
                 <ChevronsLeft className="h-4 w-4" aria-hidden />
@@ -352,6 +355,7 @@ export default async function AdminPage({
             {pagination.currentPage > 1 ? (
               <Link
                 href={buildAdminInvitationHref(invitationQuery, pagination.currentPage - 1)}
+                scroll={false}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -373,6 +377,7 @@ export default async function AdminPage({
             {pagination.currentPage < pagination.totalPages ? (
               <Link
                 href={buildAdminInvitationHref(invitationQuery, pagination.currentPage + 1)}
+                scroll={false}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
               >
                 次へ
@@ -391,6 +396,7 @@ export default async function AdminPage({
             {pagination.currentPage < pagination.totalPages ? (
               <Link
                 href={buildAdminInvitationHref(invitationQuery, pagination.totalPages)}
+                scroll={false}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
               >
                 最後へ

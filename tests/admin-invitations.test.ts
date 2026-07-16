@@ -157,6 +157,13 @@ test("フィルタフォームは適用時に1ページ目へ戻す", async () =
   assert.match(source, /<input type="hidden" name="invitePage" value="1" \/>/);
 });
 
+test("招待一覧の絞り込み・クリア・ページ移動はスクロール位置を維持する", async () => {
+  const source = await readFile("src/app/admin/page.tsx", "utf8");
+  assert.match(source, /<Form[\s\S]*?action="\/admin"[\s\S]*?scroll=\{false\}/);
+  assert.match(source, /href="\/admin"[\s\S]*?scroll=\{false\}/);
+  assert.equal(source.match(/href=\{buildAdminInvitationHref\([\s\S]*?scroll=\{false\}/g)?.length, 4);
+});
+
 test("有効招待数は一覧のtakeに依存しない独立countで取得する", async () => {
   let countArgs: unknown;
   const count = await getActiveInvitationCount(now, {
