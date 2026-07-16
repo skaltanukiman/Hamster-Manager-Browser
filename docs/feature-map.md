@@ -60,7 +60,7 @@
 ## 健康・通院・思い出記録
 
 - **画面または URL:** `/records`、認証付き思い出画像 `/api/records/[id]/image`。
-- **主なコンポーネント:** `RecordCreateForms`、`RecordTimeline`、`RecordImageField`、`HamsterSelectorInput`、`AutoSubmitFilterForm`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。登録フォームは健康・通院・思い出で分け、閲覧は同じカード型タイムラインへ統合する。フィルターは選択・日付・チェックを即時、文字入力を短いデバウンス後に自動適用し、スクロール位置を維持する。
+- **主なコンポーネント:** `RecordCreateForms`、`RecordTimeline`、`RecordImageField`、`HamsterSelectorInput`、`AutoSubmitFilterForm`、`FilterClearButton`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。登録フォームは健康・通院・思い出で分け、閲覧は同じカード型タイムラインへ統合する。対象ハムスターは常に選択済みとして空選択を表示しない。フィルターは選択・日付・チェックを即時、文字入力を短いデバウンス後に自動適用し、クリア時は入力値を初期化して再取得する。いずれもスクロール位置を維持する。
 - **Server Action または API:** `createHealthRecord`、`updateHealthRecord`、`createMedicalRecord`、`updateMedicalRecord`、`createMemoryRecord`、`updateMemoryRecord`、`deleteHamsterRecord`（`src/app/actions/records.ts`）。画像Routeは認証後、記録に紐づくハムスターの現在のHousehold所属を確認してWebPだけを配信する。
 - **データアクセス・Prismaモデル:** `getRecordsPageData`（`src/lib/record-queries.ts`）が対象ハムスター、種類、暦日期間、検索用テキスト、お気に入りをDB側で絞り込み、記録日・作成日時・IDの降順で20件ページングする。`HamsterRecord` を親に、`HealthRecordDetail`、`MedicalVisitDetail`、`MemoryRecordDetail` を1対1、`MemoryRecordImage` を画像用の子として持つ。症状はenum配列、タグは自由文字列配列、横断キーワードは親の `searchText` と `pg_trgm` GIN索引を利用する。
 - **バリデーション:** `src/lib/record-schemas.ts`。健康の各enum・複数症状、通院理由、0円以上の整数診察費、思い出のタイトル・内容・最大20タグ、全項目の文字数上限を検証する。記録日は `src/lib/date.ts` の暦日変換を再利用して未来日を拒否し、次回通院予定日だけ未来日を許可する。画像は `src/lib/record-image.ts` が既存のSharp変換・MIME/実体・2MB制限・安全なUUID名・原子的保存を再利用する。

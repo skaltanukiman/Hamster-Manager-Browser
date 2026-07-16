@@ -1,7 +1,48 @@
 "use client";
 
 import Form from "next/form";
-import { useEffect, useRef, type CompositionEvent, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  type CompositionEvent,
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode
+} from "react";
+
+export function FilterClearButton({
+  fieldNames,
+  children,
+  className
+}: {
+  fieldNames: string[];
+  children: ReactNode;
+  className?: string;
+}) {
+  function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    const form = event.currentTarget.form;
+    if (!form) return;
+
+    for (const control of Array.from(form.elements)) {
+      if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement)) continue;
+      if (!fieldNames.includes(control.name)) continue;
+
+      if (control instanceof HTMLInputElement && ["checkbox", "radio"].includes(control.type)) {
+        control.checked = false;
+      } else {
+        control.value = "";
+      }
+    }
+
+    form.requestSubmit();
+  }
+
+  return (
+    <button type="button" className={className} onClick={handleClick}>
+      {children}
+    </button>
+  );
+}
 
 export function AutoSubmitFilterForm({
   action,

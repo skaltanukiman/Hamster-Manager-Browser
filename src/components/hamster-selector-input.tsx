@@ -12,6 +12,7 @@ type HamsterSelectorInputProps = {
   autoSubmit?: boolean;
   disabled?: boolean;
   emptyMessage?: string;
+  showEmptyOption?: boolean;
 };
 
 export function HamsterSelectorInput({
@@ -22,13 +23,14 @@ export function HamsterSelectorInput({
   allOptionLabel,
   autoSubmit = true,
   disabled = false,
-  emptyMessage = "条件に一致するハムスターはいません"
+  emptyMessage = "条件に一致するハムスターはいません",
+  showEmptyOption = true
 }: HamsterSelectorInputProps) {
   if (mode === "select") {
     const optionsElement = (
       <>
         {allOptionLabel ? <option value="">{allOptionLabel}</option> : null}
-        {!allOptionLabel ? <option value="">{options.length === 0 ? emptyMessage : "選択してください"}</option> : null}
+        {!allOptionLabel && showEmptyOption ? <option value="">{options.length === 0 ? emptyMessage : "選択してください"}</option> : null}
         {options.map((hamster) => (
           <option key={hamster.id} value={hamster.id}>
             {hamster.name}
