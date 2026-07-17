@@ -69,13 +69,13 @@ export function AppNav({ isAppAdmin = false }: { isAppAdmin?: boolean }) {
         <div className="mt-2 flex justify-end">
           <details className="group relative">
             <summary
-              className={`inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border border-moss px-3 py-2 text-sm font-semibold text-moss shadow-sm transition hover:bg-moss/5 active:bg-moss/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2 group-open:bg-moss/10 [&::-webkit-details-marker]:hidden ${
-                isUtilityActive ? "bg-moss/10" : "bg-white"
+              className={`inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-moss/50 px-2.5 py-1.5 text-xs font-medium text-moss transition hover:border-moss/70 hover:bg-moss/5 active:bg-moss/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/60 focus-visible:ring-offset-1 group-open:border-moss/70 group-open:bg-moss/5 [&::-webkit-details-marker]:hidden ${
+                isUtilityActive ? "border-moss/70 bg-moss/5" : "bg-white"
               }`}
             >
-              <EllipsisVertical className="h-4 w-4" aria-hidden />
+              <EllipsisVertical className="h-3.5 w-3.5" aria-hidden />
               <span>メニュー</span>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+              <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180" aria-hidden />
             </summary>
             <div className="absolute right-0 z-30 mt-2 w-56 max-w-[calc(100vw-2rem)] space-y-1 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-panel">
               {mobileUtilityNavItems.map((item) => {
