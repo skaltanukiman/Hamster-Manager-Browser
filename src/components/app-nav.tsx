@@ -2,7 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookHeart, ClipboardCheck, LayoutDashboard, LineChart, PawPrint, Settings, ShieldCheck, Users } from "lucide-react";
+import {
+  BookHeart,
+  ChevronDown,
+  ClipboardCheck,
+  EllipsisVertical,
+  LayoutDashboard,
+  LineChart,
+  PawPrint,
+  Settings,
+  ShieldCheck,
+  Users
+} from "lucide-react";
 
 const primaryNavItems = [
   { href: "/", label: "ダッシュボード", mobileLabel: "ホーム", icon: LayoutDashboard },
@@ -56,16 +67,19 @@ export function AppNav({ isAppAdmin = false }: { isAppAdmin?: boolean }) {
         </div>
 
         <div className="mt-2 flex justify-end">
-          <details className="relative">
+          <details className="group relative">
             <summary
-              className={`min-h-11 cursor-pointer list-none px-2 py-3 text-sm font-medium transition [&::-webkit-details-marker]:hidden ${
-                isUtilityActive ? "font-semibold text-moss underline decoration-2 underline-offset-4" : "text-slate-600 hover:text-ink"
+              className={`inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border border-moss px-3 py-2 text-sm font-semibold text-moss shadow-sm transition hover:bg-moss/5 active:bg-moss/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2 group-open:bg-moss/10 [&::-webkit-details-marker]:hidden ${
+                isUtilityActive ? "bg-moss/10" : "bg-white"
               }`}
             >
-              メニュー
+              <EllipsisVertical className="h-4 w-4" aria-hidden />
+              <span>メニュー</span>
+              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open:rotate-180" aria-hidden />
             </summary>
-            <div className="absolute right-0 z-20 mt-1 min-w-32 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="absolute right-0 z-30 mt-2 w-56 max-w-[calc(100vw-2rem)] space-y-1 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-panel">
               {mobileUtilityNavItems.map((item) => {
+                const Icon = item.icon;
                 const isActive = item.href === activeHref;
 
                 return (
@@ -73,11 +87,14 @@ export function AppNav({ isAppAdmin = false }: { isAppAdmin?: boolean }) {
                     key={item.href}
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
-                    className={`block px-4 py-3 text-sm font-medium transition ${
-                      isActive ? "bg-moss/10 text-moss" : "text-slate-700 hover:bg-slate-50 hover:text-moss"
+                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-moss ${
+                      isActive
+                        ? "bg-moss/10 text-moss hover:bg-moss/20 active:bg-moss/20"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-moss active:bg-slate-100"
                     }`}
                   >
-                    {item.label}
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}
