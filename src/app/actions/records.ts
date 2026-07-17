@@ -7,6 +7,7 @@ import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
 import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { writeServerLog } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { isFutureRecordTime } from "@/lib/record-time";
 import {
   commitWithNewRecordImage,
   deleteRecordImage,
@@ -41,6 +42,7 @@ type RecordCreateErrorStatus =
   | "invalid"
   | "invalidDate"
   | "invalidTime"
+  | "futureTime"
   | "feeInvalid"
   | "future"
   | "recordImageTooLarge"
@@ -68,6 +70,7 @@ const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
   invalid: "入力内容を確認してください。",
   invalidDate: "日付を確認してください。",
   invalidTime: "時刻を確認してください。",
+  futureTime: "未来の時刻には記録できません。",
   feeInvalid: "診察費は0円以上の整数で入力してください。",
   future: "未来日には記録できません。",
   recordImageTooLarge: "思い出の写真は10MB以内で選択してください。",
@@ -165,6 +168,7 @@ export async function createHealthRecord(formData: FormData): Promise<RecordCrea
     const result = createHealthRecordSchema.safeParse(parseHealthForm(formData));
     if (!result.success) return recordCreateError(validationStatus(result.error.issues));
     if (isFutureDateInput(result.data.recordDate)) return recordCreateError("future");
+    if (isFutureRecordTime(result.data.recordDate, result.data.recordTime)) return recordCreateError("futureTime");
     await getMutationHamster(result.data.hamsterId, context.household.id, false);
 
     const { change } = await commitHouseholdMutation({
@@ -362,6 +366,7 @@ export async function updateHealthRecord(formData: FormData) {
     const result = updateHealthRecordSchema.safeParse(parseHealthForm(formData));
     if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
     if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
+    if (isFutureRecordTime(result.data.recordDate, result.data.recordTime)) recordRedirect(result.data.hamsterId, "futureTime");
     const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id);
     if (record.recordType !== "HEALTH" || !record.healthDetail) recordRedirect(result.data.hamsterId, "invalid");
     if (!record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked");
