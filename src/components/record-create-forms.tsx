@@ -100,7 +100,45 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
   return (
     <UnsavedChangesGuard>
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-wrap gap-2" aria-label="登録する記録種類">
+        <fieldset className="sm:hidden">
+          <legend className="mb-2 text-xs font-semibold text-slate-600">記録の種類</legend>
+          <div className="grid grid-cols-3 rounded-xl bg-slate-100 p-1" aria-label="登録する記録種類">
+            <button
+              type="button"
+              onClick={() => setKind("health")}
+              disabled={!hamsterIsActive}
+              aria-pressed={kind === "health"}
+              className={`flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+                kind === "health" ? "bg-moss/10 font-semibold text-moss ring-1 ring-inset ring-moss/20" : "text-slate-600 hover:bg-white/70 hover:text-ink"
+              }`}
+            >
+              体調
+            </button>
+            <button
+              type="button"
+              onClick={() => setKind("medical")}
+              disabled={!hamsterIsActive}
+              aria-pressed={kind === "medical"}
+              className={`flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+                kind === "medical" ? "bg-moss/10 font-semibold text-moss ring-1 ring-inset ring-moss/20" : "text-slate-600 hover:bg-white/70 hover:text-ink"
+              }`}
+            >
+              通院
+            </button>
+            <button
+              type="button"
+              onClick={() => setKind("memory")}
+              aria-pressed={kind === "memory"}
+              className={`flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-1 ${
+                kind === "memory" ? "bg-moss/10 font-semibold text-moss ring-1 ring-inset ring-moss/20" : "text-slate-600 hover:bg-white/70 hover:text-ink"
+              }`}
+            >
+              思い出
+            </button>
+          </div>
+        </fieldset>
+
+        <div className="hidden flex-wrap gap-2 sm:flex" aria-label="登録する記録種類">
           <button type="button" onClick={() => setKind("health")} disabled={!hamsterIsActive} className={`inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-semibold ${kind === "health" ? "border-moss bg-moss text-white" : "border-slate-200 text-slate-700"} disabled:cursor-not-allowed disabled:opacity-50`}>
             <HeartPulse className="h-4 w-4" aria-hidden />体調を記録
           </button>
