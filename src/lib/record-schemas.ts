@@ -81,6 +81,11 @@ function normalizeTags(value: unknown) {
   return [...new Set(value.normalize("NFKC").split(/[、,]/).map(normalizeTagStorageValue).filter(Boolean))];
 }
 
+function normalizeSavedMemoryTags(value: unknown) {
+  if (!Array.isArray(value)) return value;
+  return [...new Set(value.map((tag) => (typeof tag === "string" ? normalizeTagStorageValue(tag) : tag)).filter(Boolean))];
+}
+
 const memoryBaseSchema = z.object({
   hamsterId: idSchema,
   recordDate: dateSchema,
@@ -98,6 +103,10 @@ export const updateMemoryRecordSchema = memoryBaseSchema.extend({ id: idSchema }
 export const deleteHamsterRecordSchema = z.object({
   id: idSchema,
   hamsterId: idSchema
+});
+
+export const deleteSavedMemoryTagsSchema = z.object({
+  tags: z.preprocess(normalizeSavedMemoryTags, z.array(z.string().min(1).max(30)).min(1).max(1000))
 });
 
 export type HealthRecordInput = z.infer<typeof healthBaseSchema>;

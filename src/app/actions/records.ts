@@ -19,6 +19,7 @@ import {
   createMedicalRecordSchema,
   createMemoryRecordSchema,
   deleteHamsterRecordSchema,
+  deleteSavedMemoryTagsSchema,
   updateHealthRecordSchema,
   updateMedicalRecordSchema,
   updateMemoryRecordSchema
@@ -47,6 +48,15 @@ type RecordCreateErrorStatus =
 
 export type RecordCreateActionResult = {
   success: true;
+} | {
+  success: false;
+  errorMessage: string;
+  errorId?: string;
+};
+
+export type SavedMemoryTagDeleteActionResult = {
+  success: true;
+  deletedCount: number;
 } | {
   success: false;
   errorMessage: string;
@@ -290,6 +300,40 @@ export async function createMemoryRecord(formData: FormData): Promise<RecordCrea
       return recordCreateError(imageValidationStatus(error));
     }
     return unexpectedRecordCreateError(error, "records.memory.create", hamsterId);
+  }
+}
+
+export async function deleteSavedMemoryTags(formData: FormData): Promise<SavedMemoryTagDeleteActionResult> {
+  try {
+    const context = await getRequiredHouseholdMutationContext("/records");
+    const result = deleteSavedMemoryTagsSchema.safeParse({ tags: formData.getAll("tags") });
+    if (!result.success) {
+      return { success: false, errorMessage: "削除するタグを1件以上選択してください。" };
+    }
+
+    const { change, result: deleted } = await commitHouseholdMutation({
+      householdId: context.household.id,
+      source: "record",
+      actorClientId: getRealtimeActorId(formData),
+      actorUserId: context.user.id,
+      mutate: (tx) =>
+        tx.savedMemoryTag.deleteMany({
+          where: {
+            householdId: context.household.id,
+            name: { in: result.data.tags }
+          }
+        })
+    });
+    publishAndRevalidate(change, context.household.id, "records.memoryTag.deleteMany");
+    return { success: true, deletedCount: deleted.count };
+  } catch (error) {
+    unstable_rethrow(error);
+    const errorId = logUnexpectedError(error, { operation: "records.memoryTag.deleteMany" });
+    return {
+      success: false,
+      errorMessage: "保存済みタグを削除できませんでした。時間を空けて再度お試しください。",
+      errorId
+    };
   }
 }
 
