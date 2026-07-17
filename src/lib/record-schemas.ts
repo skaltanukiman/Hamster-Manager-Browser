@@ -3,6 +3,7 @@ import { z } from "zod";
 import { normalizeTagStorageValue } from "@/lib/tags";
 
 import { isValidDateInput, parseDateInput } from "@/lib/date";
+import { parseRecordTimeInput } from "@/lib/record-time";
 
 const idSchema = z.string().trim().min(1);
 const dateSchema = z.string().refine(isValidDateInput, "invalidDate");
@@ -15,6 +16,11 @@ const optionalText = (max: number) =>
     (value) => (typeof value === "string" && value.trim() === "" ? null : value),
     z.union([z.string().trim().max(max), z.null()])
   );
+const optionalRecordTime = z.preprocess((value) => {
+  if (value === undefined || value === null || (typeof value === "string" && value.trim() === "")) return null;
+  if (typeof value !== "string") return Number.NaN;
+  return parseRecordTimeInput(value.trim()) ?? Number.NaN;
+}, z.union([z.number().int().min(0).max(1439), z.null()]));
 
 export const HEALTH_OVERALL_CONDITIONS = ["GOOD", "CONCERN", "WARNING"] as const;
 export const HEALTH_AMOUNT_CONDITIONS = ["NORMAL", "LOW", "NONE", "UNKNOWN"] as const;
@@ -36,6 +42,7 @@ export const HEALTH_SYMPTOMS = [
 const healthBaseSchema = z.object({
   hamsterId: idSchema,
   recordDate: dateSchema,
+  recordTime: optionalRecordTime,
   overallCondition: z.enum(HEALTH_OVERALL_CONDITIONS),
   appetite: z.enum(HEALTH_AMOUNT_CONDITIONS),
   activityLevel: z.enum(HEALTH_AMOUNT_CONDITIONS),

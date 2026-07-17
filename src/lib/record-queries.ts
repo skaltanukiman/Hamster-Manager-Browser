@@ -4,6 +4,7 @@ import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
 import { parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+import { formatRecordTime } from "@/lib/record-time";
 import {
   buildRecordKeywordWhere,
   collectRecordTagSuggestions,
@@ -90,7 +91,12 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
   const currentPage = Math.min(Math.max(filters.page, 1), totalPages);
   const rows = await prisma.hamsterRecord.findMany({
     where,
-    orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    orderBy: [
+      { recordDate: "desc" },
+      { recordTimeMinutes: { sort: "desc", nulls: "last" } },
+      { createdAt: "desc" },
+      { id: "desc" }
+    ],
     skip: (currentPage - 1) * RECORD_PAGE_SIZE,
     take: RECORD_PAGE_SIZE,
     include: {
@@ -112,6 +118,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       id: record.id,
       recordType: record.recordType,
       recordDate: toDateInputValue(record.recordDate),
+      recordTime: formatRecordTime(record.recordTimeMinutes),
       title: record.title,
       memo: record.memo,
       createdAt: record.createdAt.toISOString(),

@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/records";
 import { RecordImageField } from "@/components/record-image-field";
 import { MemoryTagInput } from "@/components/memory-tag-input";
+import { RecordTimeInput } from "@/components/record-time-input";
 import { AutoDismissSuccessMessage } from "@/components/status-message";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import {
@@ -119,7 +120,10 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
             <RecordCreateError error={submitErrors.health} />
             {submitSuccesses.health ? <AutoDismissSuccessMessage message="記録を登録しました。" /> : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
+                <RecordTimeInput />
+              </div>
               {SHOW_USUAL_CONDITION_CONTROL ? <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button> : null}
             </div>
             {SHOW_USUAL_CONDITION_CONTROL ? <p className="text-xs text-slate-500">「いつも通り」は5つの状態だけを正常値へ設定します。症状とメモは消去しません。</p> : null}

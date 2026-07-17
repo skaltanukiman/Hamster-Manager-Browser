@@ -41,6 +41,7 @@ import {
   RECORD_PAGE_SIZE
 } from "../src/lib/records";
 import { normalizeTagStorageValue } from "../src/lib/tags";
+import { formatRecordTime, parseRecordTimeInput } from "../src/lib/record-time";
 
 const projectRoot = process.cwd();
 
@@ -76,12 +77,22 @@ const validMedical = {
 };
 
 test("健康記録は必須項目・enum・文字数を検証する", () => {
-  assert.equal(createHealthRecordSchema.safeParse(validHealth).success, true);
+  const withoutTime = createHealthRecordSchema.safeParse(validHealth);
+  const withTime = createHealthRecordSchema.safeParse({ ...validHealth, recordTime: "23:59" });
+  assert.equal(withoutTime.success, true);
+  assert.equal(withoutTime.success && withoutTime.data.recordTime, null);
+  assert.equal(withTime.success && withTime.data.recordTime, 1439);
+  assert.equal(parseRecordTimeInput("07:05"), 425);
+  assert.equal(formatRecordTime(425), "07:05");
+  assert.equal(formatRecordTime(null), null);
   assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, hamsterId: "" }).success, false);
   assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, recordDate: "2026-02-30" }).success, false);
   assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, appetite: "INVALID" }).success, false);
   assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, memo: "x".repeat(2001) }).success, false);
   assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, symptoms: ["INVALID"] }).success, false);
+  for (const recordTime of ["24:00", "12:60", "7:05", "noon"]) {
+    assert.equal(createHealthRecordSchema.safeParse({ ...validHealth, recordTime }).success, false);
+  }
 });
 
 test("通院記録は理由だけを内容必須とし、診察費は0以上の整数に限定する", () => {
@@ -195,10 +206,11 @@ test("種類フィルターと20件ページングを固定する", () => {
   assert.equal(RECORD_PAGE_SIZE, 20);
 });
 
-test("共通タイムラインはHousehold内ハムスターだけを日付・作成日時・IDの順でDB取得する", () => {
+test("共通タイムラインは日付、時刻ありの降順、時刻なし、作成日時、IDの順でDB取得する", () => {
   const query = source("src/lib/record-queries.ts");
   assert.match(query, /where:\s*{ householdId: context\.household\.id }/);
-  assert.match(query, /recordDate: "desc"[\s\S]*createdAt: "desc"[\s\S]*id: "desc"/);
+  assert.match(query, /recordDate: "desc"[\s\S]*recordTimeMinutes: \{ sort: "desc", nulls: "last" \}[\s\S]*createdAt: "desc"[\s\S]*id: "desc"/);
+  assert.match(query, /recordTime: formatRecordTime\(record\.recordTimeMinutes\)/);
   assert.match(query, /buildRecordKeywordWhere\(filters\.keyword\)/);
   assert.match(query, /memoryRecordDetail\.findMany/);
   assert.match(query, /savedMemoryTag\.findMany/);
@@ -222,6 +234,18 @@ test("更新Actionは未来日・Household所属・管理外制御とrevision同
   assert.match(actions, /savedMemoryTag\.createMany/);
   assert.match(actions, /skipDuplicates: true/);
   assert.match(actions, /searchTags: buildMemoryTagSearchValues\(result\.data\.tags\)/);
+  assert.match(actions, /recordTimeMinutes: result\.data\.recordTime/);
+  assert.match(actions, /record\.recordTimeMinutes === result\.data\.recordTime/);
+});
+
+test("健康記録の任意時刻は分単位・範囲制約付きで追加するマイグレーションを持つ", () => {
+  const schema = source("prisma/schema.prisma");
+  const migration = source("prisma/migrations/20260717120000_add_health_record_time/migration.sql");
+  assert.match(schema, /recordTimeMinutes\s+Int\?[\s\S]*?@map\("record_time_minutes"\) @db\.SmallInt/);
+  assert.match(schema, /@@index\(\[hamsterId, recordDate, recordTimeMinutes, createdAt\]\)/);
+  assert.match(migration, /ADD COLUMN "record_time_minutes" SMALLINT/);
+  assert.match(migration, /BETWEEN 0 AND 1439/);
+  assert.match(migration, /hamster_records_hamster_id_record_date_record_time_minutes_created_at_idx/);
 });
 
 test("保存済みタグ削除ActionはHousehold内候補だけをrevisionと同一トランザクションで一括削除する", () => {
@@ -428,6 +452,19 @@ test("体調フォームはいつも通り設定を非表示にしつつ再表�
   assert.match(forms, /SHOW_USUAL_CONDITION_CONTROL \? <button[^>]*onClick=\{setUsualCondition\}/);
   assert.match(forms, />いつも通りに設定<\/button> : null/);
   assert.match(forms, /SHOW_USUAL_CONDITION_CONTROL \? <p[^>]*>「いつも通り」は5つの状態だけを正常値へ設定します。症状とメモは消去しません。<\/p> : null/);
+});
+
+test("体調記録はチェック時だけ任意時刻を入力・編集し、カードでは日付、時刻、登録者の順に表示する", () => {
+  const forms = source("src/components/record-create-forms.tsx");
+  const timeInput = source("src/components/record-time-input.tsx");
+  const timeline = source("src/components/record-timeline.tsx");
+  assert.match(forms, /記録日<input[^>]*name="recordDate"[\s\S]*<RecordTimeInput \/>/);
+  assert.match(timeInput, />\s*時間も記録する\s*<\/label>/);
+  assert.match(timeInput, /name="recordTimeEnabled"[\s\S]*defaultChecked=\{Boolean\(defaultValue\)\}/);
+  assert.match(timeInput, /\{enabled \? \([\s\S]*type="time" name="recordTime"[\s\S]*required/);
+  assert.match(timeline, /<RecordTimeInput defaultValue=\{record\.recordTime\} \/>/);
+  assert.match(timeline, /record\.recordDate\.replaceAll\("-", "\/"\)[\s\S]*record\.recordTime[\s\S]*record\.createdByLabel/);
+  assert.match(timeline, /<Clock3 className=/);
 });
 
 test("保存済みタグはモーダルで複数選択し、既存記録を変えずにまとめて削除できる", () => {

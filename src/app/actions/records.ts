@@ -40,6 +40,7 @@ import { handleServerActionError, logUnexpectedError } from "@/lib/server-errors
 type RecordCreateErrorStatus =
   | "invalid"
   | "invalidDate"
+  | "invalidTime"
   | "feeInvalid"
   | "future"
   | "recordImageTooLarge"
@@ -66,6 +67,7 @@ export type SavedMemoryTagDeleteActionResult = {
 const recordCreateErrorMessages: Record<RecordCreateErrorStatus, string> = {
   invalid: "入力内容を確認してください。",
   invalidDate: "日付を確認してください。",
+  invalidTime: "時刻を確認してください。",
   feeInvalid: "診察費は0円以上の整数で入力してください。",
   future: "未来日には記録できません。",
   recordImageTooLarge: "思い出の写真は10MB以内で選択してください。",
@@ -103,6 +105,7 @@ function recordRedirect(hamsterId: string | null | undefined, status: string): n
 function validationStatus(issues: ZodIssue[]): RecordCreateErrorStatus {
   if (issues.some((issue) => issue.path[0] === "consultationFee")) return "feeInvalid";
   if (issues.some((issue) => issue.path[0] === "recordDate" || issue.path[0] === "nextVisitDate")) return "invalidDate";
+  if (issues.some((issue) => issue.path[0] === "recordTime")) return "invalidTime";
   return "invalid";
 }
 
@@ -175,6 +178,7 @@ export async function createHealthRecord(formData: FormData): Promise<RecordCrea
             hamsterId: result.data.hamsterId,
             recordType: "HEALTH",
             recordDate: parseDateInput(result.data.recordDate),
+            recordTimeMinutes: result.data.recordTime,
             title: buildHealthRecordTitle(result.data.overallCondition),
             memo: result.data.memo,
             searchText: buildHealthSearchText(result.data),
@@ -365,6 +369,7 @@ export async function updateHealthRecord(formData: FormData) {
     const detail = record.healthDetail;
     if (
       toDateInputValue(record.recordDate) === result.data.recordDate &&
+      record.recordTimeMinutes === result.data.recordTime &&
       record.memo === result.data.memo &&
       detail.overallCondition === result.data.overallCondition &&
       detail.appetite === result.data.appetite &&
@@ -384,6 +389,7 @@ export async function updateHealthRecord(formData: FormData) {
           where: { id: record.id },
           data: {
             recordDate: parseDateInput(result.data.recordDate),
+            recordTimeMinutes: result.data.recordTime,
             title: buildHealthRecordTitle(result.data.overallCondition),
             memo: result.data.memo,
             searchText: buildHealthSearchText(result.data)

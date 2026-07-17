@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarClock, HeartPulse, ImageIcon, Pencil, Star, Stethoscope, Trash2, UserRound } from "lucide-react";
+import { CalendarClock, Clock3, HeartPulse, ImageIcon, Pencil, Star, Stethoscope, Trash2, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { deleteHamsterRecord, updateHealthRecord, updateMedicalRecord, updateMemoryRecord } from "@/app/actions/records";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { RecordImageField } from "@/components/record-image-field";
+import { RecordTimeInput } from "@/components/record-time-input";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import type { getRecordsPageData } from "@/lib/record-queries";
 import {
@@ -72,7 +73,10 @@ function RecordEditForm({ record, hamsterId, today }: { record: RecordItem; hams
     return (
       <form action={updateHealthRecord} data-dirty-watch className="mt-4 grid gap-4 border-t border-slate-200 pt-4">
         <input type="hidden" name="id" value={record.id} /><input type="hidden" name="hamsterId" value={hamsterId} />
-        <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={record.recordDate} max={today} required /></label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={record.recordDate} max={today} required /></label>
+          <RecordTimeInput defaultValue={record.recordTime} />
+        </div>
         <HealthFields detail={record.healthDetail} />
         <label className={fieldClass}>メモ<textarea name="memo" defaultValue={record.memo ?? ""} maxLength={2000} /></label>
         <DirtySubmitButton className="inline-flex h-10 items-center justify-center rounded-md bg-moss px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-fit">変更を保存</DirtySubmitButton>
@@ -136,7 +140,7 @@ export function RecordTimeline({ records, hamsterId, hamsterIsActive, canEdit, t
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle.badge}`}><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
                   <h3 className="mt-2 text-lg font-bold text-ink">{record.title}</h3>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span>{record.recordDate.replaceAll("-", "/")}</span><span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span>{record.recordDate.replaceAll("-", "/")}</span>{record.recordTime ? <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden />{record.recordTime}</span> : null}<span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
                 </div>
                 {editable ? <form action={deleteHamsterRecord} onSubmit={confirmDelete}><input type="hidden" name="id" value={record.id} /><input type="hidden" name="hamsterId" value={hamsterId} /><button type="submit" className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden />削除</button></form> : null}
               </div>
