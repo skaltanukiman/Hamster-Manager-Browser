@@ -30,6 +30,8 @@ import {
 type CreateKind = "health" | "medical" | "memory";
 
 const fieldClass = "grid gap-1 text-sm font-medium text-slate-700";
+// 初期値と同じ正常状態へ戻す操作。再利用できるよう実装を残し、現在は画面に表示しない。
+const SHOW_USUAL_CONDITION_CONTROL = false;
 
 type CreateAction = (formData: FormData) => Promise<RecordCreateActionResult>;
 type CreateError = Extract<RecordCreateActionResult, { success: false }>;
@@ -118,9 +120,9 @@ export function RecordCreateForms({ hamsterId, hamsterIsActive, today, savedMemo
             {submitSuccesses.health ? <AutoDismissSuccessMessage message="記録を登録しました。" /> : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <label className={`${fieldClass} sm:w-56`}>記録日<input type="date" name="recordDate" defaultValue={today} max={today} required /></label>
-              <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button>
+              {SHOW_USUAL_CONDITION_CONTROL ? <button type="button" onClick={setUsualCondition} className="inline-flex h-10 items-center justify-center rounded-md border border-moss px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white">いつも通りに設定</button> : null}
             </div>
-            <p className="text-xs text-slate-500">「いつも通り」は5つの状態だけを正常値へ設定します。症状とメモは消去しません。</p>
+            {SHOW_USUAL_CONDITION_CONTROL ? <p className="text-xs text-slate-500">「いつも通り」は5つの状態だけを正常値へ設定します。症状とメモは消去しません。</p> : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <label className={fieldClass}>総合状態<select name="overallCondition" defaultValue="GOOD">{HEALTH_OVERALL_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_OVERALL_LABELS[value]}</option>)}</select></label>
               <label className={fieldClass}>食欲<select name="appetite" defaultValue="NORMAL">{HEALTH_AMOUNT_CONDITIONS.map((value) => <option key={value} value={value}>{HEALTH_AMOUNT_LABELS[value]}</option>)}</select></label>
