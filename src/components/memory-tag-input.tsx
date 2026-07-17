@@ -225,26 +225,29 @@ export function MemoryTagInput({ savedTags }: { savedTags: string[] }) {
           placeholder={MEMORY_TAG_SUGGESTIONS.slice(0, 4).join("、")}
         />
       </label>
-      <details className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-        <summary className="cursor-pointer text-xs font-medium text-slate-700 select-none">保存済みタグ（{reusableTags.length}件）</summary>
-        <div className="mt-3">
-          {reusableTags.length > 0 ? <div className="flex flex-wrap gap-2">{tagButtons(reusableTags)}</div> : <span className="text-xs text-slate-500">保存済みタグはありません。</span>}
-          <button
-            type="button"
-            onClick={openDeleteDialog}
-            disabled={reusableTags.length === 0}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            保存済みタグを削除
-          </button>
-        </div>
-      </details>
+      {reusableTags.length > 0 ? (
+        <details className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-medium text-slate-700 select-none">保存済みタグ（{reusableTags.length}件）</summary>
+          <div className="mt-3">
+            <div className="flex flex-wrap gap-2">{tagButtons(reusableTags)}</div>
+            <button
+              type="button"
+              onClick={openDeleteDialog}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              保存済みタグを削除
+            </button>
+          </div>
+        </details>
+      ) : null}
       {deleteSuccess ? <AutoDismissSuccessMessage key={deleteSuccess.key} message={deleteSuccess.message} /> : null}
-      <div className="grid gap-2">
-        <span className="text-xs font-medium text-slate-600">候補</span>
-        <div className="flex flex-wrap gap-2">{tagButtons(initialSuggestions)}</div>
-      </div>
+      {initialSuggestions.length > 0 ? (
+        <div className="grid gap-2">
+          <span className="text-xs font-medium text-slate-600">候補</span>
+          <div className="flex flex-wrap gap-2">{tagButtons(initialSuggestions)}</div>
+        </div>
+      ) : null}
       <label className="flex items-start gap-2 text-sm font-medium text-slate-700">
         <input type="checkbox" name="saveTags" value="true" className="mt-0.5" />
         <span>入力したタグを保存して再利用する<span className="mt-0.5 block text-xs font-normal text-slate-500">思い出の保存と同時に、区切られたタグを1件ずつ保存します。</span></span>
