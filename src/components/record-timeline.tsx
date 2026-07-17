@@ -25,6 +25,23 @@ import {
 
 type RecordItem = Awaited<ReturnType<typeof getRecordsPageData>>["records"][number];
 const fieldClass = "grid gap-1 text-sm font-medium text-slate-700";
+const recordTypeStyles = {
+  HEALTH: {
+    card: "border-slate-200 border-l-4 border-l-emerald-500 bg-white",
+    marker: "bg-emerald-600",
+    badge: "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200"
+  },
+  MEDICAL: {
+    card: "border-slate-200 border-l-4 border-l-sky-500 bg-white",
+    marker: "bg-sky-600",
+    badge: "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200"
+  },
+  MEMORY: {
+    card: "border-slate-200 border-l-4 border-l-rose-400 bg-white",
+    marker: "bg-rose-500",
+    badge: "bg-rose-50 text-rose-800 ring-1 ring-inset ring-rose-200"
+  }
+} satisfies Record<RecordItem["recordType"], { card: string; marker: string; badge: string }>;
 
 function RecordPhoto({ recordId, title }: { recordId: string; title: string }) {
   const [failed, setFailed] = useState(false);
@@ -111,12 +128,13 @@ export function RecordTimeline({ records, hamsterId, hamsterIsActive, canEdit, t
       <div className="relative grid gap-4 before:absolute before:bottom-0 before:left-4 before:top-0 before:w-px before:bg-slate-200 sm:before:left-5">
         {records.map((record) => {
           const editable = canEdit && (record.recordType === "MEMORY" || hamsterIsActive);
+          const typeStyle = recordTypeStyles[record.recordType];
           return (
-            <article key={record.id} className="relative ml-9 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:ml-12 sm:p-5">
-              <span className="absolute -left-[2.1rem] top-5 grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-moss text-white shadow sm:-left-[2.95rem] sm:h-10 sm:w-10"><TypeIcon type={record.recordType} /></span>
+            <article key={record.id} className={`relative ml-9 rounded-lg border p-4 shadow-sm sm:ml-12 sm:p-5 ${typeStyle.card}`}>
+              <span className={`absolute -left-[2.25rem] top-5 grid h-8 w-8 place-items-center rounded-full border-2 border-white text-white shadow sm:-left-[3.1rem] sm:h-10 sm:w-10 ${typeStyle.marker}`}><TypeIcon type={record.recordType} /></span>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700"><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
+                  <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle.badge}`}><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
                   <h3 className="mt-2 text-lg font-bold text-ink">{record.title}</h3>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span>{record.recordDate.replaceAll("-", "/")}</span><span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
                 </div>
