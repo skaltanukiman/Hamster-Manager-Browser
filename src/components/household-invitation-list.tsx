@@ -39,7 +39,7 @@ export function HouseholdInvitationList({
         <p className="mt-1 text-sm text-slate-600">過去のリンク自体は再表示されません。有効なリンクだけ無効化できます。</p>
       </div>
 
-      <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
         <table className="data-table">
           <thead>
             <tr>
@@ -71,7 +71,7 @@ export function HouseholdInvitationList({
         </table>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {activeInvitations.map((invitation) => {
           const status = getHouseholdInvitationStatus(invitation, now);
           return (

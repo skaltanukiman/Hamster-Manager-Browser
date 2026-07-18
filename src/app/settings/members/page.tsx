@@ -110,7 +110,7 @@ export default async function MembersPage({
           <h3 className="text-base font-bold text-ink">メンバー一覧</h3>
         </div>
 
-        <div className="hidden overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm md:block">
+        <div className="hidden overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm lg:block">
           <table className="data-table">
             <thead>
               <tr>
@@ -167,7 +167,7 @@ export default async function MembersPage({
           </table>
         </div>
 
-        <div className="grid gap-3 md:hidden">
+        <div className="grid gap-3 lg:hidden">
           {members.map((member) => {
             const memberDisplayName = member.user.name || member.user.email || "未設定";
             const manageableMemberRole = member.role === "OWNER" ? null : member.role;
@@ -192,7 +192,7 @@ export default async function MembersPage({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-slate-500">参加日: {formatDateJst(member.createdAt)}</p>
                   {canUpdateThisMemberRole || canRemoveThisMember ? (
-                    <div className="flex w-full flex-col gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                       {canUpdateThisMemberRole ? (
                         manageableMemberRole ? (
                           <MemberRoleForm memberId={member.id} memberName={memberDisplayName} currentRole={manageableMemberRole} />
