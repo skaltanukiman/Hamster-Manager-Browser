@@ -50,7 +50,7 @@ export function CleaningMobileDayFilter({ days }: { days: CleaningMobileDayOptio
   }
 
   return (
-    <label className="grid gap-1 text-sm font-medium text-slate-700 md:hidden">
+    <label className="grid gap-1 text-sm font-medium text-slate-700 lg:hidden">
       日付
       <select value={selectedDate} onChange={(event) => handleDateChange(event.currentTarget.value)}>
         <option value="all">すべての日付</option>
@@ -90,7 +90,7 @@ export function CleaningMobileForm({
   }, []);
 
   return (
-    <div className="space-y-4 md:hidden">
+    <div className="space-y-4 lg:hidden">
       <form
         key={`cleaning-mobile-${hamsterId}-${yearMonth}-${recordsVersion}`}
         id="cleaning-mobile-form"

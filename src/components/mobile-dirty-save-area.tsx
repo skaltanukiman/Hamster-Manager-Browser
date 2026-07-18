@@ -18,7 +18,7 @@ export function MobileDirtySaveArea({ children, disabled = false, formId }: Mobi
   const fixedSaveButton =
     isDirty && !disabled ? (
       // transform/animation を持つ親要素の影響を避け、常に現在の画面右下に固定する。
-      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 md:hidden">
+      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 lg:hidden">
         <button
           type="submit"
           form={formId}

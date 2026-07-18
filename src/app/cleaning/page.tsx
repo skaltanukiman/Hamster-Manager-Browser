@@ -81,7 +81,7 @@ export default async function CleaningPage({
         <>
           <form
             method="get"
-            className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_auto]"
+            className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_180px_auto]"
           >
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               ハムスター
@@ -100,7 +100,7 @@ export default async function CleaningPage({
               <AutoSubmitInput type="month" name="month" defaultValue={yearMonth} max={currentMonth} />
             </label>
             <CleaningMobileDayFilter key={`${selectedHamster?.id ?? "none"}-${yearMonth}`} days={days} />
-            <label className="inline-flex h-10 items-center gap-2 self-end text-sm font-medium text-slate-700 md:justify-end">
+            <label className="inline-flex h-10 items-center gap-2 self-end text-sm font-medium text-slate-700 lg:justify-end">
               <AutoSubmitInput type="checkbox" name="includeInactive" value="1" defaultChecked={includeInactive} />
               管理外も含む
             </label>
@@ -130,7 +130,7 @@ export default async function CleaningPage({
                   key={`cleaning-table-${selectedHamster.id}-${yearMonth}-${cleaningRecordsVersion}`}
                   action={canEdit ? saveCleaningMonth : undefined}
                   data-dirty-watch={canEdit ? true : undefined}
-                  className="hidden space-y-4 md:block"
+                  className="hidden space-y-4 lg:block"
                 >
                   <input type="hidden" name="hamsterId" value={selectedHamster.id} />
                   <input type="hidden" name="yearMonth" value={yearMonth} />
