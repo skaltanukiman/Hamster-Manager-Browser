@@ -142,10 +142,10 @@ export function AppNav({ isAppAdmin = false }: { isAppAdmin?: boolean }) {
                     tabIndex={isMobileMenuOpen ? 0 : -1}
                     aria-current={isActive ? "page" : undefined}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/70 ${
+                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-moss transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/70 ${
                       isActive
-                        ? "bg-moss/10 text-moss hover:bg-moss/15 active:bg-moss/15"
-                        : "text-slate-700 hover:bg-moss/10 hover:text-moss active:bg-moss/15"
+                        ? "bg-moss/10 hover:bg-moss/15 active:bg-moss/15"
+                        : "hover:bg-moss/10 active:bg-moss/15"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0 text-moss" aria-hidden />
