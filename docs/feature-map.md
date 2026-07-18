@@ -1,6 +1,6 @@
 # 機能マップ
 
-最終確認: 2026-07-15。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、共有データ更新Actionは `getRequiredHouseholdMutationContext()` でVIEWERをDB処理前に拒否します。Action / API 側でも対象の所属・管理状態を確認します。
+最終確認: 2026-07-18。Next.js App Router / Prisma / PostgreSQL 構成において、画面から Server Action・Route Handler・データアクセスまでを辿るための索引です。原則として、Household に属するデータは `getRequiredHouseholdContext()` で現在の所属を確定し、共有データ更新Actionは `getRequiredHouseholdMutationContext()` でVIEWERをDB処理前に拒否します。Action / API 側でも対象の所属・管理状態を確認します。
 
 ## 共通の起点
 
@@ -126,14 +126,14 @@
 
 ## アプリ全体管理
 
-- **画面または URL:** `/admin`。
-- **主なコンポーネント:** `AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。ユーザー一覧と招待一覧は `lg` 以上でテーブル、`lg` 未満で全項目名を明示したカードとして表示する。
+- **画面または URL:** 管理トップ `/admin`、ユーザー管理 `/admin/users`、共有管理 `/admin/households`。管理トップは新しいユーザー・共有を最大5件ずつプレビューし、招待一覧は引き続き `/admin` に置く。
+- **主なコンポーネント:** `AdminUserList`、`AdminHouseholdList`、`AdminPagination`、`AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。ユーザー一覧は `lg` 以上でテーブル、`lg` 未満で全項目名を明示したカードとして表示し、共有一覧は共通カードを使う。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。
 - **Server Action または API:** `updateUserAppRole`（`src/app/actions/admin.ts`）。
-- **データアクセス・Prismaモデル:** `getRequiredAppAdminUser`、ページ内の `User.findMany` / `Household.findMany`、`src/lib/admin-invitations.ts` の `HouseholdInvitation.findMany` / `count`、Action の `User`。招待一覧は共有名候補をかな正規化してHousehold IDへ解決し、同一の `where` を共有して20件ずつDB側でページングする。有効招待数は一覧条件と独立した `count` で取得する。
-- **バリデーション:** Action 内で `AppRole` を許可値として確認。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。招待一覧の状態・共有名・並び順・ページは `admin-invitations.ts` でホワイトリスト検証・正規化し、共有名は `normalizeSearchText` により平仮名・カタカナ・大文字小文字・全角半角の差を吸収する。
-- **関連テスト:** `tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）、`tests/admin-invitations.test.ts`（招待のDBフィルター・ソート・ページング・URL・作成者表示・独立した有効件数、管理一覧のレスポンシブ切り替えと全項目維持）。
+- **データアクセス・Prismaモデル:** 全画面で `getRequiredAppAdminUser` を通す。`src/lib/admin-users.ts` と `src/lib/admin-households.ts` が `count` 後に補正したページへ `skip` / `take: 20` を適用し、作成日時・IDの降順で1ページ分だけ取得する。管理トップの全件数、5件プレビュー、招待検索用の全共有ID・名前、招待有無を別クエリに分離する。`src/lib/admin-invitations.ts` は `HouseholdInvitation.findMany` / `count` により従来どおり20件ずつDB側ページングする。
+- **バリデーション:** `src/lib/admin-pagination.ts` が不正・0以下・範囲外の `page` を安全に補正する。Action 内で `AppRole` を許可値として確認し、戻り先も `/admin` と `/admin/users` のホワイトリストに限定する。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。招待一覧の状態・共有名・並び順・ページは `admin-invitations.ts` でホワイトリスト検証・正規化し、共有名は `normalizeSearchText` により平仮名・カタカナ・大文字小文字・全角半角の差を吸収する。
+- **関連テスト:** `tests/admin-overview.test.ts`（5件プレビュー、独立count、招待検索用共有一覧）、`tests/admin-users.test.ts` / `tests/admin-households.test.ts`（DB側20件ページング、ページ補正、認可、レスポンシブ・表示項目）、`tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）、`tests/admin-invitations.test.ts`（招待のDBフィルター・ソート・ページング・URL・作成者表示・独立した有効件数、レスポンシブ切り替えと全項目維持）。
 - **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。
-- **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく page / Action の両方でアプリ管理者を確認する。ユーザー・共有の作成日はJST日付、招待の作成・期限・使用はJST日時で表示する。招待状態の判定とバッジは共有・メンバー管理画面と共通化する。
+- **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく各 page / Action の両方でアプリ管理者を確認する。権限変更操作は `/admin/users` に集約する。ユーザー・共有の作成日はJST日付、招待の作成・期限・使用はJST日時で表示する。招待状態の判定とバッジは共有・メンバー管理画面と共通化し、管理トップの共有プレビュー件数から独立させる。
 
 ## リアルタイム同期
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Users } from "lucide-react";
-import type { AppRole } from "@prisma/client";
 
-import { updateUserAppRole } from "@/app/actions/admin";
+import { AdminHouseholdList } from "@/components/admin-household-list";
 import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
+import { AdminUserList } from "@/components/admin-user-list";
 import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
@@ -16,19 +16,14 @@ import {
   parseAdminInvitationQuery,
   type AdminInvitationQuery
 } from "@/lib/admin-invitations";
-import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
+import { getAdminHouseholdPreview } from "@/lib/admin-households";
+import { getAdminUserPreview } from "@/lib/admin-users";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
-import { formatDateJst, formatDateTimeJst } from "@/lib/date";
+import { formatDateTimeJst } from "@/lib/date";
 import { getHouseholdInvitationStatus, getInvitationCreatorDisplayName } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-const appRoleLabels = {
-  USER: "一般ユーザー",
-  ADMIN: "管理者",
-  SUPER_ADMIN: "スーパー管理者"
-} as const;
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -36,86 +31,36 @@ function getParam(value: string | string[] | undefined) {
 
 async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
   const now = new Date();
-  const [users, households, activeInvitationCount] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: [{ createdAt: "asc" }],
-      include: {
-        _count: {
-          select: {
-            memberships: true,
-            sessions: true
-          }
-        }
-      }
-    }),
-    prisma.household.findMany({
-      orderBy: { createdAt: "asc" },
-      include: {
-        members: {
-          orderBy: { createdAt: "asc" },
-          include: { user: true }
-        },
-        _count: {
-          select: {
-            hamsters: true,
-            invitations: true,
-            members: true
-          }
-        }
-      }
-    }),
-    getActiveInvitationCount(now)
+  const [users, households, userCount, householdCount, invitationHouseholds, activeInvitationCount, invitationCount] =
+    await Promise.all([
+      getAdminUserPreview(),
+      getAdminHouseholdPreview(),
+      prisma.user.count(),
+      prisma.household.count(),
+      prisma.household.findMany({
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, name: true }
+      }),
+      getActiveInvitationCount(now),
+      prisma.householdInvitation.count()
   ]);
   const matchingHouseholdIds = findMatchingAdminInvitationHouseholdIds(
     invitationQuery.search,
-    households
+    invitationHouseholds
   );
   const invitationPage = await getAdminInvitationPage(invitationQuery, now, matchingHouseholdIds);
 
   return {
     users,
     households,
+    userCount,
+    householdCount,
+    invitationHouseholds,
     invitationPage,
     activeInvitationCount,
-    hasAnyInvitations: households.some((household) => household._count.invitations > 0),
+    hasAnyInvitations: invitationCount > 0,
     now
   };
-}
-
-function RoleSelect({
-  userId,
-  currentRole,
-  canEdit
-}: {
-  userId: string;
-  currentRole: AppRole;
-  canEdit: boolean;
-}) {
-  if (!canEdit) {
-    return <span>{appRoleLabels[currentRole]}</span>;
-  }
-
-  return (
-    <form
-      action={updateUserAppRole}
-      className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center lg:flex lg:min-w-[15rem]"
-    >
-      <input type="hidden" name="userId" value={userId} />
-      <select name="appRole" defaultValue={currentRole} className="h-9 min-w-0 py-1.5 text-sm">
-        {Object.entries(appRoleLabels).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <button
-        type="submit"
-        className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-moss px-3 text-sm font-semibold text-moss hover:bg-moss hover:text-white sm:w-auto"
-      >
-        変更
-      </button>
-    </form>
-  );
 }
 
 export default async function AdminPage({
@@ -131,11 +76,19 @@ export default async function AdminPage({
   }>;
 }) {
   const params = await searchParams;
-  const currentUser = await getRequiredAppAdminUser();
-  const canEditAppRoles = currentUser.appRole === "SUPER_ADMIN";
+  await getRequiredAppAdminUser();
   const invitationQuery = parseAdminInvitationQuery(params);
-  const { users, households, invitationPage, activeInvitationCount, hasAnyInvitations, now } =
-    await getAdminPageData(invitationQuery);
+  const {
+    users,
+    households,
+    userCount,
+    householdCount,
+    invitationHouseholds,
+    invitationPage,
+    activeInvitationCount,
+    hasAnyInvitations,
+    now
+  } = await getAdminPageData(invitationQuery);
   const { invitations, pagination } = invitationPage;
   const firstVisibleNumber =
     pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
@@ -153,11 +106,11 @@ export default async function AdminPage({
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">Users</p>
-          <p className="mt-2 text-2xl font-bold text-ink">{users.length}</p>
+          <p className="mt-2 text-2xl font-bold text-ink">{userCount}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">Shares</p>
-          <p className="mt-2 text-2xl font-bold text-ink">{households.length}</p>
+          <p className="mt-2 text-2xl font-bold text-ink">{householdCount}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">Active invites</p>
@@ -166,117 +119,29 @@ export default async function AdminPage({
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-moss" aria-hidden />
-          <h3 className="text-base font-bold text-ink">ユーザー一覧</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-moss" aria-hidden />
+            <h3 className="text-base font-bold text-ink">ユーザー一覧</h3>
+          </div>
+          <Link href="/admin/users" className="inline-flex min-h-10 items-center text-sm font-semibold text-moss hover:underline">
+            すべてのユーザーを表示
+          </Link>
         </div>
-        <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>名前</th>
-                <th>メールアドレス</th>
-                <th>アプリ全体権限</th>
-                <th>所属共有数</th>
-                <th>セッション数</th>
-                <th>作成日</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td className="max-w-48 break-words font-semibold text-ink [overflow-wrap:anywhere]">
-                    {user.name || "未設定"}
-                  </td>
-                  <td className="max-w-56 break-words [overflow-wrap:anywhere]">{user.email || "未設定"}</td>
-                  <td>
-                    <RoleSelect
-                      userId={user.id}
-                      currentRole={user.appRole}
-                      canEdit={canEditAppRoles && user.id !== currentUser.id}
-                    />
-                  </td>
-                  <td>{user._count.memberships}</td>
-                  <td>{user._count.sessions}</td>
-                  <td>{formatDateJst(user.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="grid gap-3 lg:hidden">
-          {users.map((user) => (
-            <article key={user.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-              <dl className="grid min-w-0 gap-3 text-sm">
-                <div className="min-w-0">
-                  <dt className="text-xs font-semibold text-slate-500">名前</dt>
-                  <dd className="mt-1 break-words font-semibold text-ink [overflow-wrap:anywhere]">
-                    {user.name || "未設定"}
-                  </dd>
-                </div>
-                <div className="min-w-0 border-t border-slate-100 pt-3">
-                  <dt className="text-xs font-semibold text-slate-500">メールアドレス</dt>
-                  <dd className="mt-1 break-words text-slate-700 [overflow-wrap:anywhere]">
-                    {user.email || "未設定"}
-                  </dd>
-                </div>
-                <div className="min-w-0 border-t border-slate-100 pt-3">
-                  <dt className="text-xs font-semibold text-slate-500">アプリ全体権限</dt>
-                  <dd className="mt-2 min-w-0 text-slate-700">
-                    <RoleSelect
-                      userId={user.id}
-                      currentRole={user.appRole}
-                      canEdit={canEditAppRoles && user.id !== currentUser.id}
-                    />
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-                  <div>
-                    <dt className="text-xs font-semibold text-slate-500">所属共有数</dt>
-                    <dd className="mt-1 text-slate-700">{user._count.memberships}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold text-slate-500">セッション数</dt>
-                    <dd className="mt-1 text-slate-700">{user._count.sessions}</dd>
-                  </div>
-                </div>
-                <div className="border-t border-slate-100 pt-3">
-                  <dt className="text-xs font-semibold text-slate-500">作成日</dt>
-                  <dd className="mt-1 text-slate-700">{formatDateJst(user.createdAt)}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
+        <AdminUserList users={users} />
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-moss" aria-hidden />
-          <h3 className="text-base font-bold text-ink">共有一覧</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-moss" aria-hidden />
+            <h3 className="text-base font-bold text-ink">共有一覧</h3>
+          </div>
+          <Link href="/admin/households" className="inline-flex min-h-10 items-center text-sm font-semibold text-moss hover:underline">
+            すべての共有を表示
+          </Link>
         </div>
-        <div className="grid gap-3">
-          {households.map((household) => (
-            <article key={household.id} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="font-bold text-ink">{household.name}</h4>
-                  <p className="mt-1 text-sm text-slate-600">
-                    メンバー {household._count.members} 人 / ハムスター {household._count.hamsters} 件 / 招待 {household._count.invitations} 件
-                  </p>
-                </div>
-                <span className="text-xs text-slate-500">作成日: {formatDateJst(household.createdAt)}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {household.members.map((member) => (
-                  <span key={member.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
-                    {member.user.name || member.user.email || "未設定"} / {HOUSEHOLD_ROLE_LABELS[member.role]}
-                  </span>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
+        <AdminHouseholdList households={households} />
       </section>
 
       <section className="space-y-3">
@@ -301,7 +166,7 @@ export default async function AdminPage({
               name="inviteSearch"
               defaultValue={invitationQuery.search}
               maxLength={ADMIN_INVITATION_SEARCH_MAX_LENGTH}
-              options={households.map((household) => ({ id: household.id, name: household.name }))}
+              options={invitationHouseholds}
             />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">

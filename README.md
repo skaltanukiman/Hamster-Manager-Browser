@@ -858,14 +858,13 @@ npm run admin:grant -- --email example@gmail.com --role SUPER_ADMIN
 npm run admin:revoke -- --email example@gmail.com
 ```
 
-`/admin` では以下を確認できます。
+管理画面は次のURLに分かれています。いずれも `ADMIN` または `SUPER_ADMIN` だけがアクセスできます。
 
-- ユーザー一覧
-- Household / 共有一覧
-- 招待リンクの状態
-- メンバー状態
+- `/admin`: 全体件数、新しいユーザー・共有のプレビュー、招待リンクの状態
+- `/admin/users`: ユーザー一覧とアプリ全体権限（1ページ20件のDB側ページング）
+- `/admin/households`: Household / 共有、メンバー状態（1ページ20件のDB側ページング）
 
-`SUPER_ADMIN` は `/admin` から他ユーザーの `appRole` を変更できます。自分自身の降格と最後の `SUPER_ADMIN` の降格はできません。
+`SUPER_ADMIN` は `/admin/users` から他ユーザーの `appRole` を変更できます。自分自身の降格と最後の `SUPER_ADMIN` の降格はできません。
 
 ## 既存データ移行
 
