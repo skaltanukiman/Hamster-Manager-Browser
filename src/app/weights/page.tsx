@@ -378,6 +378,7 @@ export default async function WeightsPage({
                 visibleCount={records.length}
                 buildHref={buildWeightPageHref}
                 scroll={false}
+                preserveScroll
               />
             ) : null}
             {!hasWeightRecords ? (
@@ -428,6 +429,7 @@ export default async function WeightsPage({
                 visibleCount={records.length}
                 buildHref={buildWeightPageHref}
                 scroll={false}
+                preserveScroll
               />
             ) : null}
           </section>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 
+import { ScrollPreservingLink } from "@/components/scroll-preserving-link";
 import { getPaginationItems } from "@/lib/pagination";
 
 export type PaginationData = {
@@ -16,29 +18,58 @@ type PaginationLayoutProps = {
   visibleCount: number;
   buildHref: (page: number) => string;
   scroll?: boolean;
+  preserveScroll?: boolean;
   emptyMessage?: string;
 };
 
 const focusClassName =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2";
 
+function PaginationLink({
+  href,
+  scroll,
+  preserveScroll,
+  className,
+  ariaLabel,
+  children
+}: {
+  href: string;
+  scroll?: boolean;
+  preserveScroll?: boolean;
+  className: string;
+  ariaLabel?: string;
+  children: ReactNode;
+}) {
+  return preserveScroll ? (
+    <ScrollPreservingLink href={href} className={className} ariaLabel={ariaLabel}>
+      {children}
+    </ScrollPreservingLink>
+  ) : (
+    <Link href={href} scroll={scroll} className={className} aria-label={ariaLabel}>
+      {children}
+    </Link>
+  );
+}
+
 function PreviousControl({
   currentPage,
   buildHref,
-  scroll
-}: Pick<PaginationLayoutProps, "buildHref" | "scroll"> & { currentPage: number }) {
+  scroll,
+  preserveScroll
+}: Pick<PaginationLayoutProps, "buildHref" | "scroll" | "preserveScroll"> & { currentPage: number }) {
   const className = `inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold ${focusClassName}`;
 
   return currentPage > 1 ? (
-    <Link
+    <PaginationLink
       href={buildHref(currentPage - 1)}
       scroll={scroll}
+      preserveScroll={preserveScroll}
       className={`${className} text-slate-700 hover:bg-slate-100`}
-      aria-label="前のページ"
+      ariaLabel="前のページ"
     >
       <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
       前へ
-    </Link>
+    </PaginationLink>
   ) : (
     <button
       type="button"
@@ -56,23 +87,25 @@ function NextControl({
   currentPage,
   totalPages,
   buildHref,
-  scroll
-}: Pick<PaginationLayoutProps, "buildHref" | "scroll"> & {
+  scroll,
+  preserveScroll
+}: Pick<PaginationLayoutProps, "buildHref" | "scroll" | "preserveScroll"> & {
   currentPage: number;
   totalPages: number;
 }) {
   const className = `inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold ${focusClassName}`;
 
   return currentPage < totalPages ? (
-    <Link
+    <PaginationLink
       href={buildHref(currentPage + 1)}
       scroll={scroll}
+      preserveScroll={preserveScroll}
       className={`${className} text-slate-700 hover:bg-slate-100`}
-      aria-label="次のページ"
+      ariaLabel="次のページ"
     >
       次へ
       <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
-    </Link>
+    </PaginationLink>
   ) : (
     <button
       type="button"
@@ -92,6 +125,7 @@ export function PaginationLayout({
   visibleCount,
   buildHref,
   scroll,
+  preserveScroll,
   emptyMessage
 }: PaginationLayoutProps) {
   const firstVisibleNumber =
@@ -113,7 +147,12 @@ export function PaginationLayout({
       {pagination.totalCount > 0 ? (
         <nav aria-label={ariaLabel} className="min-w-0">
           <div className="grid min-w-0 grid-cols-3 items-center gap-1 sm:hidden">
-            <PreviousControl currentPage={pagination.currentPage} buildHref={buildHref} scroll={scroll} />
+            <PreviousControl
+              currentPage={pagination.currentPage}
+              buildHref={buildHref}
+              scroll={scroll}
+              preserveScroll={preserveScroll}
+            />
             <span aria-current="page" className="px-1 text-center text-sm font-semibold text-slate-600">
               {pagination.currentPage} / {pagination.totalPages}
             </span>
@@ -122,11 +161,17 @@ export function PaginationLayout({
               totalPages={pagination.totalPages}
               buildHref={buildHref}
               scroll={scroll}
+              preserveScroll={preserveScroll}
             />
           </div>
 
           <div className="hidden items-center gap-0.5 sm:flex">
-            <PreviousControl currentPage={pagination.currentPage} buildHref={buildHref} scroll={scroll} />
+            <PreviousControl
+              currentPage={pagination.currentPage}
+              buildHref={buildHref}
+              scroll={scroll}
+              preserveScroll={preserveScroll}
+            />
             {pageItems.map((item, index) =>
               item === "ellipsis" ? (
                 <span
@@ -145,15 +190,16 @@ export function PaginationLayout({
                   {item}
                 </span>
               ) : (
-                <Link
+                <PaginationLink
                   key={item}
                   href={buildHref(item)}
                   scroll={scroll}
-                  aria-label={`${item}ページへ`}
+                  preserveScroll={preserveScroll}
+                  ariaLabel={`${item}ページへ`}
                   className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-ink ${focusClassName}`}
                 >
                   {item}
-                </Link>
+                </PaginationLink>
               )
             )}
             <NextControl
@@ -161,6 +207,7 @@ export function PaginationLayout({
               totalPages={pagination.totalPages}
               buildHref={buildHref}
               scroll={scroll}
+              preserveScroll={preserveScroll}
             />
           </div>
         </nav>
