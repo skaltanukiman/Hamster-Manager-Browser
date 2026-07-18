@@ -127,7 +127,7 @@
 ## アプリ全体管理
 
 - **画面または URL:** 管理トップ `/admin`、ユーザー管理 `/admin/users`、共有管理 `/admin/households`。管理トップは新しいユーザー・共有を最大5件ずつプレビューし、招待一覧は引き続き `/admin` に置く。
-- **主なコンポーネント:** `AdminUserList`、`AdminHouseholdList`、`AdminPagination`、`AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。ユーザー一覧は `lg` 以上でテーブル、`lg` 未満で全項目名を明示したカードとして表示し、共有一覧は共通カードを使う。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。
+- **主なコンポーネント:** `AdminUserList`、`AdminHouseholdList`、`AdminPagination`、`AdminInvitationPagination`、`AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。ユーザー一覧は `lg` 以上でテーブル、`lg` 未満で全項目名を明示したカードとして表示し、共有一覧は共通カードを使う。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。招待ページングは件数サマリー直下と一覧末尾に表示する。
 - **Server Action または API:** `updateUserAppRole`（`src/app/actions/admin.ts`）。
 - **データアクセス・Prismaモデル:** 全画面で `getRequiredAppAdminUser` を通す。`src/lib/admin-users.ts` と `src/lib/admin-households.ts` が `count` 後に補正したページへ `skip` / `take: 20` を適用し、作成日時・IDの降順で1ページ分だけ取得する。管理トップの全件数、5件プレビュー、招待検索用の全共有ID・名前、招待有無を別クエリに分離する。`src/lib/admin-invitations.ts` は `HouseholdInvitation.findMany` / `count` により従来どおり20件ずつDB側ページングする。
 - **バリデーション:** `src/lib/admin-pagination.ts` が不正・0以下・範囲外の `page` を安全に補正する。Action 内で `AppRole` を許可値として確認し、戻り先も `/admin` と `/admin/users` のホワイトリストに限定する。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。招待一覧の状態・共有名・並び順・ページは `admin-invitations.ts` でホワイトリスト検証・正規化し、共有名は `normalizeSearchText` により平仮名・カタカナ・大文字小文字・全角半角の差を吸収する。

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Users } from "lucide-react";
+import { ShieldCheck, Users } from "lucide-react";
 
 import { AdminHouseholdList } from "@/components/admin-household-list";
+import { AdminInvitationPagination } from "@/components/admin-invitation-pagination";
 import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
 import { AdminUserList } from "@/components/admin-user-list";
 import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
@@ -9,7 +10,6 @@ import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
 import {
   ADMIN_INVITATION_SEARCH_MAX_LENGTH,
-  buildAdminInvitationHref,
   findMatchingAdminInvitationHouseholdIds,
   getActiveInvitationCount,
   getAdminInvitationPage,
@@ -203,6 +203,8 @@ export default async function AdminPage({
           </span>
         </div>
 
+        <AdminInvitationPagination query={invitationQuery} pagination={pagination} />
+
         <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
           <table className="data-table">
             <thead>
@@ -296,92 +298,7 @@ export default async function AdminPage({
             </p>
           )}
         </div>
-        {pagination.totalCount > 0 ? (
-          <nav
-            className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end"
-            aria-label="招待一覧のページ移動"
-          >
-            {pagination.currentPage > 1 ? (
-              <Link
-                href={buildAdminInvitationHref(invitationQuery, 1)}
-                scroll={false}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-              >
-                <ChevronsLeft className="h-4 w-4" aria-hidden />
-                最初へ
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
-              >
-                <ChevronsLeft className="h-4 w-4" aria-hidden />
-                最初へ
-              </button>
-            )}
-            {pagination.currentPage > 1 ? (
-              <Link
-                href={buildAdminInvitationHref(invitationQuery, pagination.currentPage - 1)}
-                scroll={false}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-                前へ
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-                前へ
-              </button>
-            )}
-            <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
-              {pagination.currentPage} / {pagination.totalPages} ページ
-            </span>
-            {pagination.currentPage < pagination.totalPages ? (
-              <Link
-                href={buildAdminInvitationHref(invitationQuery, pagination.currentPage + 1)}
-                scroll={false}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-              >
-                次へ
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
-              >
-                次へ
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </button>
-            )}
-            {pagination.currentPage < pagination.totalPages ? (
-              <Link
-                href={buildAdminInvitationHref(invitationQuery, pagination.totalPages)}
-                scroll={false}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-              >
-                最後へ
-                <ChevronsRight className="h-4 w-4" aria-hidden />
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 disabled:cursor-not-allowed sm:w-auto"
-              >
-                最後へ
-                <ChevronsRight className="h-4 w-4" aria-hidden />
-              </button>
-            )}
-          </nav>
-        ) : null}
+        <AdminInvitationPagination query={invitationQuery} pagination={pagination} />
       </section>
     </div>
   );
