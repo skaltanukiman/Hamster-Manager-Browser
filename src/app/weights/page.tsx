@@ -377,6 +377,7 @@ export default async function WeightsPage({
                 pagination={pagination}
                 visibleCount={records.length}
                 buildHref={buildWeightPageHref}
+                scroll={false}
               />
             ) : null}
             {!hasWeightRecords ? (
@@ -426,6 +427,7 @@ export default async function WeightsPage({
                 pagination={pagination}
                 visibleCount={records.length}
                 buildHref={buildWeightPageHref}
+                scroll={false}
               />
             ) : null}
           </section>
