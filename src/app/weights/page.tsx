@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, Upload } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 
 import { createWeightRecord } from "@/app/actions/weights";
 import { AutoSubmitInput } from "@/components/auto-submit-input";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
+import { PaginationLayout } from "@/components/pagination";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightChartFilterForm } from "@/components/weight-chart-filter-form";
@@ -161,6 +162,21 @@ export default async function WeightsPage({
   const today = todayInputJst();
   const isLocked = selectedHamster ? !selectedHamster.isActive : false;
   const hasWeightRecords = monthOptions.length > 0;
+  const buildWeightPageHref = (page: number) => {
+    if (!selectedHamster) return "/weights";
+
+    return buildWeightsHref({
+      hamsterId: selectedHamster.id,
+      filterMode,
+      month: selectedMonth,
+      chartFrom: chartRange.from,
+      chartTo: chartRange.to,
+      page,
+      sortTarget,
+      sortDirection,
+      includeInactive
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -356,20 +372,12 @@ export default async function WeightsPage({
               </form>
             ) : null}
             {hasWeightRecords ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-                <span>
-                  {pagination.totalCount} 件中{" "}
-                  {pagination.totalCount === 0
-                    ? "0"
-                    : `${(pagination.currentPage - 1) * pagination.pageSize + 1} - ${
-                        (pagination.currentPage - 1) * pagination.pageSize + records.length
-                      }`}{" "}
-                  件を表示しています。
-                </span>
-                <span>
-                  {pagination.currentPage} / {pagination.totalPages} ページ
-                </span>
-              </div>
+              <PaginationLayout
+                ariaLabel="体重履歴のページ移動"
+                pagination={pagination}
+                visibleCount={records.length}
+                buildHref={buildWeightPageHref}
+              />
             ) : null}
             {!hasWeightRecords ? (
               <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
@@ -413,107 +421,12 @@ export default async function WeightsPage({
               />
             )}
             {hasWeightRecords && pagination.totalPages > 1 ? (
-              <nav className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label="体重履歴のページ移動">
-                {pagination.currentPage > 1 ? (
-                  <Link
-                    href={buildWeightsHref({
-                      hamsterId: selectedHamster.id,
-                      filterMode,
-                      month: selectedMonth,
-                      chartFrom: chartRange.from,
-                      chartTo: chartRange.to,
-                      page: 1,
-                      sortTarget,
-                      sortDirection,
-                      includeInactive
-                    })}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                  >
-                    <ChevronsLeft className="h-4 w-4" aria-hidden />
-                    最初へ
-                  </Link>
-                ) : (
-                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
-                    <ChevronsLeft className="h-4 w-4" aria-hidden />
-                    最初へ
-                  </span>
-                )}
-                {pagination.currentPage > 1 ? (
-                  <Link
-                    href={buildWeightsHref({
-                      hamsterId: selectedHamster.id,
-                      filterMode,
-                      month: selectedMonth,
-                      chartFrom: chartRange.from,
-                      chartTo: chartRange.to,
-                      page: pagination.currentPage - 1,
-                      sortTarget,
-                      sortDirection,
-                      includeInactive
-                    })}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                  >
-                    <ChevronLeft className="h-4 w-4" aria-hidden />
-                    前へ
-                  </Link>
-                ) : (
-                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
-                    <ChevronLeft className="h-4 w-4" aria-hidden />
-                    前へ
-                  </span>
-                )}
-                <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
-                  {pagination.currentPage} / {pagination.totalPages} ページ
-                </span>
-                {pagination.currentPage < pagination.totalPages ? (
-                  <Link
-                    href={buildWeightsHref({
-                      hamsterId: selectedHamster.id,
-                      filterMode,
-                      month: selectedMonth,
-                      chartFrom: chartRange.from,
-                      chartTo: chartRange.to,
-                      page: pagination.currentPage + 1,
-                      sortTarget,
-                      sortDirection,
-                      includeInactive
-                    })}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                  >
-                    次へ
-                    <ChevronRight className="h-4 w-4" aria-hidden />
-                  </Link>
-                ) : (
-                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
-                    次へ
-                    <ChevronRight className="h-4 w-4" aria-hidden />
-                  </span>
-                )}
-                {pagination.currentPage < pagination.totalPages ? (
-                  <Link
-                    href={buildWeightsHref({
-                      hamsterId: selectedHamster.id,
-                      filterMode,
-                      month: selectedMonth,
-                      chartFrom: chartRange.from,
-                      chartTo: chartRange.to,
-                      page: pagination.totalPages,
-                      sortTarget,
-                      sortDirection,
-                      includeInactive
-                    })}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                  >
-                    最後へ
-                    <ChevronsRight className="h-4 w-4" aria-hidden />
-                  </Link>
-                ) : (
-                  <span className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400 sm:w-auto">
-                    最後へ
-                    <ChevronsRight className="h-4 w-4" aria-hidden />
-                  </span>
-                )}
-              </nav>
+              <PaginationLayout
+                ariaLabel="体重履歴のページ移動"
+                pagination={pagination}
+                visibleCount={records.length}
+                buildHref={buildWeightPageHref}
+              />
             ) : null}
           </section>
             </div>

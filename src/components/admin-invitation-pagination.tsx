@@ -1,4 +1,4 @@
-import { AdminPaginationLayout } from "@/components/admin-pagination";
+import { PaginationLayout } from "@/components/pagination";
 import { buildAdminInvitationHref, type AdminInvitationQuery } from "@/lib/admin-invitations";
 
 export function AdminInvitationPagination({
@@ -16,7 +16,7 @@ export function AdminInvitationPagination({
   visibleCount: number;
 }) {
   return (
-    <AdminPaginationLayout
+    <PaginationLayout
       ariaLabel="招待一覧のページ移動"
       pagination={pagination}
       visibleCount={visibleCount}

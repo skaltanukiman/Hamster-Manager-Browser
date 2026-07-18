@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createWeightRecordSchema, updateWeightRecordSchema } from "../src/lib/schemas";
@@ -9,6 +10,42 @@ import {
   normalizeWeightChartRange
 } from "../src/lib/weight-chart-filter";
 import { isWeightInTenths } from "../src/lib/weight-rules";
+
+test("体重履歴は管理一覧と同じ共通ページングを上下に使用する", async () => {
+  const pageSource = await readFile("src/app/weights/page.tsx", "utf8");
+  const paginationSource = await readFile("src/components/pagination.tsx", "utf8");
+
+  assert.equal(pageSource.match(/<PaginationLayout/g)?.length, 2);
+  assert.match(
+    pageSource,
+    /<PaginationLayout[\s\S]*?<WeightHistoryList[\s\S]*?<PaginationLayout/
+  );
+  assert.doesNotMatch(pageSource, /ChevronsLeft|ChevronsRight|最初へ|最後へ/);
+  assert.match(paginationSource, /getPaginationItems/);
+  assert.match(paginationSource, /aria-current="page"/);
+  assert.match(paginationSource, /sm:hidden/);
+  assert.match(paginationSource, /sm:flex/);
+});
+
+test("体重履歴のページ移動は既存の表示条件を共通URL生成関数へ渡す", async () => {
+  const source = await readFile("src/app/weights/page.tsx", "utf8");
+
+  assert.match(source, /const buildWeightPageHref = \(page: number\)/);
+  for (const property of [
+    "hamsterId: selectedHamster.id",
+    "filterMode",
+    "month: selectedMonth",
+    "chartFrom: chartRange.from",
+    "chartTo: chartRange.to",
+    "page",
+    "sortTarget",
+    "sortDirection",
+    "includeInactive"
+  ]) {
+    assert.match(source, new RegExp(property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.equal(source.match(/buildHref=\{buildWeightPageHref\}/g)?.length, 2);
+});
 
 test("グラフ期間は実在する開始日と終了日だけを受け付ける", () => {
   assert.deepEqual(normalizeWeightChartRange("2026-06-01", "2026-06-30"), {

@@ -3,14 +3,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { getAdminHouseholdPage } from "../src/lib/admin-households";
-import { getAdminPaginationItems, normalizeAdminPage } from "../src/lib/admin-pagination";
+import { normalizeAdminPage } from "../src/lib/admin-pagination";
+import { getPaginationItems } from "../src/lib/pagination";
 
 test("管理一覧のページ番号は先頭・中間・末尾を省略記号付きで組み立てる", () => {
-  assert.deepEqual(getAdminPaginationItems(1, 10), [1, 2, 3, "ellipsis", 10]);
-  assert.deepEqual(getAdminPaginationItems(5, 10), [1, "ellipsis", 4, 5, 6, "ellipsis", 10]);
-  assert.deepEqual(getAdminPaginationItems(10, 10), [1, "ellipsis", 8, 9, 10]);
-  assert.deepEqual(getAdminPaginationItems(1, 1), [1]);
-  assert.deepEqual(getAdminPaginationItems(4, 7), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(getPaginationItems(1, 10), [1, 2, 3, "ellipsis", 10]);
+  assert.deepEqual(getPaginationItems(5, 10), [1, "ellipsis", 4, 5, 6, "ellipsis", 10]);
+  assert.deepEqual(getPaginationItems(10, 10), [1, "ellipsis", 8, 9, 10]);
+  assert.deepEqual(getPaginationItems(1, 1), [1]);
+  assert.deepEqual(getPaginationItems(4, 7), [1, 2, 3, 4, 5, 6, 7]);
 });
 
 test("共有管理ページ番号は不正値を安全に1へ正規化する", () => {
@@ -55,7 +56,7 @@ test("共有0件は1ページ目の空状態として扱う", async () => {
 test("共有管理画面は管理者認可、共有カード、共通ページングを備える", async () => {
   const pageSource = await readFile("src/app/admin/households/page.tsx", "utf8");
   const listSource = await readFile("src/components/admin-household-list.tsx", "utf8");
-  const paginationSource = await readFile("src/components/admin-pagination.tsx", "utf8");
+  const paginationSource = await readFile("src/components/pagination.tsx", "utf8");
 
   assert.match(pageSource, /getRequiredAppAdminUser\(\)/);
   assert.match(pageSource, /getAdminHouseholdPage\(normalizeAdminPage\(params\.page\)\)/);
