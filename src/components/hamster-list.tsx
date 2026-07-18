@@ -3,10 +3,6 @@
 import {
   Archive,
   CheckSquare,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   RotateCcw,
   Save,
   Search,
@@ -17,6 +13,7 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
 import { deleteHamsters, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
+import { ClientPagination } from "@/components/client-pagination";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { HamsterImageField } from "@/components/hamster-image-field";
 import { HamsterThumbnail } from "@/components/hamster-thumbnail";
@@ -82,8 +79,6 @@ export function HamsterList({
 
   const totalPages = Math.max(Math.ceil(filteredHamsters.length / HAMSTER_LIST_PAGE_SIZE), 1);
   const currentPage = Math.min(currentPageNumber, totalPages);
-  const firstVisibleNumber = filteredHamsters.length === 0 ? 0 : (currentPage - 1) * HAMSTER_LIST_PAGE_SIZE + 1;
-  const lastVisibleNumber = Math.min(currentPage * HAMSTER_LIST_PAGE_SIZE, filteredHamsters.length);
   const pagedHamsters = filteredHamsters.slice(
     (currentPage - 1) * HAMSTER_LIST_PAGE_SIZE,
     currentPage * HAMSTER_LIST_PAGE_SIZE
@@ -92,6 +87,11 @@ export function HamsterList({
 
   function resetDeleteSelection() {
     setSelectedDeleteIds([]);
+  }
+
+  function handlePageChange(page: number) {
+    setCurrentPageNumber(page);
+    resetDeleteSelection();
   }
 
   function handleDeleteTargetToggle(hamsterId: string) {
@@ -166,10 +166,17 @@ export function HamsterList({
         </label>
       </div>
 
-      <p className="text-xs text-slate-500">
-        {hamsters.length} 件中 {filteredHamsters.length} 件が条件に一致しています。
-        {filteredHamsters.length > 0 ? ` ${firstVisibleNumber} - ${lastVisibleNumber} 件を表示しています。` : ""}
-      </p>
+      {filteredHamsters.length > 0 ? (
+        <ClientPagination
+          ariaLabel="ハムスター一覧のページ移動"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={filteredHamsters.length}
+          pageSize={HAMSTER_LIST_PAGE_SIZE}
+          visibleCount={pagedHamsters.length}
+          onPageChange={handlePageChange}
+        />
+      ) : null}
 
       {!readOnly ? <SelectionActionBar selectedCount={selectedDeleteIds.length}>
         <button
@@ -315,59 +322,15 @@ export function HamsterList({
         </div>
       )}
       {filteredHamsters.length > 0 && totalPages > 1 ? (
-        <nav className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label="ハムスター一覧のページ移動">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => {
-              setCurrentPageNumber(1);
-              resetDeleteSelection();
-            }}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
-          >
-            <ChevronsLeft className="h-4 w-4" aria-hidden />
-            最初へ
-          </button>
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => {
-              setCurrentPageNumber(currentPage - 1);
-              resetDeleteSelection();
-            }}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-            前へ
-          </button>
-          <span className="order-first col-span-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 sm:order-none sm:col-span-1 sm:w-auto">
-            {currentPage} / {totalPages} ページ
-          </span>
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => {
-              setCurrentPageNumber(currentPage + 1);
-              resetDeleteSelection();
-            }}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
-          >
-            次へ
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => {
-              setCurrentPageNumber(totalPages);
-              resetDeleteSelection();
-            }}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:w-auto"
-          >
-            最後へ
-            <ChevronsRight className="h-4 w-4" aria-hidden />
-          </button>
-        </nav>
+        <ClientPagination
+          ariaLabel="ハムスター一覧のページ移動"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={filteredHamsters.length}
+          pageSize={HAMSTER_LIST_PAGE_SIZE}
+          visibleCount={pagedHamsters.length}
+          onPageChange={handlePageChange}
+        />
       ) : null}
       </div>
     </UnsavedChangesGuard>
