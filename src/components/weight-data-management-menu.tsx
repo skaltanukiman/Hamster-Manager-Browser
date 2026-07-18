@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Download, MoreVertical, Upload } from "lucide-react";
+import { ChevronDown, Download, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 export function WeightDataManagementMenu({ canEdit }: { canEdit: boolean }) {
@@ -47,45 +47,50 @@ export function WeightDataManagementMenu({ canEdit }: { canEdit: boolean }) {
         aria-haspopup="menu"
         aria-controls={menuId}
         onClick={() => setIsOpen((open) => !open)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-moss bg-white text-moss hover:bg-moss hover:text-white"
+        className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-sm font-medium text-moss transition-colors hover:text-moss/75 active:text-moss/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2"
       >
-        <MoreVertical className="h-5 w-5" aria-hidden />
+        <span>データ</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 transition-transform duration-200 ease-out ${isOpen ? "rotate-180" : "rotate-0"}`}
+          aria-hidden
+        />
       </button>
 
-      {isOpen ? (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label="データ管理"
-          className="absolute right-0 z-20 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-md border border-slate-200 bg-white p-1 shadow-sm"
+      <div
+        id={menuId}
+        role="menu"
+        aria-label="データ管理"
+        aria-hidden={!isOpen}
+        className={`absolute right-0 z-20 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md shadow-slate-900/10 backdrop-blur transition-[opacity,transform] duration-200 ease-out ${
+          isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0"
+        }`}
+      >
+        <Link
+          href="/weights/export"
+          role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
+          onClick={() => setIsOpen(false)}
+          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-moss transition-colors hover:bg-moss/10 active:bg-moss/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/70"
         >
+          <Download className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap">CSVエクスポート</span>
+        </Link>
+        {canEdit ? (
           <Link
-            href="/weights/export"
+            href="/weights/import"
             role="menuitem"
+            tabIndex={isOpen ? 0 : -1}
             onClick={() => setIsOpen(false)}
-            className="flex min-h-11 items-center gap-3 rounded px-3 py-2 text-sm font-semibold text-moss hover:bg-slate-50"
+            className="flex min-h-11 items-start gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-moss/10 active:bg-moss/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/70"
           >
-            <Download className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="whitespace-nowrap">CSVエクスポート</span>
+            <Upload className="mt-0.5 h-4 w-4 shrink-0 text-moss" aria-hidden />
+            <span>
+              <span className="block whitespace-nowrap font-semibold text-moss">CSVインポート</span>
+              <span className="mt-0.5 block whitespace-nowrap text-xs leading-5 text-slate-500">PCでの利用を推奨</span>
+            </span>
           </Link>
-          {canEdit ? (
-            <Link
-              href="/weights/import"
-              role="menuitem"
-              onClick={() => setIsOpen(false)}
-              className="flex min-h-11 items-start gap-3 rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              <Upload className="mt-0.5 h-4 w-4 shrink-0 text-moss" aria-hidden />
-              <span>
-                <span className="block whitespace-nowrap font-semibold text-moss">CSVインポート</span>
-                <span className="mt-0.5 block whitespace-nowrap text-xs leading-5 text-slate-500">
-                  PCでの操作を推奨
-                </span>
-              </span>
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }
