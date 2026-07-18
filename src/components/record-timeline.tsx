@@ -1,7 +1,7 @@
 "use client";
 
-import { CalendarClock, Clock3, HeartPulse, ImageIcon, Pencil, Star, Stethoscope, Trash2, UserRound } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { CalendarClock, Clock3, HeartPulse, ImageIcon, Pencil, Star, Stethoscope, Trash2, UserRound, X } from "lucide-react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 
 import { deleteHamsterRecord, updateHealthRecord, updateMedicalRecord, updateMemoryRecord } from "@/app/actions/records";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
@@ -45,11 +45,83 @@ const recordTypeStyles = {
 } satisfies Record<RecordItem["recordType"], { card: string; marker: string; badge: string }>;
 
 function RecordPhoto({ recordId, title }: { recordId: string; title: string }) {
+  const dialogTitleId = useId();
   const [failed, setFailed] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const imageUrl = `/api/records/${encodeURIComponent(recordId)}/image`;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  function handleImageError() {
+    setFailed(true);
+    setIsOpen(false);
+  }
+
   if (failed) return <div className="grid h-48 place-items-center rounded-md bg-slate-100 text-sm text-slate-500"><ImageIcon className="mb-2 h-6 w-6" aria-hidden />写真を読み込めませんでした</div>;
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/api/records/${encodeURIComponent(recordId)}/image`} alt={title} onError={() => setFailed(true)} className="max-h-96 w-full rounded-md bg-slate-100 object-contain" />
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`${title}の写真を拡大表示`}
+        title="クリックして拡大表示"
+        onClick={() => setIsOpen(true)}
+        className="block w-full cursor-zoom-in overflow-hidden rounded-md bg-slate-100 transition hover:ring-2 hover:ring-moss/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss"
+      >
+        {/* 認証CookieをそのままRoute Handlerへ送るため、画像最適化プロキシは使わない。 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageUrl} alt={title} onError={handleImageError} className="max-h-96 w-full object-contain" />
+      </button>
+
+      {isOpen ? (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 py-6"
+          onClick={() => setIsOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-md bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
+              <h3 id={dialogTitleId} className="min-w-0 truncate text-base font-bold text-ink">
+                {title}の写真
+              </h3>
+              <button
+                type="button"
+                aria-label="写真を閉じる"
+                onClick={() => setIsOpen(false)}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-3 sm:p-5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt={`${title}の写真（拡大表示）`}
+                className="max-h-[75vh] max-w-full object-contain"
+                onError={handleImageError}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
