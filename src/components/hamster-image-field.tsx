@@ -44,7 +44,7 @@ export function HamsterImageField({
   return (
     <fieldset className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
       <legend className="px-1 text-sm font-semibold text-slate-700">プロフィール画像（任意）</legend>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
         {previewUrl ? (
           // blob URLはローカル選択内容の即時プレビューだけに使用する。
           // eslint-disable-next-line @next/next/no-img-element
