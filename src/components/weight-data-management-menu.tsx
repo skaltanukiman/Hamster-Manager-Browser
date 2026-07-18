@@ -49,7 +49,7 @@ export function WeightDataManagementMenu({ canEdit }: { canEdit: boolean }) {
         onClick={() => setIsOpen((open) => !open)}
         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-sm font-medium text-moss transition-colors hover:text-moss/75 active:text-moss/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2"
       >
-        <span>データ</span>
+        <span>CSV</span>
         <ChevronDown
           className={`h-3.5 w-3.5 transition-transform duration-200 ease-out ${isOpen ? "rotate-180" : "rotate-0"}`}
           aria-hidden
