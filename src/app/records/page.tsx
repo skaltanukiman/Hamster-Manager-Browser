@@ -124,6 +124,14 @@ export default async function RecordsPage({
               <h2 className="text-xl font-bold text-ink">共通タイムライン</h2>
               <nav className="flex flex-wrap gap-2" aria-label="記録種類の切り替え">{typeTabs.map((tab) => <Link key={tab.value} href={recordsHref({ ...currentFilters, type: tab.value, page: 1 })} scroll={false} aria-current={filters.type === tab.value ? "page" : undefined} className={`rounded-full border px-3 py-2 text-sm font-semibold ${filters.type === tab.value ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss"}`}>{tab.label}</Link>)}</nav>
             </div>
+            <PaginationLayout
+              ariaLabel="記録一覧のページ移動"
+              pagination={data.pagination}
+              visibleCount={data.records.length}
+              buildHref={buildRecordsPageHref}
+              scroll={false}
+              preserveScroll
+            />
             <RecordTimeline records={data.records} hamsterId={selectedHamsterId} hamsterIsActive={data.selectedHamster?.isActive ?? false} canEdit={canEdit} today={today} />
             <PaginationLayout
               ariaLabel="記録一覧のページ移動"
