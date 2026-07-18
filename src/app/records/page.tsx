@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { AutoSubmitFilterForm, FilterClearButton } from "@/components/auto-submit-filter-form";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterSelectorInput } from "@/components/hamster-selector-input";
+import { PaginationLayout } from "@/components/pagination";
 import { RecordCreateForms } from "@/components/record-create-forms";
 import { RecordKeywordInput } from "@/components/record-keyword-input";
 import { RecordTimeline } from "@/components/record-timeline";
@@ -84,6 +84,7 @@ export default async function RecordsPage({
   const canEdit = canEditHouseholdSharedData(data.context.membership.role);
   const today = todayInputJst();
   const invalidRange = Boolean(filters.from && filters.to && filters.from > filters.to);
+  const buildRecordsPageHref = (page: number) => recordsHref({ ...currentFilters, page });
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -120,11 +121,18 @@ export default async function RecordsPage({
 
           <section className="grid gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div><h2 className="text-xl font-bold text-ink">共通タイムライン</h2><p className="mt-1 text-sm text-slate-500">{data.pagination.totalCount}件の記録</p></div>
+              <h2 className="text-xl font-bold text-ink">共通タイムライン</h2>
               <nav className="flex flex-wrap gap-2" aria-label="記録種類の切り替え">{typeTabs.map((tab) => <Link key={tab.value} href={recordsHref({ ...currentFilters, type: tab.value, page: 1 })} scroll={false} aria-current={filters.type === tab.value ? "page" : undefined} className={`rounded-full border px-3 py-2 text-sm font-semibold ${filters.type === tab.value ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss"}`}>{tab.label}</Link>)}</nav>
             </div>
             <RecordTimeline records={data.records} hamsterId={selectedHamsterId} hamsterIsActive={data.selectedHamster?.isActive ?? false} canEdit={canEdit} today={today} />
-            {data.pagination.totalPages > 1 ? <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="記録ページ移動"><Link aria-label="最初のページ" href={recordsHref({ ...currentFilters, page: 1 })} scroll={false} className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white"><ChevronsLeft className="h-4 w-4" /></Link><Link aria-label="前のページ" href={recordsHref({ ...currentFilters, page: Math.max(data.pagination.currentPage - 1, 1) })} scroll={false} className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white"><ChevronLeft className="h-4 w-4" /></Link><span className="px-2 text-sm font-semibold text-slate-700">{data.pagination.currentPage} / {data.pagination.totalPages}</span><Link aria-label="次のページ" href={recordsHref({ ...currentFilters, page: Math.min(data.pagination.currentPage + 1, data.pagination.totalPages) })} scroll={false} className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white"><ChevronRight className="h-4 w-4" /></Link><Link aria-label="最後のページ" href={recordsHref({ ...currentFilters, page: data.pagination.totalPages })} scroll={false} className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white"><ChevronsRight className="h-4 w-4" /></Link></nav> : null}
+            <PaginationLayout
+              ariaLabel="記録一覧のページ移動"
+              pagination={data.pagination}
+              visibleCount={data.records.length}
+              buildHref={buildRecordsPageHref}
+              scroll={false}
+              preserveScroll
+            />
           </section>
         </>
       )}
