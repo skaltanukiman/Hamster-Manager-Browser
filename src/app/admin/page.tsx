@@ -96,7 +96,10 @@ function RoleSelect({
   }
 
   return (
-    <form action={updateUserAppRole} className="flex min-w-[15rem] items-center gap-2">
+    <form
+      action={updateUserAppRole}
+      className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center lg:flex lg:min-w-[15rem]"
+    >
       <input type="hidden" name="userId" value={userId} />
       <select name="appRole" defaultValue={currentRole} className="h-9 min-w-0 py-1.5 text-sm">
         {Object.entries(appRoleLabels).map(([value, label]) => (
@@ -107,7 +110,7 @@ function RoleSelect({
       </select>
       <button
         type="submit"
-        className="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-moss px-3 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
+        className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-moss px-3 text-sm font-semibold text-moss hover:bg-moss hover:text-white sm:w-auto"
       >
         変更
       </button>
@@ -167,7 +170,7 @@ export default async function AdminPage({
           <Users className="h-5 w-5 text-moss" aria-hidden />
           <h3 className="text-base font-bold text-ink">ユーザー一覧</h3>
         </div>
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
+        <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
           <table className="data-table">
             <thead>
               <tr>
@@ -182,8 +185,10 @@ export default async function AdminPage({
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td className="font-semibold text-ink">{user.name || "未設定"}</td>
-                  <td>{user.email || "未設定"}</td>
+                  <td className="max-w-48 break-words font-semibold text-ink [overflow-wrap:anywhere]">
+                    {user.name || "未設定"}
+                  </td>
+                  <td className="max-w-56 break-words [overflow-wrap:anywhere]">{user.email || "未設定"}</td>
                   <td>
                     <RoleSelect
                       userId={user.id}
@@ -198,6 +203,50 @@ export default async function AdminPage({
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="grid gap-3 lg:hidden">
+          {users.map((user) => (
+            <article key={user.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+              <dl className="grid min-w-0 gap-3 text-sm">
+                <div className="min-w-0">
+                  <dt className="text-xs font-semibold text-slate-500">名前</dt>
+                  <dd className="mt-1 break-words font-semibold text-ink [overflow-wrap:anywhere]">
+                    {user.name || "未設定"}
+                  </dd>
+                </div>
+                <div className="min-w-0 border-t border-slate-100 pt-3">
+                  <dt className="text-xs font-semibold text-slate-500">メールアドレス</dt>
+                  <dd className="mt-1 break-words text-slate-700 [overflow-wrap:anywhere]">
+                    {user.email || "未設定"}
+                  </dd>
+                </div>
+                <div className="min-w-0 border-t border-slate-100 pt-3">
+                  <dt className="text-xs font-semibold text-slate-500">アプリ全体権限</dt>
+                  <dd className="mt-2 min-w-0 text-slate-700">
+                    <RoleSelect
+                      userId={user.id}
+                      currentRole={user.appRole}
+                      canEdit={canEditAppRoles && user.id !== currentUser.id}
+                    />
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                  <div>
+                    <dt className="text-xs font-semibold text-slate-500">所属共有数</dt>
+                    <dd className="mt-1 text-slate-700">{user._count.memberships}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold text-slate-500">セッション数</dt>
+                    <dd className="mt-1 text-slate-700">{user._count.sessions}</dd>
+                  </div>
+                </div>
+                <div className="border-t border-slate-100 pt-3">
+                  <dt className="text-xs font-semibold text-slate-500">作成日</dt>
+                  <dd className="mt-1 text-slate-700">{formatDateJst(user.createdAt)}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -289,7 +338,7 @@ export default async function AdminPage({
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
+        <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
           <table className="data-table">
             <thead>
               <tr>
@@ -307,11 +356,15 @@ export default async function AdminPage({
                   const status = getHouseholdInvitationStatus(invitation, now);
                   return (
                     <tr key={invitation.id}>
-                      <td className="font-semibold text-ink">{invitation.household.name}</td>
+                      <td className="max-w-56 break-words font-semibold text-ink [overflow-wrap:anywhere]">
+                        {invitation.household.name}
+                      </td>
                       <td>
                         <InvitationStatusBadge status={status} />
                       </td>
-                      <td>{getInvitationCreatorDisplayName(invitation)}</td>
+                      <td className="max-w-48 break-words [overflow-wrap:anywhere]">
+                        {getInvitationCreatorDisplayName(invitation)}
+                      </td>
                       <td>{formatDateTimeJst(invitation.createdAt)}</td>
                       <td>{formatDateTimeJst(invitation.expiresAt)}</td>
                       <td>{invitation.acceptedAt ? formatDateTimeJst(invitation.acceptedAt) : "-"}</td>
@@ -325,6 +378,58 @@ export default async function AdminPage({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="grid gap-3 lg:hidden">
+          {invitations.length > 0 ? (
+            invitations.map((invitation) => {
+              const status = getHouseholdInvitationStatus(invitation, now);
+              return (
+                <article
+                  key={invitation.id}
+                  className="min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <dl className="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
+                    <div className="min-w-0 sm:col-span-2">
+                      <dt className="text-xs font-semibold text-slate-500">共有</dt>
+                      <dd className="mt-1 break-words font-semibold text-ink [overflow-wrap:anywhere]">
+                        {invitation.household.name}
+                      </dd>
+                    </div>
+                    <div className="border-t border-slate-100 pt-3 sm:col-span-2">
+                      <dt className="text-xs font-semibold text-slate-500">状態</dt>
+                      <dd className="mt-1">
+                        <InvitationStatusBadge status={status} />
+                      </dd>
+                    </div>
+                    <div className="min-w-0 border-t border-slate-100 pt-3 sm:col-span-2">
+                      <dt className="text-xs font-semibold text-slate-500">作成者</dt>
+                      <dd className="mt-1 break-words text-slate-700 [overflow-wrap:anywhere]">
+                        {getInvitationCreatorDisplayName(invitation)}
+                      </dd>
+                    </div>
+                    <div className="border-t border-slate-100 pt-3">
+                      <dt className="text-xs font-semibold text-slate-500">作成日時</dt>
+                      <dd className="mt-1 text-slate-700">{formatDateTimeJst(invitation.createdAt)}</dd>
+                    </div>
+                    <div className="border-t border-slate-100 pt-3">
+                      <dt className="text-xs font-semibold text-slate-500">有効期限</dt>
+                      <dd className="mt-1 text-slate-700">{formatDateTimeJst(invitation.expiresAt)}</dd>
+                    </div>
+                    <div className="border-t border-slate-100 pt-3 sm:col-span-2">
+                      <dt className="text-xs font-semibold text-slate-500">使用日時</dt>
+                      <dd className="mt-1 text-slate-700">
+                        {invitation.acceptedAt ? formatDateTimeJst(invitation.acceptedAt) : "-"}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })
+          ) : (
+            <p className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+              {hasAnyInvitations ? "条件に一致する招待はありません。" : "招待リンクはまだありません。"}
+            </p>
+          )}
         </div>
         {pagination.totalCount > 0 ? (
           <nav

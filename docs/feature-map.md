@@ -127,11 +127,11 @@
 ## アプリ全体管理
 
 - **画面または URL:** `/admin`。
-- **主なコンポーネント:** `AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。
+- **主なコンポーネント:** `AutoSubmitFilterForm`、`AdminInvitationHouseholdCombobox`、`InvitationStatusBadge`、`StatusMessage`。招待フィルターは選択を即時、共有名入力を短いデバウンス後に自動適用し、スクロール位置を維持する。ユーザー一覧と招待一覧は `lg` 以上でテーブル、`lg` 未満で全項目名を明示したカードとして表示する。
 - **Server Action または API:** `updateUserAppRole`（`src/app/actions/admin.ts`）。
 - **データアクセス・Prismaモデル:** `getRequiredAppAdminUser`、ページ内の `User.findMany` / `Household.findMany`、`src/lib/admin-invitations.ts` の `HouseholdInvitation.findMany` / `count`、Action の `User`。招待一覧は共有名候補をかな正規化してHousehold IDへ解決し、同一の `where` を共有して20件ずつDB側でページングする。有効招待数は一覧条件と独立した `count` で取得する。
 - **バリデーション:** Action 内で `AppRole` を許可値として確認。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。招待一覧の状態・共有名・並び順・ページは `admin-invitations.ts` でホワイトリスト検証・正規化し、共有名は `normalizeSearchText` により平仮名・カタカナ・大文字小文字・全角半角の差を吸収する。
-- **関連テスト:** `tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）、`tests/admin-invitations.test.ts`（招待のDBフィルター・ソート・ページング・URL・作成者表示・独立した有効件数）。
+- **関連テスト:** `tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）、`tests/admin-invitations.test.ts`（招待のDBフィルター・ソート・ページング・URL・作成者表示・独立した有効件数、管理一覧のレスポンシブ切り替えと全項目維持）。
 - **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。
 - **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく page / Action の両方でアプリ管理者を確認する。ユーザー・共有の作成日はJST日付、招待の作成・期限・使用はJST日時で表示する。招待状態の判定とバッジは共有・メンバー管理画面と共通化する。
 
