@@ -132,7 +132,7 @@
 - **データアクセス・Prismaモデル:** 全画面で `getRequiredAppAdminUser` を通す。`src/lib/admin-users.ts` と `src/lib/admin-households.ts` が `count` 後に補正したページへ `skip` / `take: 20` を適用し、作成日時・IDの降順で1ページ分だけ取得する。管理トップの全件数、5件プレビュー、招待検索用の全共有ID・名前、招待有無を別クエリに分離する。`src/lib/admin-invitations.ts` は `HouseholdInvitation.findMany` / `count` により従来どおり20件ずつDB側ページングする。
 - **バリデーション:** `src/lib/admin-pagination.ts` が不正・0以下・範囲外の `page` を安全に補正する。Action 内で `AppRole` を許可値として確認し、戻り先も `/admin` と `/admin/users` のホワイトリストに限定する。`SUPER_ADMIN` の自己降格と最後の `SUPER_ADMIN` 降格を禁止する。招待一覧の状態・共有名・並び順・ページは `admin-invitations.ts` でホワイトリスト検証・正規化し、共有名は `normalizeSearchText` により平仮名・カタカナ・大文字小文字・全角半角の差を吸収する。
 - **関連テスト:** `tests/admin-overview.test.ts`（5件プレビュー、独立count、招待検索用共有一覧）、`tests/admin-users.test.ts` / `tests/admin-households.test.ts`（DB側20件ページング、ページ補正、認可、レスポンシブ・表示項目）、`tests/authorization.test.ts`（SUPER_ADMINのみ許可、自己降格・最後のSUPER_ADMIN降格禁止）、`tests/admin-invitations.test.ts`（招待のDBフィルター・ソート・ページング・URL・作成者表示・独立した有効件数、レスポンシブ切り替えと全項目維持）。
-- **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。
+- **関連設定:** `prisma/schema.prisma` の `AppRole`。初期付与は `prisma/admin-role.ts`。ページング目視確認用の追加専用・再実行可能なサンプル投入は `prisma/seed-admin-pagination.ts` と `npm run seed:admin-pagination` を使う。
 - **依存関係:** `User.appRole` は Household 内ロールとは別物。ナビ表示だけでなく各 page / Action の両方でアプリ管理者を確認する。権限変更操作は `/admin/users` に集約する。ユーザー・共有の作成日はJST日付、招待の作成・期限・使用はJST日時で表示する。招待状態の判定とバッジは共有・メンバー管理画面と共通化し、管理トップの共有プレビュー件数から独立させる。
 
 ## リアルタイム同期

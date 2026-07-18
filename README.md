@@ -553,6 +553,14 @@ npx prisma migrate dev
 npx prisma db seed
 ```
 
+管理画面のページング確認用に、既存データを削除せずユーザー・共有を25件ずつ追加する場合:
+
+```powershell
+npm run seed:admin-pagination
+```
+
+このseedは再実行可能です。各共有にメンバーとハムスターを1件、奇数番の共有には有効な招待、偶数番のユーザーにはセッションを作成します。
+
 ### 5. Next.js を起動
 
 ```powershell
