@@ -18,7 +18,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
-    "seed:admin-pagination": "tsx prisma/seed-admin-pagination.ts"
+    "seed:admin-pagination": "tsx prisma/seed-admin-pagination.ts",
+    "seed:hamster-pagination": "tsx prisma/seed-hamster-pagination.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
