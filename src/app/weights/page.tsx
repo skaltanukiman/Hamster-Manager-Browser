@@ -170,7 +170,7 @@ export default async function WeightsPage({
           <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
         </div>
         <WeightDataManagementMenu canEdit={canEdit} />
-        <div className="hidden flex-wrap gap-2 md:flex">
+        <div className="hidden flex-wrap gap-2 sm:flex">
           <Link
             href="/weights/export"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"

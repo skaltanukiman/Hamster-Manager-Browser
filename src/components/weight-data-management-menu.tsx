@@ -38,7 +38,7 @@ export function WeightDataManagementMenu({ canEdit }: { canEdit: boolean }) {
   }, [isOpen]);
 
   return (
-    <div ref={containerRef} className="relative md:hidden">
+    <div ref={containerRef} className="relative sm:hidden">
       <button
         ref={triggerRef}
         type="button"
