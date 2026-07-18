@@ -9,6 +9,7 @@ import { HamsterSelectorInput } from "@/components/hamster-selector-input";
 import { StatusMessage } from "@/components/status-message";
 import { WeightChart } from "@/components/weight-chart";
 import { WeightChartFilterForm } from "@/components/weight-chart-filter-form";
+import { WeightDataManagementMenu } from "@/components/weight-data-management-menu";
 import { WeightHistoryList } from "@/components/weight-history-list";
 import { canEditHouseholdSharedData } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
@@ -164,11 +165,12 @@ export default async function WeightsPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1 md:flex-none">
           <h2 className="text-xl font-bold text-ink">体重管理</h2>
           <p className="mt-1 text-sm text-slate-600">日付ごとの体重を登録し、推移を確認します。</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <WeightDataManagementMenu canEdit={canEdit} />
+        <div className="hidden flex-wrap gap-2 md:flex">
           <Link
             href="/weights/export"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-moss bg-white px-4 text-sm font-semibold text-moss hover:bg-moss hover:text-white"
