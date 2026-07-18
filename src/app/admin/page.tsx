@@ -90,9 +90,6 @@ export default async function AdminPage({
     now
   } = await getAdminPageData(invitationQuery);
   const { invitations, pagination } = invitationPage;
-  const firstVisibleNumber =
-    pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
-  const lastVisibleNumber = (pagination.currentPage - 1) * pagination.pageSize + invitations.length;
 
   return (
     <div className="space-y-6">
@@ -190,20 +187,11 @@ export default async function AdminPage({
           </div>
         </AutoSubmitFilterForm>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-          {pagination.totalCount === 0 ? (
-            <span>条件に一致する招待はありません。</span>
-          ) : (
-            <span>
-              全{pagination.totalCount}件中 {firstVisibleNumber}～{lastVisibleNumber}件を表示しています。
-            </span>
-          )}
-          <span>
-            {pagination.currentPage} / {pagination.totalPages} ページ
-          </span>
-        </div>
-
-        <AdminInvitationPagination query={invitationQuery} pagination={pagination} />
+        <AdminInvitationPagination
+          query={invitationQuery}
+          pagination={pagination}
+          visibleCount={invitations.length}
+        />
 
         <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
           <table className="data-table">
@@ -298,7 +286,11 @@ export default async function AdminPage({
             </p>
           )}
         </div>
-        <AdminInvitationPagination query={invitationQuery} pagination={pagination} />
+        <AdminInvitationPagination
+          query={invitationQuery}
+          pagination={pagination}
+          visibleCount={invitations.length}
+        />
       </section>
     </div>
   );

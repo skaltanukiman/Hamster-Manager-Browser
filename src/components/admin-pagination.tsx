@@ -1,14 +1,170 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { buildAdminListHref, type AdminPagination as AdminPaginationData } from "@/lib/admin-pagination";
+import {
+  buildAdminListHref,
+  getAdminPaginationItems,
+  type AdminPagination as AdminPaginationData
+} from "@/lib/admin-pagination";
 
-const navigationItems = [
-  { label: "最初へ", icon: ChevronsLeft, page: (pagination: AdminPaginationData) => 1 },
-  { label: "前へ", icon: ChevronLeft, page: (pagination: AdminPaginationData) => pagination.currentPage - 1 },
-  { label: "次へ", icon: ChevronRight, page: (pagination: AdminPaginationData) => pagination.currentPage + 1 },
-  { label: "最後へ", icon: ChevronsRight, page: (pagination: AdminPaginationData) => pagination.totalPages }
-] as const;
+type AdminPaginationLayoutProps = {
+  ariaLabel: string;
+  pagination: AdminPaginationData;
+  visibleCount: number;
+  buildHref: (page: number) => string;
+  scroll?: boolean;
+  emptyMessage?: string;
+};
+
+const focusClassName =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2";
+
+function PreviousControl({
+  currentPage,
+  buildHref,
+  scroll
+}: Pick<AdminPaginationLayoutProps, "buildHref" | "scroll"> & { currentPage: number }) {
+  const className = `inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold ${focusClassName}`;
+
+  return currentPage > 1 ? (
+    <Link
+      href={buildHref(currentPage - 1)}
+      scroll={scroll}
+      className={`${className} text-slate-700 hover:bg-slate-100`}
+      aria-label="前のページ"
+    >
+      <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+      前へ
+    </Link>
+  ) : (
+    <button
+      type="button"
+      disabled
+      aria-disabled="true"
+      className={`${className} cursor-not-allowed text-slate-400`}
+    >
+      <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+      前へ
+    </button>
+  );
+}
+
+function NextControl({
+  currentPage,
+  totalPages,
+  buildHref,
+  scroll
+}: Pick<AdminPaginationLayoutProps, "buildHref" | "scroll"> & {
+  currentPage: number;
+  totalPages: number;
+}) {
+  const className = `inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold ${focusClassName}`;
+
+  return currentPage < totalPages ? (
+    <Link
+      href={buildHref(currentPage + 1)}
+      scroll={scroll}
+      className={`${className} text-slate-700 hover:bg-slate-100`}
+      aria-label="次のページ"
+    >
+      次へ
+      <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+    </Link>
+  ) : (
+    <button
+      type="button"
+      disabled
+      aria-disabled="true"
+      className={`${className} cursor-not-allowed text-slate-400`}
+    >
+      次へ
+      <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+    </button>
+  );
+}
+
+export function AdminPaginationLayout({
+  ariaLabel,
+  pagination,
+  visibleCount,
+  buildHref,
+  scroll,
+  emptyMessage
+}: AdminPaginationLayoutProps) {
+  const firstVisibleNumber =
+    pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
+  const lastVisibleNumber =
+    pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + visibleCount;
+  const pageItems = getAdminPaginationItems(pagination.currentPage, pagination.totalPages);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <p className="min-w-0">
+        {pagination.totalCount === 0 && emptyMessage ? (
+          emptyMessage
+        ) : (
+          <>全{pagination.totalCount}件中 {firstVisibleNumber}～{lastVisibleNumber}件を表示</>
+        )}
+      </p>
+
+      {pagination.totalCount > 0 ? (
+        <nav aria-label={ariaLabel} className="min-w-0">
+          <div className="grid min-w-0 grid-cols-3 items-center gap-1 sm:hidden">
+            <PreviousControl currentPage={pagination.currentPage} buildHref={buildHref} scroll={scroll} />
+            <span aria-current="page" className="px-1 text-center text-sm font-semibold text-slate-600">
+              {pagination.currentPage} / {pagination.totalPages}
+            </span>
+            <NextControl
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              buildHref={buildHref}
+              scroll={scroll}
+            />
+          </div>
+
+          <div className="hidden items-center gap-0.5 sm:flex">
+            <PreviousControl currentPage={pagination.currentPage} buildHref={buildHref} scroll={scroll} />
+            {pageItems.map((item, index) =>
+              item === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="inline-flex h-9 min-w-7 items-center justify-center px-1 text-slate-400"
+                  aria-hidden="true"
+                >
+                  …
+                </span>
+              ) : item === pagination.currentPage ? (
+                <span
+                  key={item}
+                  aria-current="page"
+                  className="inline-flex h-9 min-w-9 items-center justify-center rounded-md bg-moss px-2 text-sm font-bold text-white"
+                >
+                  {item}
+                </span>
+              ) : (
+                <Link
+                  key={item}
+                  href={buildHref(item)}
+                  scroll={scroll}
+                  aria-label={`${item}ページへ`}
+                  className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-ink ${focusClassName}`}
+                >
+                  {item}
+                </Link>
+              )
+            )}
+            <NextControl
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              buildHref={buildHref}
+              scroll={scroll}
+            />
+          </div>
+        </nav>
+      ) : null}
+    </div>
+  );
+}
 
 export function AdminPagination({
   pathname,
@@ -19,50 +175,12 @@ export function AdminPagination({
   pagination: AdminPaginationData;
   visibleCount: number;
 }) {
-  const firstVisibleNumber =
-    pagination.totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
-  const lastVisibleNumber = (pagination.currentPage - 1) * pagination.pageSize + visibleCount;
-
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-      <div>
-        <p>
-          全{pagination.totalCount}件中 {firstVisibleNumber}～{lastVisibleNumber}件を表示
-        </p>
-        <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-          {pagination.currentPage} / {pagination.totalPages} ページ
-        </p>
-      </div>
-      <nav aria-label="管理一覧のページ移動" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {navigationItems.map((item) => {
-          const isPrevious = item.label === "最初へ" || item.label === "前へ";
-          const disabled = isPrevious
-            ? pagination.currentPage <= 1
-            : pagination.currentPage >= pagination.totalPages;
-          const Icon = item.icon;
-          const className = `inline-flex min-h-10 items-center justify-center gap-1 rounded-md border px-3 text-sm font-semibold ${
-            disabled
-              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-          }`;
-
-          return disabled ? (
-            <span key={item.label} aria-disabled="true" className={className}>
-              <Icon className="h-4 w-4" aria-hidden />
-              {item.label}
-            </span>
-          ) : (
-            <Link
-              key={item.label}
-              href={buildAdminListHref(pathname, item.page(pagination))}
-              className={className}
-            >
-              <Icon className="h-4 w-4" aria-hidden />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+    <AdminPaginationLayout
+      ariaLabel="管理一覧のページ移動"
+      pagination={pagination}
+      visibleCount={visibleCount}
+      buildHref={(page) => buildAdminListHref(pathname, page)}
+    />
   );
 }
