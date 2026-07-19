@@ -11,9 +11,11 @@ import {
   canManageHouseholdMemberRoles,
   canRemoveHouseholdMembers,
   canViewHouseholdSharedData,
+  getHouseholdLeaveRequirement,
   hasAuthenticatedUserId,
   memberRemovalDenial,
-  memberRoleUpdateDenial
+  memberRoleUpdateDenial,
+  ownershipTransferTargetDenial
 } from "../src/lib/authorization";
 
 const projectRoot = process.cwd();
@@ -80,6 +82,49 @@ test("メンバー削除は自己削除・権限越え・最後のOWNER削除を
   assert.equal(memberRemovalDenial({ ...base, actorRole: "OWNER", targetRole: "MEMBER" }), null);
   assert.equal(memberRemovalDenial({ ...base, actorRole: "OWNER", targetRole: "VIEWER" }), null);
   assert.equal(memberRemovalDenial({ ...base, actorRole: "OWNER", targetRole: "ADMIN" }), null);
+});
+
+test("MEMBER・ADMIN・VIEWERと複数OWNERは移譲なしで自己退出できる", () => {
+  for (const role of ["MEMBER", "ADMIN", "VIEWER"] as const) {
+    assert.equal(getHouseholdLeaveRequirement({ role, ownerCount: 1, memberCount: 2 }), "leave");
+  }
+  assert.equal(getHouseholdLeaveRequirement({ role: "OWNER", ownerCount: 2, memberCount: 3 }), "leave");
+});
+
+test("唯一のOWNERには移譲を求め、自分しかいないHouseholdは退出不可にする", () => {
+  assert.equal(
+    getHouseholdLeaveRequirement({ role: "OWNER", ownerCount: 1, memberCount: 2 }),
+    "transferOwnership"
+  );
+  assert.equal(getHouseholdLeaveRequirement({ role: "OWNER", ownerCount: 1, memberCount: 1 }), "soleMember");
+});
+
+test("所有権移譲先は同じHouseholdに所属する自分以外のユーザーだけを認める", () => {
+  const base = { actorUserId: "actor", householdId: "household-1" } as const;
+  assert.equal(
+    ownershipTransferTargetDenial({
+      ...base,
+      targetUserId: "actor",
+      targetHouseholdId: "household-1"
+    }),
+    "invalidTransferTarget"
+  );
+  assert.equal(
+    ownershipTransferTargetDenial({
+      ...base,
+      targetUserId: "outsider",
+      targetHouseholdId: "household-2"
+    }),
+    "transferTargetUnavailable"
+  );
+  assert.equal(
+    ownershipTransferTargetDenial({
+      ...base,
+      targetUserId: "member",
+      targetHouseholdId: "household-1"
+    }),
+    null
+  );
 });
 
 test("Household権限変更はOWNERだけに許可し、自己変更とOWNER変更を拒否する", () => {

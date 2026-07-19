@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
-import { Users } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
+import Link from "next/link";
 
 import { HouseholdInvitationForm } from "@/components/household-invitation-form";
 import { HouseholdInvitationList } from "@/components/household-invitation-list";
@@ -43,7 +44,7 @@ async function getInvitationOrigin() {
 async function getMembersPageData() {
   const context = await getRequiredHouseholdContext();
   const now = new Date();
-  const [members, invitations] = await Promise.all([
+  const [members, invitations, hamsterCount] = await Promise.all([
     prisma.householdMember.findMany({
       where: { householdId: context.household.id },
       include: { user: true },
@@ -62,10 +63,11 @@ async function getMembersPageData() {
         }
       },
       orderBy: { createdAt: "desc" }
-    })
+    }),
+    prisma.hamster.count({ where: { householdId: context.household.id } })
   ]);
 
-  return { context, members, invitations, now };
+  return { context, members, invitations, hamsterCount, now };
 }
 
 export default async function MembersPage({
@@ -75,7 +77,7 @@ export default async function MembersPage({
 }) {
   const params = await searchParams;
   const invitationOrigin = await getInvitationOrigin();
-  const { context, members, invitations, now } = await getMembersPageData();
+  const { context, members, invitations, hamsterCount, now } = await getMembersPageData();
   const canManageInvitations = canManageHouseholdInvitations(context.membership.role);
   const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
   const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
@@ -210,6 +212,50 @@ export default async function MembersPage({
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-red-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <LogOut className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-ink">Householdからの退出</h3>
+            <p className="mt-1 text-sm text-slate-600">現在参加しているHouseholdから、自分で退出する手続きです。</p>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid gap-3 rounded-md bg-slate-50 p-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-semibold text-slate-500">現在のHousehold</dt>
+            <dd className="mt-1 break-words font-bold text-ink">{context.household.name}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold text-slate-500">現在の権限</dt>
+            <dd className="mt-1 font-bold text-ink">{HOUSEHOLD_ROLE_LABELS[context.membership.role]}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold text-slate-500">メンバー数</dt>
+            <dd className="mt-1 font-bold text-ink">{members.length}人</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold text-slate-500">登録ハムスター数</dt>
+            <dd className="mt-1 font-bold text-ink">{hamsterCount}匹</dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 space-y-1 text-sm leading-6 text-slate-600">
+          <p>退出後は、このHouseholdのハムスターや記録を閲覧・編集できなくなります。</p>
+          <p>退出しても、Household内のハムスターや共有記録自体は削除されません。</p>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <Link
+            href="/settings/members/leave"
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 sm:w-auto"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            退出手続きへ
+          </Link>
         </div>
       </section>
 

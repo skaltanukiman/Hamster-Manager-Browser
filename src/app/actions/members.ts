@@ -11,6 +11,7 @@ import {
   memberRoleUpdateDenial
 } from "@/lib/authorization";
 import {
+  ensureUserHouseholdMembership,
   getRequiredHouseholdContext,
   getRequiredSessionUser,
   setCurrentHouseholdCookie
@@ -29,6 +30,7 @@ import {
 } from "@/lib/invitation-mutations";
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
+import { leaveHouseholdMembership } from "@/lib/household-leave";
 import {
   commitHouseholdMutation,
   getRealtimeActorId,
@@ -62,6 +64,12 @@ function redirectInvitationFailure(status: InvitationUnavailableStatus): never {
 
 function parseManageableMemberRole(value: FormDataEntryValue | null) {
   return value === "ADMIN" || value === "MEMBER" || value === "VIEWER" ? value : null;
+}
+
+function hasLeaveAcknowledgements(formData: FormData) {
+  return ["acknowledgeAccessLoss", "acknowledgeDataRetention", "acknowledgeNewInvitation"].every(
+    (field) => formData.get(field) === "confirmed"
+  );
 }
 
 export async function createHouseholdInvitation(
@@ -377,5 +385,82 @@ export async function updateHouseholdMemberRole(formData: FormData) {
     redirect("/settings/members?status=roleUpdated");
   } catch (error) {
     handleServerActionError(error, { operation: "members.updateRole", pathname: "/settings/members" });
+  }
+}
+
+export async function leaveCurrentHousehold(formData: FormData) {
+  try {
+    const householdId = formData.get("householdId");
+    if (typeof householdId !== "string" || !householdId || !hasLeaveAcknowledgements(formData)) {
+      redirect("/settings/members/leave?status=invalid");
+    }
+
+    const context = await getRequiredHouseholdContext();
+    if (context.household.id !== householdId) {
+      redirect("/settings/members?status=householdLeaveStateChanged");
+    }
+    const transferValue = formData.get("transferToUserId");
+    const transferToUserId = typeof transferValue === "string" && transferValue ? transferValue : null;
+    const result = await leaveHouseholdMembership({
+      householdId,
+      actorUserId: context.user.id,
+      actorClientId: getRealtimeActorId(formData),
+      transferToUserId
+    });
+
+    if (result.status === "notMember") {
+      redirect("/settings/members?status=householdAlreadyLeft");
+    }
+    if (result.status === "soleMember") {
+      redirect("/settings/members/leave?status=cannotLeaveSoleMember");
+    }
+    if (result.status === "transferRequired") {
+      redirect("/settings/members/leave?status=ownershipTransferRequired");
+    }
+    if (result.status === "invalidTransferTarget") {
+      redirect("/settings/members/leave?status=invalidTransferTarget");
+    }
+    if (result.status === "transferTargetUnavailable") {
+      redirect("/settings/members/leave?status=transferTargetUnavailable");
+    }
+    if (result.status === "stateChanged") {
+      redirect("/settings/members/leave?status=householdLeaveStateChanged");
+    }
+
+    if (result.status === "transferredAndLeft") {
+      writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.ownershipTransferredAndMemberLeft, {
+        actorUserId: context.user.id,
+        actorHouseholdRole: result.previousRole,
+        householdId,
+        previousRole: result.previousRole,
+        transferTargetUserId: result.transferTargetUserId,
+        transferTargetPreviousRole: result.transferTargetPreviousRole,
+        result: "success"
+      });
+    } else {
+      writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.memberLeft, {
+        actorUserId: context.user.id,
+        actorHouseholdRole: result.previousRole,
+        householdId,
+        previousRole: result.previousRole,
+        result: "success"
+      });
+    }
+
+    publishHouseholdChangeSafely(result.change);
+    const nextMembership = await ensureUserHouseholdMembership(context.user);
+    await setCurrentHouseholdCookie(nextMembership.householdId);
+    revalidatePathsSafely(
+      [{ path: "/", type: "layout" }, { path: "/settings/members" }, { path: "/settings/members/leave" }],
+      "members.leave.revalidate",
+      { householdId, userId: context.user.id }
+    );
+    redirect(
+      result.status === "transferredAndLeft"
+        ? "/?status=ownershipTransferredAndLeft"
+        : "/?status=householdLeft"
+    );
+  } catch (error) {
+    handleServerActionError(error, { operation: "members.leave", pathname: "/settings/members/leave" });
   }
 }

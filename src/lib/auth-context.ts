@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 export const CURRENT_HOUSEHOLD_COOKIE = "hamster_current_household";
 export const DEFAULT_HOUSEHOLD_NAME_SUFFIX = "のハムスター管理";
 
-type SessionUser = {
+export type SessionUser = {
   id: string;
   appRole: AppRole;
   name?: string | null;
@@ -144,10 +144,13 @@ async function createInitialHousehold(user: SessionUser) {
   });
 }
 
+export async function ensureUserHouseholdMembership(user: SessionUser, preferredHouseholdId?: string) {
+  return (await findMembership(user.id, preferredHouseholdId)) ?? (await createInitialHousehold(user));
+}
+
 export async function getRequiredHouseholdContext(): Promise<CurrentHouseholdContext> {
   const sessionUser = await getRequiredSessionUser();
-  const membership =
-    (await findMembership(sessionUser.id, await getPreferredHouseholdId())) ?? (await createInitialHousehold(sessionUser));
+  const membership = await ensureUserHouseholdMembership(sessionUser, await getPreferredHouseholdId());
 
   return {
     user: sessionUser,

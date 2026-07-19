@@ -2,6 +2,8 @@ import type { AppRole, HouseholdRole } from "@prisma/client";
 
 export type ManageableHouseholdRole = Exclude<HouseholdRole, "OWNER">;
 
+export type HouseholdLeaveRequirement = "leave" | "transferOwnership" | "soleMember";
+
 export const HOUSEHOLD_ROLE_LABELS: Record<HouseholdRole, string> = {
   OWNER: "オーナー",
   ADMIN: "管理者",
@@ -54,6 +56,36 @@ export function memberRemovalDenial({
   if (actorUserId === targetUserId) return "cannotRemoveSelf";
   if (actorRole === "ADMIN" && targetRole !== "MEMBER" && targetRole !== "VIEWER") return "forbidden";
   if (targetRole === "OWNER" && ownerCount <= 1) return "cannotRemoveLastOwner";
+  return null;
+}
+
+export function getHouseholdLeaveRequirement({
+  role,
+  ownerCount,
+  memberCount
+}: {
+  role: HouseholdRole;
+  ownerCount: number;
+  memberCount: number;
+}): HouseholdLeaveRequirement {
+  if (memberCount <= 1) return "soleMember";
+  if (role === "OWNER" && ownerCount <= 1) return "transferOwnership";
+  return "leave";
+}
+
+export function ownershipTransferTargetDenial({
+  actorUserId,
+  targetUserId,
+  targetHouseholdId,
+  householdId
+}: {
+  actorUserId: string;
+  targetUserId: string | null;
+  targetHouseholdId: string | null;
+  householdId: string;
+}) {
+  if (!targetUserId || actorUserId === targetUserId) return "invalidTransferTarget";
+  if (targetHouseholdId !== householdId) return "transferTargetUnavailable";
   return null;
 }
 

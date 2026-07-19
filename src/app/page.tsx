@@ -5,6 +5,7 @@ import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { DashboardMemo } from "@/components/dashboard-memo";
 import { EmptyState } from "@/components/empty-state";
 import { HamsterThumbnail } from "@/components/hamster-thumbnail";
+import { StatusMessage } from "@/components/status-message";
 import { daysSinceDate, formatDateJp } from "@/lib/date";
 import { getDashboardData } from "@/lib/queries";
 
@@ -15,7 +16,16 @@ const DASHBOARD_VALUE_CLASS =
 const DASHBOARD_EMPTY_VALUE_CLASS =
   "inline-flex h-8 min-w-28 items-center justify-end rounded-md border border-slate-200 bg-white px-2.5 text-right text-sm font-semibold text-slate-500 shadow-sm";
 
-export default async function DashboardPage() {
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function DashboardPage({
+  searchParams
+}: {
+  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
+}) {
+  const params = await searchParams;
   const { hamsters, boardCount, totalHamsters } = await getDashboardData();
   // 表示数制限で非表示になったハムスターがいる場合だけ、設定画面への誘導文を出す。
   const hiddenHamsterCount = Math.max(totalHamsters - hamsters.length, 0);
@@ -46,6 +56,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {hamsters.length === 0 ? (
         <EmptyState title="ハムスターがまだ登録されていません。" href="/hamsters" actionLabel="登録する" />
