@@ -7,7 +7,7 @@ type ProfileSettingsFieldsProps = {
 
 export function ProfileSettingsFields({ name, email }: ProfileSettingsFieldsProps) {
   return (
-    <section className="space-y-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="space-y-4 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
       <div className="flex items-center gap-2">
         <UserRound className="h-5 w-5 text-moss" aria-hidden />
         <h3 className="text-base font-bold text-ink">プロフィール</h3>

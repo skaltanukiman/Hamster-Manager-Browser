@@ -163,7 +163,7 @@ export function DashboardSettingsForm({
 
       <section className="space-y-3">
         <h3 className="text-base font-bold text-ink">ハムスター選択方式</h3>
-        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
             <input
               type="radio"
