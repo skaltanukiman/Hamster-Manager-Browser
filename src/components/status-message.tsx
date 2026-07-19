@@ -9,6 +9,8 @@ const messages: Record<string, string> = {
   deleted: "削除しました。",
   saved: "保存しました。",
   profileUpdated: "表示名を更新しました。",
+  householdNameUpdated: "共有グループ名を更新しました。",
+  householdNameUnchanged: "共有グループ名に変更はありません。",
   unchanged: "変更はありません。",
   invalid: "入力内容を確認してください。",
   duplicate: "同じ日付の記録が既に存在します。",
@@ -16,6 +18,7 @@ const messages: Record<string, string> = {
   hamsterDuplicate: "同じ名前のハムスターが既に登録されています。",
   hamsterNameTooLong: "名前は15文字以内で入力してください。",
   profileNameTooLong: "表示名は50文字以内で入力してください。",
+  householdNameTooLong: "共有グループ名は50文字以内で入力してください。",
   hamsterMemoTooLong: "メモは2000文字以内で入力してください。",
   hamsterImageTooLarge: "画像は10MB以内で選択してください。",
   hamsterImageUnsupported: "JPEG、PNG、WebP形式の画像を選択してください。",
@@ -50,6 +53,7 @@ const messages: Record<string, string> = {
   transferTargetUnavailable: "選択したメンバーは、この共有グループに所属していません。最新の状態を確認して、もう一度お試しください。",
   householdAlreadyLeft: "この共有グループからは既に退出しています。最新の状態を確認してください。",
   householdLeaveStateChanged: "共有グループの状態が変更されています。最新の状態を確認して、もう一度操作してください。",
+  householdStateChanged: "共有グループの状態が変更されています。最新の状態を確認して、もう一度操作してください。",
   cannotChangeOwnHouseholdRole: "自分自身の共有権限は変更できません。",
   cannotChangeOwnerRole: "オーナー権限はこの画面では変更できません。",
   cannotChangeOwnRole: "自分自身のアプリ全体権限は変更できません。",
@@ -70,6 +74,7 @@ const errorStatuses = new Set([
   "hamsterDuplicate",
   "hamsterNameTooLong",
   "profileNameTooLong",
+  "householdNameTooLong",
   "hamsterMemoTooLong",
   "hamsterImageTooLarge",
   "hamsterImageUnsupported",
@@ -96,6 +101,7 @@ const errorStatuses = new Set([
   "transferTargetUnavailable",
   "householdAlreadyLeft",
   "householdLeaveStateChanged",
+  "householdStateChanged",
   "cannotChangeOwnHouseholdRole",
   "cannotChangeOwnerRole",
   "cannotChangeOwnRole",
@@ -114,7 +120,7 @@ function AnimatedStatusMessage({ status, message, errorId }: { status: string; m
   const [isVisible, setIsVisible] = useState(true);
   const [isLeaving, setIsLeaving] = useState(false);
   const isError = errorStatuses.has(status);
-  const isInfo = status === "unchanged";
+  const isInfo = status === "unchanged" || status === "householdNameUnchanged";
   const colorClass = isError
     ? "border-red-200 bg-red-50 text-red-700"
     : isInfo

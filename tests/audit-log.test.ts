@@ -9,6 +9,7 @@ import { closeServerLogger, createServerLogger } from "../src/lib/logger";
 
 test("Household管理操作の成功監査ログを識別可能な項目だけで記録する", async () => {
   assert.equal(HOUSEHOLD_AUDIT_EVENTS.invitationRevoked, "household_invitation_revoked");
+  assert.equal(HOUSEHOLD_AUDIT_EVENTS.householdNameUpdated, "household_name_updated");
   assert.equal(HOUSEHOLD_AUDIT_EVENTS.memberLeft, "household_member_left");
   assert.equal(
     HOUSEHOLD_AUDIT_EVENTS.ownershipTransferredAndMemberLeft,

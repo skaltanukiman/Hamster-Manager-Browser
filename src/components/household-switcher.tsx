@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 
 import type { HouseholdOption } from "@/lib/auth-context";
-import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
+import { getDuplicateHouseholdNames, getHouseholdSwitcherOptionLabel } from "@/lib/household-switcher";
 
 type HouseholdSwitcherProps = {
   currentHouseholdId: string;
@@ -14,6 +14,7 @@ type HouseholdSwitcherProps = {
 
 export function HouseholdSwitcher({ currentHouseholdId, households, action }: HouseholdSwitcherProps) {
   const pathname = usePathname();
+  const duplicateNames = getDuplicateHouseholdNames(households);
 
   if (households.length <= 1) {
     return null;
@@ -34,7 +35,7 @@ export function HouseholdSwitcher({ currentHouseholdId, households, action }: Ho
       >
         {households.map((household) => (
           <option key={household.id} value={household.id}>
-            {household.name}（{HOUSEHOLD_ROLE_LABELS[household.role]}）
+            {getHouseholdSwitcherOptionLabel(household, duplicateNames.has(household.name))}
           </option>
         ))}
       </AutoSubmitSelect>

@@ -7,6 +7,7 @@ import {
   canManageHouseholdInvitations,
   canManageHouseholdMemberRoles,
   canRemoveHouseholdMembers,
+  canUpdateHouseholdName,
   memberRemovalDenial,
   memberRoleUpdateDenial
 } from "@/lib/authorization";
@@ -31,6 +32,7 @@ import {
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 import { leaveHouseholdMembership } from "@/lib/household-leave";
+import { updateHouseholdNameMutation } from "@/lib/household-name";
 import {
   commitHouseholdMutation,
   getRealtimeActorId,
@@ -38,6 +40,7 @@ import {
   updateHouseholdRevision
 } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
+import { updateHouseholdNameSchema } from "@/lib/schemas";
 import { handleServerActionError, logUnexpectedError } from "@/lib/server-errors";
 
 type InvitationUnavailableStatus = "accepted" | "expired" | "revoked" | "invalid";
@@ -70,6 +73,66 @@ function hasLeaveAcknowledgements(formData: FormData) {
   return ["acknowledgeAccessLoss", "acknowledgeDataRetention", "acknowledgeNewInvitation"].every(
     (field) => formData.get(field) === "confirmed"
   );
+}
+
+export async function updateCurrentHouseholdName(formData: FormData) {
+  try {
+    const context = await getRequiredHouseholdContext();
+    if (!canUpdateHouseholdName(context.membership.role)) {
+      redirect("/settings/members?status=forbidden");
+    }
+
+    const expectedName = formData.get("currentName");
+    if (typeof expectedName !== "string") {
+      redirect("/settings/members?status=householdStateChanged");
+    }
+    const nameResult = updateHouseholdNameSchema.safeParse({ name: formData.get("name") });
+    if (!nameResult.success) {
+      const isNameTooLong = nameResult.error.issues.some(
+        (issue) => issue.path[0] === "name" && issue.code === "too_big"
+      );
+      redirect(
+        isNameTooLong
+          ? "/settings/members?status=householdNameTooLong"
+          : "/settings/members?status=invalid"
+      );
+    }
+
+    const result = await updateHouseholdNameMutation({
+      householdId: context.household.id,
+      actorUserId: context.user.id,
+      actorClientId: getRealtimeActorId(formData),
+      expectedName,
+      nextName: nameResult.data.name
+    });
+    if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
+    if (result.status === "stateChanged") redirect("/settings/members?status=householdStateChanged");
+    if (result.status === "unchanged") redirect("/settings/members?status=householdNameUnchanged");
+
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.householdNameUpdated, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: result.actorHouseholdRole,
+      householdId: context.household.id,
+      result: "success"
+    });
+    publishHouseholdChangeSafely(result.change);
+    revalidatePathsSafely(
+      [
+        { path: "/", type: "layout" },
+        { path: "/settings/members" },
+        { path: "/settings/members/leave" },
+        { path: "/admin" }
+      ],
+      "members.updateHouseholdName.revalidate",
+      { householdId: context.household.id }
+    );
+    redirect("/settings/members?status=householdNameUpdated");
+  } catch (error) {
+    handleServerActionError(error, {
+      operation: "members.updateHouseholdName",
+      pathname: "/settings/members"
+    });
+  }
 }
 
 export async function createHouseholdInvitation(

@@ -1,13 +1,16 @@
 import { headers } from "next/headers";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, Save, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 
+import { updateCurrentHouseholdName } from "@/app/actions/members";
+import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { HouseholdInvitationForm } from "@/components/household-invitation-form";
 import { HouseholdInvitationList } from "@/components/household-invitation-list";
 import {
   canManageHouseholdInvitations,
   canManageHouseholdMemberRoles,
   canRemoveHouseholdMembers,
+  canUpdateHouseholdName,
   HOUSEHOLD_ROLE_LABELS
 } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
@@ -82,6 +85,7 @@ export default async function MembersPage({
   const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
   const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
   const hasMemberActions = canManageMemberRoles || canRemoveMembers;
+  const canUpdateName = canUpdateHouseholdName(context.membership.role);
 
   return (
     <div className="space-y-6">
@@ -91,6 +95,63 @@ export default async function MembersPage({
       </div>
 
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
+
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <Settings2 className="mt-0.5 h-5 w-5 shrink-0 text-moss" aria-hidden />
+          <div>
+            <h3 className="text-base font-bold text-ink">共有グループ設定</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              この名前は、操作対象の切り替えや共有画面に表示されます。
+            </p>
+          </div>
+        </div>
+
+        {canUpdateName ? (
+          <form action={updateCurrentHouseholdName} data-dirty-watch className="mt-4 space-y-4">
+            <input type="hidden" name="currentName" value={context.household.name} />
+            <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="household-name">
+              共有グループ名
+              <input
+                id="household-name"
+                name="name"
+                required
+                maxLength={50}
+                defaultValue={context.household.name}
+                aria-describedby="household-name-help"
+              />
+              <span id="household-name-help" className="text-xs font-normal text-slate-500">
+                50文字以内で入力してください。
+              </span>
+            </label>
+            <div className="flex justify-end">
+              <DirtySubmitButton className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto">
+                <Save className="h-4 w-4" aria-hidden />
+                共有グループ名を保存
+              </DirtySubmitButton>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="household-name-readonly">
+              共有グループ名
+              <input
+                id="household-name-readonly"
+                value={context.household.name}
+                readOnly
+                aria-describedby="household-name-readonly-help"
+                className="bg-slate-50 text-slate-600"
+              />
+            </label>
+            <p
+              id="household-name-readonly-help"
+              className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+            >
+              共有グループ名を変更できるのはオーナーだけです。
+            </p>
+          </div>
+        )}
+      </section>
 
       {canManageInvitations ? (
         <HouseholdInvitationForm

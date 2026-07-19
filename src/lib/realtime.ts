@@ -9,6 +9,7 @@ export type HouseholdChangeSource =
   | "cleaning"
   | "weight"
   | "settings"
+  | "household"
   | "member"
   | "profile"
   | "record";

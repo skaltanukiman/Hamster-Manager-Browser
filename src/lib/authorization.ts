@@ -39,6 +39,10 @@ export function canManageHouseholdMemberRoles(role: HouseholdRole) {
   return role === "OWNER";
 }
 
+export function canUpdateHouseholdName(role: HouseholdRole) {
+  return role === "OWNER";
+}
+
 export function memberRemovalDenial({
   actorRole,
   actorUserId,

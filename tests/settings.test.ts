@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { getSettingsChanges, type SettingsSnapshot } from "../src/lib/settings-diff";
+import "./household-name.test";
 
 const current: SettingsSnapshot = {
   name: "山田 太郎",

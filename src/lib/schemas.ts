@@ -98,3 +98,7 @@ export const dashboardSettingsSchema = z.object({
 export const updateUserProfileSchema = z.object({
   name: z.string().trim().min(1).max(50)
 });
+
+export const updateHouseholdNameSchema = z.object({
+  name: z.string().trim().min(1).max(50)
+});

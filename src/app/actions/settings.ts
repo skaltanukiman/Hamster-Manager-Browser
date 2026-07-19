@@ -2,11 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import {
-  DEFAULT_HOUSEHOLD_NAME_SUFFIX,
-  defaultHouseholdName,
-  getRequiredHouseholdContext
-} from "@/lib/auth-context";
+import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import {
   normalizeDashboardBoardCount,
   normalizeHamsterSelectorMode,
@@ -45,7 +41,7 @@ export async function saveSettings(formData: FormData) {
     const [user, hamsters, setting] = await Promise.all([
       prisma.user.findUnique({
         where: { id: context.user.id },
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true }
       }),
       prisma.hamster.findMany({
         where: { householdId: context.household.id },
@@ -92,15 +88,7 @@ export async function saveSettings(formData: FormData) {
     const actorClientId = getRealtimeActorId(formData);
     const changes = await prisma.$transaction(async (tx) => {
       if (profileChanged) {
-        const nextHouseholdName = defaultHouseholdName({ name: profileResult.data.name, email: user.email });
         await tx.user.update({ where: { id: context.user.id }, data: { name: profileResult.data.name } });
-        await tx.household.updateMany({
-          where: {
-            name: { endsWith: DEFAULT_HOUSEHOLD_NAME_SUFFIX },
-            members: { some: { userId: context.user.id, role: "OWNER" } }
-          },
-          data: { name: nextHouseholdName }
-        });
       }
 
       if (dashboardChanged) {
