@@ -11,7 +11,7 @@ import {
 } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { formatDateJst } from "@/lib/date";
-import { INVITATION_TTL_DAYS } from "@/lib/invitations";
+import { INVITATION_TTL_DAYS, MAX_ACTIVE_HOUSEHOLD_INVITATIONS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
 import { MemberRemoveForm } from "@/components/member-remove-form";
 import { MemberRoleForm } from "@/components/member-role-form";
@@ -91,7 +91,12 @@ export default async function MembersPage({
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
       {canManageInvitations ? (
-        <HouseholdInvitationForm invitationOrigin={invitationOrigin} ttlDays={INVITATION_TTL_DAYS} />
+        <HouseholdInvitationForm
+          invitationOrigin={invitationOrigin}
+          ttlDays={INVITATION_TTL_DAYS}
+          activeInvitationCount={invitations.length}
+          maxActiveInvitations={MAX_ACTIVE_HOUSEHOLD_INVITATIONS}
+        />
       ) : (
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <div>

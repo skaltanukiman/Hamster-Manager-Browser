@@ -14,7 +14,8 @@ import {
   invitationAcceptanceFailure,
   invitationExpiresAt,
   INVITATION_CREATION_RATE_SCOPE,
-  INVITATION_CREATION_WINDOW_LIMIT
+  INVITATION_CREATION_WINDOW_LIMIT,
+  MAX_ACTIVE_HOUSEHOLD_INVITATIONS
 } from "../src/lib/invitations";
 
 type StoredInvitation = {
@@ -32,6 +33,7 @@ type FakeDatabase = {
   memberships: Map<string, HouseholdRole>;
   invitations: StoredInvitation[];
   userLockTails: Map<string, Promise<void>>;
+  householdLockTails: Map<string, Promise<void>>;
   nextId: number;
   revision: number;
 };
@@ -45,6 +47,7 @@ function createFakeDatabase(): FakeDatabase {
     memberships: new Map([[membershipKey("household-1", "user-1"), "OWNER"]]),
     invitations: [],
     userLockTails: new Map(),
+    householdLockTails: new Map(),
     nextId: 1,
     revision: 0
   };
@@ -52,21 +55,33 @@ function createFakeDatabase(): FakeDatabase {
 
 function createFakeExecutor(database: FakeDatabase): InvitationMutationExecutor {
   return async (operation) => {
-    const lockState: { release: (() => void) | null } = { release: null };
+    const lockReleases: Array<() => void> = [];
+
+    async function acquireLock(lockTails: Map<string, Promise<void>>, key: string) {
+      const previousTail = lockTails.get(key) ?? Promise.resolve();
+      let releaseCurrent!: () => void;
+      const current = new Promise<void>((resolve) => {
+        releaseCurrent = resolve;
+      });
+      lockTails.set(key, previousTail.then(() => current));
+      await previousTail;
+      lockReleases.push(releaseCurrent);
+    }
 
     const repository: InvitationMutationRepository = {
       findMembershipRole: async (householdId, userId) =>
         database.memberships.get(membershipKey(householdId, userId)) ?? null,
-      lockInvitationCreationByUser: async (userId) => {
-        const previousTail = database.userLockTails.get(userId) ?? Promise.resolve();
-        let releaseCurrent!: () => void;
-        const current = new Promise<void>((resolve) => {
-          releaseCurrent = resolve;
-        });
-        database.userLockTails.set(userId, previousTail.then(() => current));
-        await previousTail;
-        lockState.release = releaseCurrent;
-      },
+      lockInvitationCreationByUser: (userId) => acquireLock(database.userLockTails, userId),
+      lockInvitationCreationByHousehold: (householdId) =>
+        acquireLock(database.householdLockTails, householdId),
+      countActiveInvitationsInHousehold: async (householdId, now) =>
+        database.invitations.filter(
+          (invitation) =>
+            invitation.householdId === householdId &&
+            invitation.acceptedAt === null &&
+            invitation.revokedAt === null &&
+            invitation.expiresAt.getTime() > now.getTime()
+        ).length,
       findLatestInvitationCreatedByUser: async (userId) =>
         database.invitations
           .filter((invitation) => invitation.createdByUserId === userId)
@@ -126,7 +141,7 @@ function createFakeExecutor(database: FakeDatabase): InvitationMutationExecutor 
     try {
       return await operation(repository);
     } finally {
-      lockState.release?.();
+      for (const release of lockReleases.reverse()) release();
     }
   };
 }
@@ -265,10 +280,199 @@ test("同時リクエストでも1時間上限を超えて作成しない", asyn
   assert.equal(database.invitations.length, 5);
 });
 
-test("本番DB実装はユーザー単位のPostgreSQL transaction lockを使用する", () => {
+test("有効リンクが9件なら作成でき、10件になってHousehold revisionを更新する", async () => {
+  const database = createFakeDatabase();
+  const now = new Date("2026-07-14T05:30:00.000Z");
+  for (let index = 0; index < MAX_ACTIVE_HOUSEHOLD_INVITATIONS - 1; index += 1) {
+    seedInvitation(database, {
+      createdByUserId: "seed-user",
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000 - index)
+    });
+  }
+
+  const result = await createRateLimitedHouseholdInvitation(
+    creationInput(now),
+    createFakeExecutor(database)
+  );
+
+  assert.equal(result.status, "created");
+  assert.equal(database.invitations.length, MAX_ACTIVE_HOUSEHOLD_INVITATIONS);
+  assert.equal(database.revision, 1);
+});
+
+test("有効リンクが10件ならactiveLimitとなり、招待もrevisionも増やさない", async () => {
+  const database = createFakeDatabase();
+  const now = new Date("2026-07-14T05:40:00.000Z");
+  for (let index = 0; index < MAX_ACTIVE_HOUSEHOLD_INVITATIONS; index += 1) {
+    seedInvitation(database, {
+      createdByUserId: "seed-user",
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000 - index)
+    });
+  }
+
+  const result = await createRateLimitedHouseholdInvitation(
+    creationInput(now),
+    createFakeExecutor(database)
+  );
+
+  assert.equal(result.status, "activeLimit");
+  assert.equal(database.invitations.length, MAX_ACTIVE_HOUSEHOLD_INVITATIONS);
+  assert.equal(database.revision, 0);
+});
+
+test("有効リンクを1件無効化すると9件になり、新しいリンクを再作成できる", async () => {
+  const database = createFakeDatabase();
+  const executor = createFakeExecutor(database);
+  const now = new Date("2026-07-14T05:45:00.000Z");
+  const activeInvitations = Array.from(
+    { length: MAX_ACTIVE_HOUSEHOLD_INVITATIONS },
+    (_, index) =>
+      seedInvitation(database, {
+        createdByUserId: "seed-user",
+        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000 - index)
+      })
+  );
+
+  const revoked = await revokeHouseholdInvitationMutation(
+    {
+      householdId: "household-1",
+      actorUserId: "user-1",
+      actorClientId: "client-1",
+      invitationId: activeInvitations[0].id,
+      now
+    },
+    executor
+  );
+  const activeAfterRevoke = database.invitations.filter(
+    (invitation) =>
+      invitation.householdId === "household-1" &&
+      invitation.acceptedAt === null &&
+      invitation.revokedAt === null &&
+      invitation.expiresAt.getTime() > now.getTime()
+  ).length;
+  const created = await createRateLimitedHouseholdInvitation(creationInput(now), executor);
+
+  assert.equal(revoked.status, "revoked");
+  assert.equal(activeAfterRevoke, MAX_ACTIVE_HOUSEHOLD_INVITATIONS - 1);
+  assert.equal(created.status, "created");
+  assert.equal(database.revision, 2);
+});
+
+test("承認済み・無効化済み・期限切れ・別Householdのリンクは有効件数に含めない", async () => {
+  const database = createFakeDatabase();
+  const now = new Date("2026-07-14T05:50:00.000Z");
+  for (let index = 0; index < MAX_ACTIVE_HOUSEHOLD_INVITATIONS - 1; index += 1) {
+    seedInvitation(database, {
+      createdByUserId: "seed-user",
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000 - index)
+    });
+  }
+  seedInvitation(database, {
+    createdByUserId: "seed-user",
+    createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    acceptedAt: new Date(now.getTime() - 1)
+  });
+  seedInvitation(database, {
+    createdByUserId: "seed-user",
+    createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    revokedAt: new Date(now.getTime() - 1)
+  });
+  seedInvitation(database, {
+    createdByUserId: "seed-user",
+    createdAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000),
+    expiresAt: now
+  });
+  seedInvitation(database, {
+    householdId: "household-2",
+    createdByUserId: "seed-user",
+    createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000)
+  });
+
+  const result = await createRateLimitedHouseholdInvitation(
+    creationInput(now),
+    createFakeExecutor(database)
+  );
+  const activeInvitationCount = database.invitations.filter(
+    (invitation) =>
+      invitation.householdId === "household-1" &&
+      invitation.acceptedAt === null &&
+      invitation.revokedAt === null &&
+      invitation.expiresAt.getTime() > now.getTime()
+  ).length;
+
+  assert.equal(result.status, "created");
+  assert.equal(activeInvitationCount, MAX_ACTIVE_HOUSEHOLD_INVITATIONS);
+  assert.equal(database.revision, 1);
+});
+
+test("同じHouseholdの異なる管理者が同時作成しても有効リンクは10件を超えない", async () => {
+  const database = createFakeDatabase();
+  database.memberships.set(membershipKey("household-1", "user-2"), "ADMIN");
+  const executor = createFakeExecutor(database);
+  const now = new Date("2026-07-14T05:55:00.000Z");
+  for (let index = 0; index < MAX_ACTIVE_HOUSEHOLD_INVITATIONS - 1; index += 1) {
+    seedInvitation(database, {
+      createdByUserId: "seed-user",
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000 - index)
+    });
+  }
+
+  const results = await Promise.all([
+    createRateLimitedHouseholdInvitation(creationInput(now), executor),
+    createRateLimitedHouseholdInvitation(
+      creationInput(now, { actorUserId: "user-2", actorClientId: "client-2" }),
+      executor
+    )
+  ]);
+  const activeInvitationCount = database.invitations.filter(
+    (invitation) =>
+      invitation.householdId === "household-1" &&
+      invitation.acceptedAt === null &&
+      invitation.revokedAt === null &&
+      invitation.expiresAt.getTime() > now.getTime()
+  ).length;
+
+  assert.equal(results.filter((result) => result.status === "created").length, 1);
+  assert.equal(results.filter((result) => result.status === "activeLimit").length, 1);
+  assert.equal(activeInvitationCount, MAX_ACTIVE_HOUSEHOLD_INVITATIONS);
+  assert.equal(database.revision, 1);
+});
+
+test("本番DB実装はユーザー・Household単位で異なるPostgreSQL transaction lockを使用する", () => {
   const source = readFileSync(join(process.cwd(), "src/lib/invitation-mutations.ts"), "utf8");
   assert.match(source, /pg_advisory_xact_lock\(hashtextextended\(\$\{userId\}, 731491\)\)/);
+  assert.match(source, /pg_advisory_xact_lock\(hashtextextended\(\$\{householdId\}, 731492\)\)/);
+  assert.ok(
+    source.indexOf("lockInvitationCreationByUser(input.actorUserId)") <
+      source.indexOf("lockInvitationCreationByHousehold(input.householdId)")
+  );
   assert.match(source, /where:\s*{ createdByUserId: userId }/);
+  assert.match(
+    source,
+    /where:\s*{\s*householdId,\s*acceptedAt: null,\s*revokedAt: null,\s*expiresAt: { gt: now }\s*}/
+  );
+});
+
+test("共有画面は有効件数と上限を表示し、上限到達時の作成を無効化する", () => {
+  const pageSource = readFileSync(join(process.cwd(), "src/app/settings/members/page.tsx"), "utf8");
+  const formSource = readFileSync(
+    join(process.cwd(), "src/components/household-invitation-form.tsx"),
+    "utf8"
+  );
+  const actionSource = readFileSync(join(process.cwd(), "src/app/actions/members.ts"), "utf8");
+
+  assert.match(pageSource, /activeInvitationCount=\{invitations\.length\}/);
+  assert.match(pageSource, /maxActiveInvitations=\{MAX_ACTIVE_HOUSEHOLD_INVITATIONS\}/);
+  assert.doesNotMatch(pageSource, /PaginationLayout|invitePage|skip:|take:/);
+  assert.match(formSource, /有効なリンク \{activeInvitationCount} \/ \{maxActiveInvitations}件/);
+  assert.match(formSource, /disabled=\{pending \|\| activeLimitReached\}/);
+  assert.match(formSource, /aria-describedby=\{activeLimitReached \? activeLimitMessageId : undefined\}/);
+  assert.match(formSource, /不要な招待リンクを無効化すると、新しいリンクを作成できます。/);
+  assert.match(actionSource, /errorCode: "activeLimit"/);
+  assert.match(
+    actionSource,
+    /有効な招待リンクが上限の\$\{MAX_ACTIVE_HOUSEHOLD_INVITATIONS}件に達しています。/
+  );
 });
 
 test("未使用かつ有効なリンクだけ無効化できる", async () => {

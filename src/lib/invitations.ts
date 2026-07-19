@@ -5,6 +5,7 @@ export const INVITATION_CREATION_COOLDOWN_MS = 30 * 1000;
 export const INVITATION_CREATION_WINDOW_MS = 60 * 60 * 1000;
 export const INVITATION_CREATION_WINDOW_LIMIT = 5;
 export const INVITATION_CREATION_RATE_SCOPE = "user" as const;
+export const MAX_ACTIVE_HOUSEHOLD_INVITATIONS = 10;
 const INVITATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,256}$/;
 
 export type InvitationCreationLimitCode = "cooldown" | "hourlyLimit";

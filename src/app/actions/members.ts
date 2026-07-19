@@ -20,7 +20,8 @@ import {
   hashInvitationToken,
   invitationAcceptanceFailure,
   invitationExpiresAt,
-  isValidInvitationToken
+  isValidInvitationToken,
+  MAX_ACTIVE_HOUSEHOLD_INVITATIONS
 } from "@/lib/invitations";
 import {
   createRateLimitedHouseholdInvitation,
@@ -47,7 +48,7 @@ class InvitationUnavailableError extends Error {
 
 export type CreateHouseholdInvitationState = {
   inviteToken: string | null;
-  errorCode: "cooldown" | "hourlyLimit" | null;
+  errorCode: "cooldown" | "hourlyLimit" | "activeLimit" | null;
   errorMessage: string | null;
   retryAfterSeconds: number | null;
 };
@@ -84,6 +85,14 @@ export async function createHouseholdInvitation(
       expiresAt: invitationExpiresAt(now)
     });
     if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
+    if (result.status === "activeLimit") {
+      return {
+        inviteToken: null,
+        errorCode: "activeLimit",
+        errorMessage: `有効な招待リンクが上限の${MAX_ACTIVE_HOUSEHOLD_INVITATIONS}件に達しています。不要なリンクを無効化してから再度作成してください。`,
+        retryAfterSeconds: null
+      };
+    }
     if (result.status === "limited") {
       return {
         inviteToken: null,

@@ -14,14 +14,23 @@ const INITIAL_STATE: CreateHouseholdInvitationState = {
   retryAfterSeconds: null
 };
 
-function CreateInvitationButton() {
+function CreateInvitationButton({
+  activeLimitReached,
+  activeLimitMessageId
+}: {
+  activeLimitReached: boolean;
+  activeLimitMessageId: string;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
-      disabled={pending}
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-wait disabled:opacity-60"
+      disabled={pending || activeLimitReached}
+      aria-describedby={activeLimitReached ? activeLimitMessageId : undefined}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-60 ${
+        activeLimitReached ? "disabled:cursor-not-allowed" : "disabled:cursor-wait"
+      }`}
     >
       <Plus className="h-4 w-4" aria-hidden />
       {pending ? "作成中..." : "招待リンクを作成"}
@@ -29,9 +38,21 @@ function CreateInvitationButton() {
   );
 }
 
-export function HouseholdInvitationForm({ invitationOrigin, ttlDays }: { invitationOrigin: string; ttlDays: number }) {
+export function HouseholdInvitationForm({
+  invitationOrigin,
+  ttlDays,
+  activeInvitationCount,
+  maxActiveInvitations
+}: {
+  invitationOrigin: string;
+  ttlDays: number;
+  activeInvitationCount: number;
+  maxActiveInvitations: number;
+}) {
   const [state, formAction] = useActionState(createHouseholdInvitation, INITIAL_STATE);
   const inviteUrl = state.inviteToken ? buildInvitationUrl(invitationOrigin, state.inviteToken) : "";
+  const activeLimitReached = activeInvitationCount >= maxActiveInvitations;
+  const activeLimitMessageId = "active-invitation-limit-message";
 
   return (
     <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -39,9 +60,20 @@ export function HouseholdInvitationForm({ invitationOrigin, ttlDays }: { invitat
         <div>
           <h3 className="text-base font-bold text-ink">招待リンク</h3>
           <p className="mt-1 text-sm text-slate-600">リンクは作成から {ttlDays} 日間だけ有効です。</p>
+          <p className="mt-1 text-sm font-medium text-slate-700">
+            有効なリンク {activeInvitationCount} / {maxActiveInvitations}件
+          </p>
+          {activeLimitReached ? (
+            <p id={activeLimitMessageId} className="mt-2 text-sm text-amber-700">
+              不要な招待リンクを無効化すると、新しいリンクを作成できます。
+            </p>
+          ) : null}
         </div>
         <form action={formAction}>
-          <CreateInvitationButton />
+          <CreateInvitationButton
+            activeLimitReached={activeLimitReached}
+            activeLimitMessageId={activeLimitMessageId}
+          />
         </form>
       </div>
 

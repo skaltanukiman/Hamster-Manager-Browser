@@ -5,8 +5,13 @@ import {
   buildInvitationUrl,
   createInvitationToken,
   getInvitationTokenFromHash,
-  invitationAcceptanceFailure
+  invitationAcceptanceFailure,
+  MAX_ACTIVE_HOUSEHOLD_INVITATIONS
 } from "../src/lib/invitations";
+
+test("Household内の有効な招待リンク上限は10件", () => {
+  assert.equal(MAX_ACTIVE_HOUSEHOLD_INVITATIONS, 10);
+});
 
 test("招待トークンはクエリではなくURLフラグメントへ格納する", () => {
   const token = createInvitationToken();

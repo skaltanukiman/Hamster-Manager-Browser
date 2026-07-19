@@ -6,6 +6,7 @@ import {
   invitationAcceptanceFailure,
   INVITATION_CREATION_WINDOW_LIMIT,
   INVITATION_CREATION_WINDOW_MS,
+  MAX_ACTIVE_HOUSEHOLD_INVITATIONS,
   type InvitationCreationLimitCode
 } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,8 @@ type InvitationLifecycle = {
 export type InvitationMutationRepository = {
   findMembershipRole(householdId: string, userId: string): Promise<HouseholdRole | null>;
   lockInvitationCreationByUser(userId: string): Promise<void>;
+  lockInvitationCreationByHousehold(householdId: string): Promise<void>;
+  countActiveInvitationsInHousehold(householdId: string, now: Date): Promise<number>;
   findLatestInvitationCreatedByUser(userId: string): Promise<Date | null>;
   countInvitationsCreatedByUserSince(userId: string, since: Date): Promise<number>;
   findOldestInvitationCreatedByUserSince(userId: string, since: Date): Promise<Date | null>;
@@ -61,6 +64,19 @@ const executePrismaInvitationMutation: InvitationMutationExecutor = (operation) 
         // 制限はHouseholdをまたぐユーザー単位。transaction終了まで同一ユーザーの作成を直列化する。
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 731491))`;
       },
+      lockInvitationCreationByHousehold: async (householdId) => {
+        // 有効リンク上限はHousehold単位。異なる管理者からの同時作成も直列化する。
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 731492))`;
+      },
+      countActiveInvitationsInHousehold: (householdId, now) =>
+        tx.householdInvitation.count({
+          where: {
+            householdId,
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: now }
+          }
+        }),
       findLatestInvitationCreatedByUser: async (userId) => {
         const invitation = await tx.householdInvitation.findFirst({
           where: { createdByUserId: userId },
@@ -116,7 +132,8 @@ export type CreateInvitationMutationResult =
       change: CommittedHouseholdChange;
     }
   | { status: "forbidden" }
-  | { status: "limited"; code: InvitationCreationLimitCode; retryAt: Date };
+  | { status: "limited"; code: InvitationCreationLimitCode; retryAt: Date }
+  | { status: "activeLimit" };
 
 export async function createRateLimitedHouseholdInvitation(
   input: {
@@ -134,10 +151,19 @@ export async function createRateLimitedHouseholdInvitation(
     if (!initialRole || !canManageHouseholdInvitations(initialRole)) return { status: "forbidden" };
 
     await repository.lockInvitationCreationByUser(input.actorUserId);
+    await repository.lockInvitationCreationByHousehold(input.householdId);
 
     // ロック待機中に権限が変わる可能性があるため、作成直前にもDBで再確認する。
     const lockedRole = await repository.findMembershipRole(input.householdId, input.actorUserId);
     if (!lockedRole || !canManageHouseholdInvitations(lockedRole)) return { status: "forbidden" };
+
+    const activeInvitationCount = await repository.countActiveInvitationsInHousehold(
+      input.householdId,
+      input.now
+    );
+    if (activeInvitationCount >= MAX_ACTIVE_HOUSEHOLD_INVITATIONS) {
+      return { status: "activeLimit" };
+    }
 
     const latestCreatedAt = await repository.findLatestInvitationCreatedByUser(input.actorUserId);
     const cooldownLimit = evaluateInvitationCreationLimit({
