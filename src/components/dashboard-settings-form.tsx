@@ -222,7 +222,10 @@ export function DashboardSettingsForm({
               </label>
               <div className="space-y-1.5">
                 <span className="block text-sm font-medium text-slate-700">状態</span>
-                <div className="flex flex-wrap gap-2" aria-label="ハムスターの状態で絞り込む">
+                <div
+                  className="grid grid-cols-4 rounded-xl bg-slate-100 p-1 sm:flex sm:flex-wrap sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
+                  aria-label="ハムスターの状態で絞り込む"
+                >
                   {HAMSTER_STATUS_FILTERS.map((filter) => {
                     const isSelected = statusFilter === filter.value;
 
@@ -232,10 +235,10 @@ export function DashboardSettingsForm({
                         type="button"
                         aria-pressed={isSelected}
                         onClick={() => setStatusFilter(filter.value)}
-                        className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss ${
+                        className={`flex min-h-11 min-w-0 items-center justify-center whitespace-nowrap rounded-lg px-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-1 sm:min-h-0 sm:rounded-md sm:border sm:px-3 sm:py-1.5 sm:text-sm sm:font-semibold ${
                           isSelected
-                            ? "border-moss bg-moss text-white"
-                            : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-100"
+                            ? "bg-moss/10 text-moss ring-1 ring-inset ring-moss/20 sm:border-moss sm:bg-moss sm:text-white sm:ring-0"
+                            : "text-slate-600 hover:bg-white/70 hover:text-ink sm:border-slate-300 sm:bg-white sm:text-slate-700 sm:hover:border-slate-400 sm:hover:bg-slate-100"
                         }`}
                       >
                         {filter.label}
