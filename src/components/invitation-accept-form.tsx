@@ -118,7 +118,7 @@ export function InvitationAcceptForm({ isLoggedIn }: { isLoggedIn: boolean }) {
       <div className="space-y-4 text-sm text-slate-600">
         <div className="flex items-start gap-2">
           <XCircle className="mt-0.5 h-4 w-4 text-red-600" aria-hidden />
-          <p>招待トークンが見つかりません。共有画面で新しい招待リンクを作成してください。</p>
+          <p>招待トークンが見つかりません。</p>
         </div>
         <Link
           href="/"

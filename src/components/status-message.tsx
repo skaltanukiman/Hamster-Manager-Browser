@@ -63,7 +63,7 @@ const messages: Record<string, string> = {
   invitationExpired: "招待リンクの有効期限が切れています。",
   invitationUsed: "この招待リンクは既に使用されています。",
   invitationAlreadyRevoked: "この招待リンクは既に無効化されています。",
-  invitationRevokedAccess: "この招待リンクは無効化されています。共有画面で新しい招待リンクを作成してください。",
+  invitationRevokedAccess: "この招待リンクは無効になっています。招待した方に、新しい招待リンクの発行を依頼してください。",
   systemError: "処理中に予期しないエラーが発生しました。時間をおいて再度お試しください。"
 };
 
