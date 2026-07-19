@@ -65,20 +65,28 @@ function assertSafeHouseholdId(householdId: string) {
   }
 }
 
-export function getHamsterImagePath(householdId: string, fileName: string, rootDir = getHamsterImageRoot()) {
+export function getHamsterImageHouseholdDirectory(householdId: string, rootDir = getHamsterImageRoot()) {
   assertSafeHouseholdId(householdId);
 
+  const root = path.resolve(/* turbopackIgnore: true */ rootDir);
+  const householdDir = path.resolve(root, householdId);
+  if (!householdDir.startsWith(`${root}${path.sep}`)) {
+    throw new ImageProcessingError("invalid");
+  }
+
+  return { root, householdDir };
+}
+
+export function getHamsterImagePath(householdId: string, fileName: string, rootDir = getHamsterImageRoot()) {
   if (!isSafeHamsterImageFileName(fileName)) {
     throw new ImageProcessingError("invalid");
   }
 
-  const root = path.resolve(/* turbopackIgnore: true */ rootDir);
-  const householdDir = path.resolve(root, householdId);
+  const { root, householdDir } = getHamsterImageHouseholdDirectory(householdId, rootDir);
   const filePath = path.resolve(householdDir, fileName);
-  const rootPrefix = `${root}${path.sep}`;
   const householdPrefix = `${householdDir}${path.sep}`;
 
-  if (!householdDir.startsWith(rootPrefix) || !filePath.startsWith(householdPrefix)) {
+  if (!filePath.startsWith(householdPrefix)) {
     throw new ImageProcessingError("invalid");
   }
 
@@ -131,6 +139,14 @@ export async function readHamsterImage(householdId: string, fileName: string, ro
 export async function deleteHamsterImage(householdId: string, fileName: string, rootDir = getHamsterImageRoot()) {
   const { filePath } = getHamsterImagePath(householdId, fileName, rootDir);
   await rm(filePath, { force: true });
+}
+
+export async function deleteHamsterImageHouseholdDirectory(
+  householdId: string,
+  rootDir = getHamsterImageRoot()
+) {
+  const { householdDir } = getHamsterImageHouseholdDirectory(householdId, rootDir);
+  await rm(householdDir, { recursive: true, force: true });
 }
 
 export async function commitWithNewHamsterImage<T>({

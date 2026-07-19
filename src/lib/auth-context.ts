@@ -112,7 +112,7 @@ async function createInitialHousehold(user: SessionUser) {
     });
 
     if (existingMembership) {
-      return existingMembership;
+      return { membership: existingMembership, created: false as const };
     }
 
     const household = await tx.household.create({
@@ -140,12 +140,23 @@ async function createInitialHousehold(user: SessionUser) {
       }
     });
 
-    return household.members[0];
+    return { membership: household.members[0], created: true as const };
   });
 }
 
+export async function ensureUserHouseholdMembershipWithOutcome(
+  user: SessionUser,
+  preferredHouseholdId?: string
+) {
+  const existingMembership = await findMembership(user.id, preferredHouseholdId);
+  if (existingMembership) {
+    return { membership: existingMembership, created: false as const };
+  }
+  return createInitialHousehold(user);
+}
+
 export async function ensureUserHouseholdMembership(user: SessionUser, preferredHouseholdId?: string) {
-  return (await findMembership(user.id, preferredHouseholdId)) ?? (await createInitialHousehold(user));
+  return (await ensureUserHouseholdMembershipWithOutcome(user, preferredHouseholdId)).membership;
 }
 
 export async function getRequiredHouseholdContext(): Promise<CurrentHouseholdContext> {

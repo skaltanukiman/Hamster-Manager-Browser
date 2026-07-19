@@ -1,4 +1,4 @@
-import { ChevronLeft, Database, Home, Shield, Users } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Database, Home, Shield, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -6,6 +6,7 @@ import { HouseholdLeaveForm } from "@/components/household-leave-form";
 import { StatusMessage } from "@/components/status-message";
 import { getHouseholdLeaveRequirement, HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
+import { warnHouseholdDeleteRoleStateInvalid } from "@/lib/household-delete";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,17 @@ export default async function HouseholdLeavePage({
     ownerCount,
     memberCount: household._count.members
   });
+  const soleMemberRoleStateInvalid =
+    requirement === "soleMember" && (currentMembership.role !== "OWNER" || ownerCount !== 1);
+  if (soleMemberRoleStateInvalid) {
+    warnHouseholdDeleteRoleStateInvalid({
+      householdId: household.id,
+      actorUserId: context.user.id,
+      currentRole: currentMembership.role,
+      memberCount: household._count.members,
+      ownerCount
+    });
+  }
   const candidates = household.members
     .filter((member) => member.userId !== context.user.id)
     .map((member) => ({
@@ -106,15 +118,36 @@ export default async function HouseholdLeavePage({
       </section>
 
       {requirement === "soleMember" ? (
-        <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
-          <h3 className="text-base font-bold">このグループには、あなた以外のメンバーがいません。</h3>
-          <p className="mt-3">
-            自分だけのグループから退出すると管理者がいなくなるため、この画面からは退出できません。
-          </p>
-          <p className="mt-3">
-            共有グループおよびアカウントの削除機能は、現在準備中です。今回の退出手続きでは、グループやハムスターのデータは削除しません。
-          </p>
-        </section>
+        soleMemberRoleStateInvalid ? (
+          <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-1 h-5 w-5 shrink-0" aria-hidden />
+              <div>
+                <h3 className="text-base font-bold">共有グループの権限状態に問題があります</h3>
+                <p className="mt-3">
+                  削除手続きを続行できません。権限は自動変更されないため、管理者へお問い合わせください。
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
+            <h3 className="text-base font-bold">このグループには、あなた以外のメンバーがいません</h3>
+            <p className="mt-3">
+              自分だけのグループは、退出する代わりに、共有グループとグループ内のすべてのデータを削除できます。
+            </p>
+            <p className="mt-3">この操作を行っても、ユーザーアカウントは削除されません。</p>
+            <div className="mt-5 flex justify-end">
+              <Link
+                href="/settings/members/delete"
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                共有グループの削除手続きへ
+              </Link>
+            </div>
+          </section>
+        )
       ) : (
         <>
           {requirement === "leave" ? (

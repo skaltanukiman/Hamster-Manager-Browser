@@ -13,6 +13,7 @@ import {
 } from "@/lib/authorization";
 import {
   ensureUserHouseholdMembership,
+  ensureUserHouseholdMembershipWithOutcome,
   getRequiredHouseholdContext,
   getRequiredSessionUser,
   setCurrentHouseholdCookie
@@ -34,6 +35,8 @@ import {
 import { DEFAULT_DASHBOARD_BOARD_COUNT, DEFAULT_HAMSTER_SELECTOR_MODE } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
 import { leaveHouseholdMembership } from "@/lib/household-leave";
+import { deleteSoleOwnerHousehold } from "@/lib/household-delete";
+import { deleteHouseholdImageDirectoriesSafely } from "@/lib/household-delete-images";
 import { updateHouseholdNameMutation } from "@/lib/household-name";
 import {
   commitHouseholdMutation,
@@ -75,6 +78,14 @@ function hasLeaveAcknowledgements(formData: FormData) {
   return ["acknowledgeAccessLoss", "acknowledgeDataRetention", "acknowledgeNewInvitation"].every(
     (field) => formData.get(field) === "confirmed"
   );
+}
+
+function hasHouseholdDeleteAcknowledgements(formData: FormData) {
+  return [
+    "acknowledgeHouseholdDataDeletion",
+    "acknowledgeImageDeletion",
+    "acknowledgeIrreversibleDeletion"
+  ].every((field) => formData.get(field) === "confirmed");
 }
 
 export async function getHouseholdInvitationPreview(token: string): Promise<HouseholdInvitationPreview> {
@@ -275,6 +286,8 @@ export async function acceptHouseholdInvitation(formData: FormData) {
     if (initialFailure) redirectInvitationFailure(initialFailure);
 
     const change = await prisma.$transaction(async (tx) => {
+      // Household削除とmembership作成を同じHousehold単位で直列化する。
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitation.householdId}, 0))`;
       const updateResult = await tx.householdInvitation.updateMany({
         where: {
           id: invitation.id,
@@ -551,5 +564,80 @@ export async function leaveCurrentHousehold(formData: FormData) {
     );
   } catch (error) {
     handleServerActionError(error, { operation: "members.leave", pathname: "/settings/members/leave" });
+  }
+}
+
+export async function deleteCurrentHousehold(formData: FormData) {
+  try {
+    const householdId = formData.get("householdId");
+    const confirmationName = formData.get("confirmationName");
+    if (
+      typeof householdId !== "string" ||
+      !householdId ||
+      typeof confirmationName !== "string" ||
+      !hasHouseholdDeleteAcknowledgements(formData)
+    ) {
+      redirect("/settings/members/delete?status=invalid");
+    }
+
+    const context = await getRequiredHouseholdContext();
+    if (context.household.id !== householdId) {
+      redirect("/settings/members?status=householdDeleteStateChanged");
+    }
+
+    const result = await deleteSoleOwnerHousehold({
+      householdId,
+      actorUserId: context.user.id,
+      confirmationName
+    });
+    if (result.status === "notFound" || result.status === "notMember") {
+      redirect("/settings/members?status=householdDeleteStateChanged");
+    }
+    if (result.status === "forbidden") {
+      redirect("/settings/members/delete?status=forbidden");
+    }
+    if (result.status === "roleStateInvalid") {
+      redirect("/settings/members/delete?status=householdRoleStateInvalid");
+    }
+    if (result.status === "nameMismatch") {
+      redirect("/settings/members/delete?status=householdDeleteNameMismatch");
+    }
+    if (result.status === "stateChanged") {
+      redirect("/settings/members/leave?status=householdDeleteStateChanged");
+    }
+
+    await deleteHouseholdImageDirectoriesSafely(householdId);
+    const nextHousehold = await ensureUserHouseholdMembershipWithOutcome(context.user);
+    await setCurrentHouseholdCookie(nextHousehold.membership.householdId);
+
+    writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.householdDeleted, {
+      actorUserId: context.user.id,
+      actorHouseholdRole: result.actorHouseholdRole,
+      householdId,
+      result: "success",
+      switchedToExistingHousehold: String(!nextHousehold.created),
+      createdInitialHousehold: String(nextHousehold.created)
+    });
+    revalidatePathsSafely(
+      [
+        { path: "/", type: "layout" },
+        { path: "/" },
+        { path: "/settings/members" },
+        { path: "/settings/members/leave" },
+        { path: "/settings/members/delete" }
+      ],
+      "members.deleteHousehold.revalidate",
+      { householdId, userId: context.user.id }
+    );
+    redirect(
+      nextHousehold.created
+        ? "/?status=householdDeletedAndCreated"
+        : "/?status=householdDeletedAndSwitched"
+    );
+  } catch (error) {
+    handleServerActionError(error, {
+      operation: "members.deleteHousehold",
+      pathname: "/settings/members/delete"
+    });
   }
 }

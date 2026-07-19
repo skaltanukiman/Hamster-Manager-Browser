@@ -292,8 +292,9 @@ test("共有画面と専用画面は唯一のOWNERでも手続きを開け、移
   assert.match(leavePage, /requiresTransfer={requirement === "transferOwnership"}/);
   assert.match(leavePage, /共有グループからの退出/);
   assert.match(leavePage, /現在の共有グループ/);
-  assert.match(leavePage, /このグループには、あなた以外のメンバーがいません。/);
-  assert.match(leavePage, /共有グループおよびアカウントの削除機能は、現在準備中です。/);
+  assert.match(leavePage, /このグループには、あなた以外のメンバーがいません/);
+  assert.match(leavePage, /href="\/settings\/members\/delete"/);
+  assert.match(leavePage, /共有グループの削除手続きへ/);
   assert.match(leaveForm, /name="transferToUserId"/);
   assert.match(leaveForm, /!requiresTransfer \|\| Boolean\(selectedCandidate\)/);
   assert.match(leaveForm, /disabled={!canSubmit \|\| pending}/);

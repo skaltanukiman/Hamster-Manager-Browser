@@ -5,6 +5,7 @@ import {
   commitWithNewHamsterImage,
   createHamsterImageFileName,
   deleteHamsterImage,
+  deleteHamsterImageHouseholdDirectory,
   getOptionalImageFile,
   isSafeHamsterImageFileName,
   readHamsterImage,
@@ -65,6 +66,10 @@ export function readRecordImage(householdId: string, fileName: string, rootDir =
 
 export function deleteRecordImage(householdId: string, fileName: string, rootDir = getRecordImageRoot()) {
   return deleteHamsterImage(householdId, fileName, rootDir);
+}
+
+export function deleteRecordImageHouseholdDirectory(householdId: string, rootDir = getRecordImageRoot()) {
+  return deleteHamsterImageHouseholdDirectory(householdId, rootDir);
 }
 
 export function commitWithNewRecordImage<T>(options: {

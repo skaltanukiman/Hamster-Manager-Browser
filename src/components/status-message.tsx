@@ -42,6 +42,10 @@ const messages: Record<string, string> = {
   joined: "共有に参加しました。",
   householdLeft: "共有グループから退出しました。",
   ownershipTransferredAndLeft: "所有権を移譲し、共有グループから退出しました。",
+  householdDeletedAndSwitched:
+    "共有グループとすべてのデータを削除しました。参加中の別の共有グループへ切り替えました。",
+  householdDeletedAndCreated:
+    "共有グループとすべてのデータを削除しました。新しい空の共有グループを作成しました。",
   memberRemoved: "メンバーの共有を解除しました。",
   roleUpdated: "権限を更新しました。",
   adminTargetInvalid: "対象ユーザーまたは権限を確認してください。",
@@ -53,6 +57,10 @@ const messages: Record<string, string> = {
   transferTargetUnavailable: "選択したメンバーは、この共有グループに所属していません。最新の状態を確認して、もう一度お試しください。",
   householdAlreadyLeft: "この共有グループからは既に退出しています。最新の状態を確認してください。",
   householdLeaveStateChanged: "共有グループの状態が変更されています。最新の状態を確認して、もう一度操作してください。",
+  householdDeleteStateChanged: "共有グループの状態が変更されています。最新の状態を確認して、もう一度操作してください。",
+  householdDeleteNameMismatch: "確認のため、現在の共有グループ名を正しく入力してください。",
+  householdRoleStateInvalid:
+    "共有グループの権限状態に問題があるため、削除手続きを続行できません。管理者へお問い合わせください。",
   householdStateChanged: "共有グループの状態が変更されています。最新の状態を確認して、もう一度操作してください。",
   cannotChangeOwnHouseholdRole: "自分自身の共有権限は変更できません。",
   cannotChangeOwnerRole: "オーナー権限はこの画面では変更できません。",
@@ -101,6 +109,9 @@ const errorStatuses = new Set([
   "transferTargetUnavailable",
   "householdAlreadyLeft",
   "householdLeaveStateChanged",
+  "householdDeleteStateChanged",
+  "householdDeleteNameMismatch",
+  "householdRoleStateInvalid",
   "householdStateChanged",
   "cannotChangeOwnHouseholdRole",
   "cannotChangeOwnerRole",
