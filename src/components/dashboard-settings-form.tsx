@@ -31,6 +31,15 @@ type DashboardSettingsFormProps = {
   selectedHamsterIds: string[];
 };
 
+type HamsterStatusFilter = "all" | "active" | "inactive" | "selected";
+
+const HAMSTER_STATUS_FILTERS: { value: HamsterStatusFilter; label: string }[] = [
+  { value: "all", label: "すべて" },
+  { value: "active", label: "管理中" },
+  { value: "inactive", label: "管理外" },
+  { value: "selected", label: "選択済み" }
+];
+
 function clampBoardCount(value: number) {
   return Math.min(MAX_DASHBOARD_BOARD_COUNT, Math.max(MIN_DASHBOARD_BOARD_COUNT, Math.trunc(value)));
 }
@@ -46,18 +55,26 @@ export function DashboardSettingsForm({
   const [limit, setLimit] = useState(boardCount);
   const [selectedIds, setSelectedIds] = useState(selectedHamsterIds);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<HamsterStatusFilter>("all");
   const hamsterIds = useMemo(() => hamsters.map((hamster) => hamster.id), [hamsters]);
-  const filteredHamsters = useMemo(() => {
-    const normalizedSearchTerm = normalizeSearchText(searchTerm);
-
-    return normalizedSearchTerm.length > 0
-      ? hamsters.filter((hamster) => normalizeSearchText(hamster.name).includes(normalizedSearchTerm))
-      : hamsters;
-  }, [hamsters, searchTerm]);
   const needsSelection = hamsters.length > limit;
   // 登録数が表示数以下なら個別選択は不要なので、全ハムスターを送信対象として扱う。
   const effectiveSelectedIds = needsSelection ? selectedIds : hamsterIds;
-  const selectedIdSet = new Set(effectiveSelectedIds);
+  const selectedIdSet = useMemo(() => new Set(effectiveSelectedIds), [effectiveSelectedIds]);
+  const filteredHamsters = useMemo(() => {
+    const normalizedSearchTerm = normalizeSearchText(searchTerm);
+
+    return hamsters.filter((hamster) => {
+      const matchesSearch = normalizeSearchText(hamster.name).includes(normalizedSearchTerm);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && hamster.isActive) ||
+        (statusFilter === "inactive" && !hamster.isActive) ||
+        (statusFilter === "selected" && selectedIdSet.has(hamster.id));
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [hamsters, searchTerm, selectedIdSet, statusFilter]);
   const targetCount = Math.min(limit, hamsters.length);
   const canSave = effectiveSelectedIds.length === targetCount;
 
@@ -189,7 +206,7 @@ export function DashboardSettingsForm({
           </div>
         ) : (
           <>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 検索ワード
                 <span className="relative block">
@@ -203,6 +220,30 @@ export function DashboardSettingsForm({
                   />
                 </span>
               </label>
+              <div className="space-y-1.5">
+                <span className="block text-sm font-medium text-slate-700">状態</span>
+                <div className="flex flex-wrap gap-2" aria-label="ハムスターの状態で絞り込む">
+                  {HAMSTER_STATUS_FILTERS.map((filter) => {
+                    const isSelected = statusFilter === filter.value;
+
+                    return (
+                      <button
+                        key={filter.value}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setStatusFilter(filter.value)}
+                        className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss ${
+                          isSelected
+                            ? "border-moss bg-moss text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-100"
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             <p className="text-xs text-slate-500">
@@ -211,10 +252,12 @@ export function DashboardSettingsForm({
 
             {filteredHamsters.length === 0 ? (
               <div className="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                条件に一致するハムスターはいません。
+                {statusFilter === "selected"
+                  ? "選択中のハムスターはいません。"
+                  : "条件に一致するハムスターはいません。"}
               </div>
             ) : (
-              <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+              <div className="max-h-[50vh] divide-y divide-slate-200 overflow-y-auto rounded-md border border-slate-200 sm:max-h-96 lg:max-h-[28rem]">
                 {filteredHamsters.map((hamster) => {
                   const checked = selectedIdSet.has(hamster.id);
                   // 上限に達した後は未選択の行だけを無効化し、選択済みの解除はできるようにする。
