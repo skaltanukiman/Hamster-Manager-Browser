@@ -18,12 +18,14 @@ import {
   setCurrentHouseholdCookie
 } from "@/lib/auth-context";
 import {
+  buildHouseholdInvitationPreview,
   createInvitationToken,
   hashInvitationToken,
   invitationAcceptanceFailure,
   invitationExpiresAt,
   isValidInvitationToken,
-  MAX_ACTIVE_HOUSEHOLD_INVITATIONS
+  MAX_ACTIVE_HOUSEHOLD_INVITATIONS,
+  type HouseholdInvitationPreview
 } from "@/lib/invitations";
 import {
   createRateLimitedHouseholdInvitation,
@@ -73,6 +75,30 @@ function hasLeaveAcknowledgements(formData: FormData) {
   return ["acknowledgeAccessLoss", "acknowledgeDataRetention", "acknowledgeNewInvitation"].every(
     (field) => formData.get(field) === "confirmed"
   );
+}
+
+export async function getHouseholdInvitationPreview(token: string): Promise<HouseholdInvitationPreview> {
+  if (!isValidInvitationToken(token)) {
+    return { status: "invalid" };
+  }
+
+  try {
+    const invitation = await prisma.householdInvitation.findUnique({
+      where: { tokenHash: hashInvitationToken(token) },
+      select: {
+        acceptedAt: true,
+        revokedAt: true,
+        expiresAt: true,
+        household: {
+          select: { name: true }
+        }
+      }
+    });
+    return buildHouseholdInvitationPreview(invitation);
+  } catch (error) {
+    logUnexpectedError(error, { operation: "members.getInvitationPreview" });
+    return { status: "error" };
+  }
 }
 
 export async function updateCurrentHouseholdName(formData: FormData) {

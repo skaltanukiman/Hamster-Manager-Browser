@@ -5,8 +5,8 @@ import { Check, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { acceptHouseholdInvitation } from "@/app/actions/members";
-import { getInvitationTokenFromHash } from "@/lib/invitations";
+import { acceptHouseholdInvitation, getHouseholdInvitationPreview } from "@/app/actions/members";
+import { getInvitationTokenFromHash, type HouseholdInvitationPreview } from "@/lib/invitations";
 
 const INVITATION_TOKEN_STORAGE_KEY = "hamster-manager-invitation-token";
 
@@ -50,8 +50,24 @@ function AcceptInvitationButton() {
   );
 }
 
+function InvitedHouseholdName({ preview }: { preview: HouseholdInvitationPreview }) {
+  if (preview.status !== "available") {
+    return null;
+  }
+
+  return (
+    <div className="rounded-md border border-moss/30 bg-moss/10 px-4 py-3">
+      <p className="text-xs font-semibold text-moss">招待された共有グループ</p>
+      <p className="mt-1 break-words text-lg font-bold text-ink [overflow-wrap:anywhere]">
+        {preview.householdName}
+      </p>
+    </div>
+  );
+}
+
 export function InvitationAcceptForm({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [token, setToken] = useState<string | null | undefined>(undefined);
+  const [preview, setPreview] = useState<HouseholdInvitationPreview | undefined>(undefined);
 
   useEffect(() => {
     const hashToken = getInvitationTokenFromHash(window.location.hash);
@@ -74,6 +90,25 @@ export function InvitationAcceptForm({ isLoggedIn }: { isLoggedIn: boolean }) {
     return () => window.clearTimeout(updateTimer);
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let isActive = true;
+    void getHouseholdInvitationPreview(token)
+      .then((result) => {
+        if (isActive) setPreview(result);
+      })
+      .catch(() => {
+        if (isActive) setPreview({ status: "error" });
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [token]);
+
   if (token === undefined) {
     return <p className="text-sm text-slate-600">招待リンクを確認しています...</p>;
   }
@@ -95,9 +130,14 @@ export function InvitationAcceptForm({ isLoggedIn }: { isLoggedIn: boolean }) {
     );
   }
 
+  if (preview === undefined) {
+    return <p className="text-sm text-slate-600">招待先の共有グループを確認しています...</p>;
+  }
+
   if (!isLoggedIn) {
     return (
       <div className="space-y-4 text-sm text-slate-600">
+        <InvitedHouseholdName preview={preview} />
         <p>招待を受けるGoogleアカウントでログインしてください。招待トークンはこのタブ内だけに一時保存されます。</p>
         <Link
           href="/login?callbackUrl=%2Finvitations%2Faccept"
@@ -112,6 +152,7 @@ export function InvitationAcceptForm({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
     <form action={acceptHouseholdInvitation} className="space-y-4">
       <input type="hidden" name="token" value={token} />
+      <InvitedHouseholdName preview={preview} />
       <p className="text-sm leading-6 text-slate-600">
         参加すると、同じ共有内のハムスター、体重記録、衛生記録を共有できます。
       </p>

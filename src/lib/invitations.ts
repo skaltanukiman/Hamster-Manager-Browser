@@ -17,6 +17,16 @@ type InvitationLifecycle = {
   expiresAt: Date;
 };
 
+type InvitationWithHousehold = InvitationLifecycle & {
+  household: {
+    name: string;
+  };
+};
+
+export type HouseholdInvitationPreview =
+  | { status: "available"; householdName: string }
+  | { status: "accepted" | "expired" | "revoked" | "invalid" | "error" };
+
 type InvitationCreator = {
   createdBy: { name: string | null; email: string | null } | null;
 };
@@ -86,6 +96,21 @@ export function invitationAcceptanceFailure(
 ): Exclude<HouseholdInvitationStatus, "active"> | null {
   const status = getHouseholdInvitationStatus(invitation, now);
   return status === "active" ? null : status;
+}
+
+export function buildHouseholdInvitationPreview(
+  invitation: InvitationWithHousehold | null,
+  now = new Date()
+): HouseholdInvitationPreview {
+  if (!invitation) return { status: "invalid" };
+
+  const failure = invitationAcceptanceFailure(invitation, now);
+  if (failure) return { status: failure };
+
+  return {
+    status: "available",
+    householdName: invitation.household.name
+  };
 }
 
 export function isValidInvitationToken(token: string) {
