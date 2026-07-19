@@ -219,14 +219,14 @@ export default async function MembersPage({
         <div className="flex items-start gap-3">
           <LogOut className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-ink">Householdからの退出</h3>
-            <p className="mt-1 text-sm text-slate-600">現在参加しているHouseholdから、自分で退出する手続きです。</p>
+            <h3 className="text-base font-bold text-ink">共有グループからの退出</h3>
+            <p className="mt-1 text-sm text-slate-600">現在参加している共有グループから退出する手続きです。</p>
           </div>
         </div>
 
         <dl className="mt-4 grid gap-3 rounded-md bg-slate-50 p-4 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs font-semibold text-slate-500">現在のHousehold</dt>
+            <dt className="text-xs font-semibold text-slate-500">現在の共有グループ</dt>
             <dd className="mt-1 break-words font-bold text-ink">{context.household.name}</dd>
           </div>
           <div>
@@ -244,8 +244,8 @@ export default async function MembersPage({
         </dl>
 
         <div className="mt-4 space-y-1 text-sm leading-6 text-slate-600">
-          <p>退出後は、このHouseholdのハムスターや記録を閲覧・編集できなくなります。</p>
-          <p>退出しても、Household内のハムスターや共有記録自体は削除されません。</p>
+          <p>退出後は、このグループのハムスターや記録を閲覧・編集できなくなります。</p>
+          <p>退出しても、グループ内のハムスターや共有記録は削除されません。</p>
         </div>
 
         <div className="mt-5 flex justify-end">

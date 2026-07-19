@@ -284,11 +284,32 @@ test("共有画面と専用画面は唯一のOWNERでも手続きを開け、移
 
   assert.match(membersPage, /href="\/settings\/members\/leave"/);
   assert.doesNotMatch(membersPage, /href="\/settings\/members\/leave"[\s\S]{0,200}disabled/);
+  assert.match(membersPage, /共有グループからの退出/);
+  assert.match(membersPage, /現在参加している共有グループから退出する手続きです。/);
+  assert.match(membersPage, /現在の共有グループ/);
+  assert.match(membersPage, /このグループのハムスターや記録/);
   assert.match(leavePage, /requirement === "soleMember"/);
   assert.match(leavePage, /requiresTransfer={requirement === "transferOwnership"}/);
+  assert.match(leavePage, /共有グループからの退出/);
+  assert.match(leavePage, /現在の共有グループ/);
+  assert.match(leavePage, /このグループには、あなた以外のメンバーがいません。/);
+  assert.match(leavePage, /共有グループおよびアカウントの削除機能は、現在準備中です。/);
   assert.match(leaveForm, /name="transferToUserId"/);
   assert.match(leaveForm, /!requiresTransfer \|\| Boolean\(selectedCandidate\)/);
   assert.match(leaveForm, /disabled={!canSubmit \|\| pending}/);
+  assert.match(leaveForm, /この共有グループから退出する/);
+  assert.match(leaveForm, /このグループで唯一のオーナーです。/);
+  assert.match(leaveForm, /このグループへアクセスできなくなることを確認しました/);
+  assert.match(leaveForm, /グループ内のハムスターや共有記録は削除されず/);
   assert.match(leavePage, /sm:grid-cols-2/);
   assert.doesNotMatch(leaveForm, /window\.confirm/);
+});
+
+test("退出ステータスメッセージは共有グループという利用者向け用語を使う", () => {
+  const statusMessage = readFileSync(join(process.cwd(), "src/components/status-message.tsx"), "utf8");
+
+  assert.match(statusMessage, /共有グループから退出しました。/);
+  assert.match(statusMessage, /所有権を移譲し、共有グループから退出しました。/);
+  assert.match(statusMessage, /共有グループの状態が変更されています。/);
+  assert.match(statusMessage, /この共有グループに所属していません。/);
 });

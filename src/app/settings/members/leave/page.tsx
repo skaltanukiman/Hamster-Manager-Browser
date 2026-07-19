@@ -66,7 +66,7 @@ export default async function HouseholdLeavePage({
           <ChevronLeft className="h-4 w-4" aria-hidden />
           共有画面へ戻る
         </Link>
-        <h2 className="mt-3 text-xl font-bold text-ink">Householdからの退出</h2>
+        <h2 className="mt-3 text-xl font-bold text-ink">共有グループからの退出</h2>
         <p className="mt-1 text-sm text-slate-600">現在の状態を確認してから、退出手続きを行います。</p>
       </div>
 
@@ -77,7 +77,7 @@ export default async function HouseholdLeavePage({
           <div className="flex items-start gap-3">
             <Home className="mt-0.5 h-5 w-5 shrink-0 text-moss" aria-hidden />
             <div>
-              <p className="text-xs font-semibold text-slate-500">現在のHousehold</p>
+              <p className="text-xs font-semibold text-slate-500">現在の共有グループ</p>
               <p className="mt-1 break-words font-bold text-ink">{household.name}</p>
             </div>
           </div>
@@ -107,12 +107,12 @@ export default async function HouseholdLeavePage({
 
       {requirement === "soleMember" ? (
         <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
-          <h3 className="text-base font-bold">このHouseholdには、あなた以外のメンバーがいません。</h3>
+          <h3 className="text-base font-bold">このグループには、あなた以外のメンバーがいません。</h3>
           <p className="mt-3">
-            自分だけのHouseholdから退出すると管理者がいなくなるため、この画面からは退出できません。
+            自分だけのグループから退出すると管理者がいなくなるため、この画面からは退出できません。
           </p>
           <p className="mt-3">
-            Householdおよびアカウントの削除は、アカウント削除機能から行ってください。今回の退出手続きでは、Householdやハムスターのデータを削除しません。
+            共有グループおよびアカウントの削除機能は、現在準備中です。今回の退出手続きでは、グループやハムスターのデータは削除しません。
           </p>
         </section>
       ) : (
@@ -121,9 +121,9 @@ export default async function HouseholdLeavePage({
             <section className="rounded-md border border-red-200 bg-red-50 p-5 text-sm leading-7 text-red-950">
               <h3 className="text-base font-bold">「{household.name}」から退出しますか？</h3>
               <p className="mt-3">
-                退出後、このHouseholdのハムスターや記録を閲覧・編集できなくなります。
+                退出後、このグループのハムスターや記録を閲覧・編集できなくなります。
               </p>
-              <p>Household内のデータは削除されません。</p>
+              <p>グループ内のデータは削除されません。</p>
             </section>
           ) : null}
           <HouseholdLeaveForm

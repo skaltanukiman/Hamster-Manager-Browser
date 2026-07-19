@@ -29,7 +29,7 @@ function LeaveSubmitButton({ canSubmit, requiresTransfer }: { canSubmit: boolean
         ? "処理中..."
         : requiresTransfer
           ? "所有権を移譲して退出する"
-          : "このHouseholdから退出する"}
+          : "この共有グループから退出する"}
     </button>
   );
 }
@@ -63,7 +63,7 @@ export function HouseholdLeaveForm({
         <section className="rounded-md border border-amber-200 bg-amber-50 p-4 sm:p-5">
           <h2 className="text-base font-bold text-amber-950">退出するには、新しいオーナーを選択してください</h2>
           <p className="mt-2 text-sm leading-6 text-amber-900">
-            あなたは現在、このHouseholdで唯一のオーナーです。Householdを残して退出するには、ほかのメンバーへ
+            あなたは現在、このグループで唯一のオーナーです。グループを残して退出するには、ほかのメンバーへ
             オーナー権限を移譲する必要があります。
           </p>
 
@@ -122,7 +122,7 @@ export function HouseholdLeaveForm({
               required
               className="mt-1 shrink-0"
             />
-            退出後、このHouseholdへアクセスできなくなることを確認しました
+            退出後、このグループへアクセスできなくなることを確認しました
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 text-sm leading-6 text-slate-700">
             <input
@@ -136,7 +136,7 @@ export function HouseholdLeaveForm({
               required
               className="mt-1 shrink-0"
             />
-            Household内のハムスターや共有記録は削除されず、ほかのメンバーに残ることを確認しました
+            グループ内のハムスターや共有記録は削除されず、ほかのメンバーに残ることを確認しました
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 text-sm leading-6 text-slate-700">
             <input
