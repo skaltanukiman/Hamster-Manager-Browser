@@ -1,5 +1,4 @@
 import { DashboardSettingsForm } from "@/components/dashboard-settings-form";
-import { ProfileSettingsForm } from "@/components/profile-settings-form";
 import { StatusMessage } from "@/components/status-message";
 import { getDashboardSettingsPageData } from "@/lib/queries";
 
@@ -26,9 +25,9 @@ export default async function SettingsPage({
 
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
 
-      <ProfileSettingsForm name={user.name} email={user.email} />
-
       <DashboardSettingsForm
+        name={user.name}
+        email={user.email}
         boardCount={boardCount}
         hamsterSelectorMode={hamsterSelectorMode}
         hamsters={hamsters}

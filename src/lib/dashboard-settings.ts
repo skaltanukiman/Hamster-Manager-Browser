@@ -20,3 +20,15 @@ export function normalizeDashboardBoardCount(value: number | null | undefined) {
 export function normalizeHamsterSelectorMode(value: string | null | undefined): HamsterSelectorMode {
   return value === "combobox" || value === "select" ? value : DEFAULT_HAMSTER_SELECTOR_MODE;
 }
+
+// 設定済みの表示対象を優先し、未設定・削除済みIDがある場合は登録順のハムスターで不足分を補う。
+export function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
+  const hamsterById = new Map(hamsters.map((hamster) => [hamster.id, hamster]));
+  const selectedHamsters = selectedIds
+    .map((id) => hamsterById.get(id))
+    .filter((hamster): hamster is T => Boolean(hamster));
+  const selectedIdSet = new Set(selectedHamsters.map((hamster) => hamster.id));
+  const fallbackHamsters = hamsters.filter((hamster) => !selectedIdSet.has(hamster.id));
+
+  return [...selectedHamsters, ...fallbackHamsters].slice(0, boardCount);
+}

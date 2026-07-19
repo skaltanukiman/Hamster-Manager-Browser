@@ -4,7 +4,10 @@ import { ChevronDown, Save, Search } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 
-import { saveDashboardSettings } from "@/app/actions/settings";
+import { saveSettings } from "@/app/actions/settings";
+import { DirtySubmitButton } from "@/components/dirty-submit-button";
+import { ProfileSettingsFields } from "@/components/profile-settings-form";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import {
   MAX_DASHBOARD_BOARD_COUNT,
   MIN_DASHBOARD_BOARD_COUNT,
@@ -20,6 +23,8 @@ type HamsterOption = {
 };
 
 type DashboardSettingsFormProps = {
+  name?: string | null;
+  email?: string | null;
   boardCount: number;
   hamsterSelectorMode: HamsterSelectorMode;
   hamsters: HamsterOption[];
@@ -31,6 +36,8 @@ function clampBoardCount(value: number) {
 }
 
 export function DashboardSettingsForm({
+  name,
+  email,
   boardCount,
   hamsterSelectorMode,
   hamsters,
@@ -94,7 +101,7 @@ export function DashboardSettingsForm({
   }
 
   return (
-    <>
+    <UnsavedChangesGuard>
       <button
         type="button"
         onClick={scrollToSaveButton}
@@ -105,7 +112,10 @@ export function DashboardSettingsForm({
         <ChevronDown className="h-7 w-7 stroke-[3] sm:h-8 sm:w-8 xl:h-9 xl:w-9" aria-hidden />
       </button>
 
-      <form action={saveDashboardSettings} data-dirty-watch className="space-y-5 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
+      <form action={saveSettings} data-dirty-watch className="space-y-6">
+      <ProfileSettingsFields name={name} email={email} />
+
+      <div className="space-y-5 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
       <div className="grid gap-4 md:grid-cols-[220px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示ボード数
@@ -168,7 +178,7 @@ export function DashboardSettingsForm({
 
       {/* disabled の checkbox は送信されないため、保存対象IDは hidden input に正規化して渡す。 */}
       {effectiveSelectedIds.map((id) => (
-        <input key={id} type="hidden" name="hamsterIds" value={id} />
+        <input key={id} type="hidden" name="hamsterIds" value={id} data-dirty-control />
       ))}
 
       <section className="space-y-3">
@@ -245,16 +255,16 @@ export function DashboardSettingsForm({
       </section>
 
       <div id="dashboard-settings-save" className="flex justify-end scroll-mt-24">
-        <button
-          type="submit"
+        <DirtySubmitButton
           disabled={!canSave}
           className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <Save className="h-4 w-4" aria-hidden />
           保存
-        </button>
+        </DirtySubmitButton>
+      </div>
       </div>
       </form>
-    </>
+    </UnsavedChangesGuard>
   );
 }

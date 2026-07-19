@@ -1,24 +1,16 @@
 import type { Prisma } from "@prisma/client";
 
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
-import { normalizeDashboardBoardCount, normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
+import {
+  normalizeDashboardBoardCount,
+  normalizeHamsterSelectorMode,
+  pickDashboardHamsters
+} from "@/lib/dashboard-settings";
 import { monthDateRange, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { getAppliedWeightChartRange } from "@/lib/weight-chart-filter";
 
 export const WEIGHT_HISTORY_PAGE_SIZE = 20;
-
-// 設定済みの表示対象を優先し、未設定・削除済みIDがある場合は登録順のハムスターで不足分を補う。
-function pickDashboardHamsters<T extends { id: string }>(hamsters: T[], boardCount: number, selectedIds: string[]) {
-  const hamsterById = new Map(hamsters.map((hamster) => [hamster.id, hamster]));
-  const selectedHamsters = selectedIds
-    .map((id) => hamsterById.get(id))
-    .filter((hamster): hamster is T => Boolean(hamster));
-  const selectedIdSet = new Set(selectedHamsters.map((hamster) => hamster.id));
-  const fallbackHamsters = hamsters.filter((hamster) => !selectedIdSet.has(hamster.id));
-
-  return [...selectedHamsters, ...fallbackHamsters].slice(0, boardCount);
-}
 
 function latestRecordByHamster<T extends { hamsterId: string }>(records: T[]) {
   const recordsByHamster = new Map<string, T>();

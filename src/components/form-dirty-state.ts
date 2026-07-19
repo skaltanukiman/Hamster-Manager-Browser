@@ -3,6 +3,8 @@
 import type { RefObject } from "react";
 import { useEffect, useState } from "react";
 
+const initialFormSnapshots = new WeakMap<HTMLFormElement, string>();
+
 function isSubmittableControl(element: Element): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
   return element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement;
 }
@@ -24,23 +26,6 @@ function normalizeInputValue(input: HTMLInputElement) {
   return input.value;
 }
 
-function normalizeInputDefaultValue(input: HTMLInputElement) {
-  if (input.type === "checkbox" || input.type === "radio") {
-    return input.defaultChecked ? "checked" : "unchecked";
-  }
-
-  if (input.type === "number") {
-    const value = input.defaultValue.trim();
-    return value.length > 0 && Number.isFinite(Number(value)) ? String(Number(value)) : value;
-  }
-
-  if (input.type === "text" || input.type === "search") {
-    return input.defaultValue.trim();
-  }
-
-  return input.defaultValue;
-}
-
 function normalizeControlValue(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
   if (control instanceof HTMLInputElement) {
     return normalizeInputValue(control);
@@ -53,21 +38,6 @@ function normalizeControlValue(control: HTMLInputElement | HTMLSelectElement | H
   }
 
   return control.value.trim();
-}
-
-function normalizeControlDefaultValue(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
-  if (control instanceof HTMLInputElement) {
-    return normalizeInputDefaultValue(control);
-  }
-
-  if (control instanceof HTMLSelectElement) {
-    return Array.from(control.options)
-      .filter((option) => option.defaultSelected)
-      .map((option) => option.value)
-      .join(",");
-  }
-
-  return control.defaultValue.trim();
 }
 
 function shouldTrackControl(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
@@ -95,17 +65,15 @@ function getFormSnapshot(form: HTMLFormElement) {
     .join("\n");
 }
 
-function getFormDefaultSnapshot(form: HTMLFormElement) {
-  return Array.from(form.elements)
-    .filter((element): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement => {
-      return isSubmittableControl(element) && shouldTrackControl(element);
-    })
-    .map((control) => `${control.name}:${control.type}:${normalizeControlDefaultValue(control)}`)
-    .join("\n");
-}
-
 export function isFormDirty(form: HTMLFormElement) {
-  return getFormSnapshot(form) !== getFormDefaultSnapshot(form);
+  let initialSnapshot = initialFormSnapshots.get(form);
+
+  if (initialSnapshot === undefined) {
+    initialSnapshot = getFormSnapshot(form);
+    initialFormSnapshots.set(form, initialSnapshot);
+  }
+
+  return getFormSnapshot(form) !== initialSnapshot;
 }
 
 export function hasDirtyForms() {
@@ -113,25 +81,39 @@ export function hasDirtyForms() {
 }
 
 function subscribeToFormDirty(form: HTMLFormElement, onDirtyChange: (isDirty: boolean) => void) {
-  const initialSnapshot = getFormSnapshot(form);
-
-  function updateDirtyState() {
-    onDirtyChange(getFormSnapshot(form) !== initialSnapshot);
+  if (!initialFormSnapshots.has(form)) {
+    initialFormSnapshots.set(form, getFormSnapshot(form));
   }
 
-  function updateDirtyStateAfterReset() {
-    window.requestAnimationFrame(updateDirtyState);
+  let updateFrame: number | null = null;
+
+  function updateDirtyState() {
+    onDirtyChange(isFormDirty(form));
+  }
+
+  function scheduleDirtyStateUpdate() {
+    if (updateFrame !== null) {
+      window.cancelAnimationFrame(updateFrame);
+    }
+
+    updateFrame = window.requestAnimationFrame(() => {
+      updateFrame = null;
+      updateDirtyState();
+    });
   }
 
   updateDirtyState();
-  form.addEventListener("input", updateDirtyState);
-  form.addEventListener("change", updateDirtyState);
-  form.addEventListener("reset", updateDirtyStateAfterReset);
+  form.addEventListener("input", scheduleDirtyStateUpdate);
+  form.addEventListener("change", scheduleDirtyStateUpdate);
+  form.addEventListener("reset", scheduleDirtyStateUpdate);
 
   return () => {
-    form.removeEventListener("input", updateDirtyState);
-    form.removeEventListener("change", updateDirtyState);
-    form.removeEventListener("reset", updateDirtyStateAfterReset);
+    if (updateFrame !== null) {
+      window.cancelAnimationFrame(updateFrame);
+    }
+    form.removeEventListener("input", scheduleDirtyStateUpdate);
+    form.removeEventListener("change", scheduleDirtyStateUpdate);
+    form.removeEventListener("reset", scheduleDirtyStateUpdate);
   };
 }
 

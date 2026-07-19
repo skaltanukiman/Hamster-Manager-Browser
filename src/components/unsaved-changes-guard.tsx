@@ -5,6 +5,8 @@ import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { hasDirtyForms } from "@/components/form-dirty-state";
+
 type UnsavedChangesGuardProps = {
   children: ReactNode;
 };
@@ -17,7 +19,9 @@ export function UnsavedChangesGuard({ children }: UnsavedChangesGuardProps) {
 
   function handleChangeCapture(event: FormEvent<HTMLDivElement>) {
     if (event.target instanceof HTMLElement && event.target.closest("[data-dirty-watch]")) {
-      setIsDirty(true);
+      window.requestAnimationFrame(() => {
+        setIsDirty(hasDirtyForms());
+      });
     }
   }
 
@@ -26,6 +30,11 @@ export function UnsavedChangesGuard({ children }: UnsavedChangesGuardProps) {
       setIsDirty(false);
     }
   }
+
+  useEffect(() => {
+    // 初回描画時の値を差分比較の基準として記録する。
+    hasDirtyForms();
+  }, []);
 
   useEffect(() => {
     function handleDocumentClick(event: MouseEvent) {
