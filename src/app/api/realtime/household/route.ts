@@ -38,48 +38,48 @@ export async function GET(request: NextRequest) {
     let cleanup = () => {};
 
     const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      let isClosed = false;
+      start(controller) {
+        let isClosed = false;
 
-      function enqueue(payload: string) {
-        if (isClosed) {
-          return;
+        function enqueue(payload: string) {
+          if (isClosed) {
+            return;
+          }
+
+          try {
+            controller.enqueue(encoder.encode(payload));
+          } catch {
+            isClosed = true;
+            cleanup();
+          }
         }
 
-        try {
-          controller.enqueue(encoder.encode(payload));
-        } catch {
+        enqueue(encodeSse("ready", { householdId }));
+
+        const unsubscribe = subscribeHouseholdChanges((event) => {
+          if (event.householdId !== householdId) {
+            return;
+          }
+
+          enqueue(encodeSse("household-change", event));
+        });
+
+        // 更新がない間も中継プロキシに接続を閉じられないよう、コメント行を定期送信する。
+        const heartbeat = setInterval(() => {
+          enqueue(": heartbeat\n\n");
+        }, 25000);
+
+        cleanup = () => {
           isClosed = true;
-          cleanup();
-        }
+          clearInterval(heartbeat);
+          unsubscribe();
+        };
+
+        request.signal.addEventListener("abort", cleanup, { once: true });
+      },
+      cancel() {
+        cleanup();
       }
-
-      enqueue(encodeSse("ready", { householdId }));
-
-      const unsubscribe = subscribeHouseholdChanges((event) => {
-        if (event.householdId !== householdId) {
-          return;
-        }
-
-        enqueue(encodeSse("household-change", event));
-      });
-
-      // 更新がない間も中継プロキシに接続を閉じられないよう、コメント行を定期送信する。
-      const heartbeat = setInterval(() => {
-        enqueue(": heartbeat\n\n");
-      }, 25000);
-
-      cleanup = () => {
-        isClosed = true;
-        clearInterval(heartbeat);
-        unsubscribe();
-      };
-
-      request.signal.addEventListener("abort", cleanup, { once: true });
-    },
-    cancel() {
-      cleanup();
-    }
     });
 
     return new Response(stream, {

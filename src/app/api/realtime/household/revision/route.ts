@@ -18,22 +18,22 @@ export async function GET(request: NextRequest) {
     if (!householdId) return NextResponse.json({ message: "Bad Request" }, { status: 400 });
 
     const membership = await prisma.householdMember.findUnique({
-    where: {
-      householdId_userId: {
-        householdId,
-        userId
-      }
-    },
-    select: {
-      household: {
-        select: {
-          realtimeRevision: true,
-          realtimeActorClientId: true,
-          realtimeActorUserId: true
+      where: {
+        householdId_userId: {
+          householdId,
+          userId
+        }
+      },
+      select: {
+        household: {
+          select: {
+            realtimeRevision: true,
+            realtimeActorClientId: true,
+            realtimeActorUserId: true
+          }
         }
       }
-    }
-  });
+    });
 
     if (!membership) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
