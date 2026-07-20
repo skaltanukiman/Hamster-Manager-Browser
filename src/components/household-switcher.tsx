@@ -24,13 +24,13 @@ export function HouseholdSwitcher({ currentHouseholdId, households, action }: Ho
     <form action={action} className="flex min-w-0 flex-wrap items-center gap-2">
       <input type="hidden" name="redirectTo" value={pathname} />
       <label htmlFor="household-switcher" className="text-xs font-semibold text-slate-500">
-        操作対象
+        共有グループ
       </label>
       <AutoSubmitSelect
         id="household-switcher"
         name="householdId"
         value={currentHouseholdId}
-        aria-label="操作対象の共有を切り替える"
+        aria-label="共有グループを切り替える"
         className="h-9 w-auto max-w-[min(100%,18rem)] bg-white py-1.5 pl-3 pr-8 text-sm"
       >
         {households.map((household) => (
