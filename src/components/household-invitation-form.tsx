@@ -1,8 +1,7 @@
 "use client";
 
 import { Check, Copy, Link as LinkIcon, Plus } from "lucide-react";
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { createHouseholdInvitation, type CreateHouseholdInvitationState } from "@/app/actions/members";
 import { buildInvitationUrl } from "@/lib/invitations";
@@ -23,24 +22,31 @@ type Toast = {
 
 function CreateInvitationButton({
   activeLimitReached,
-  activeLimitMessageId
+  activeLimitMessageId,
+  cooldownRemainingSeconds,
+  cooldownMessageId,
+  pending
 }: {
   activeLimitReached: boolean;
   activeLimitMessageId: string;
+  cooldownRemainingSeconds: number;
+  cooldownMessageId: string;
+  pending: boolean;
 }) {
-  const { pending } = useFormStatus();
+  const cooldownActive = cooldownRemainingSeconds > 0;
+  const disabled = pending || activeLimitReached || cooldownActive;
 
   return (
     <button
       type="submit"
-      disabled={pending || activeLimitReached}
-      aria-describedby={activeLimitReached ? activeLimitMessageId : undefined}
+      disabled={disabled}
+      aria-describedby={activeLimitReached ? activeLimitMessageId : cooldownActive ? cooldownMessageId : undefined}
       className={`inline-flex h-10 items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-60 ${
-        activeLimitReached ? "disabled:cursor-not-allowed" : "disabled:cursor-wait"
+        activeLimitReached || cooldownActive ? "disabled:cursor-not-allowed" : "disabled:cursor-wait"
       }`}
     >
       <Plus className="h-4 w-4" aria-hidden />
-      {pending ? "作成中..." : "招待リンクを作成"}
+      {pending ? "作成中..." : cooldownActive ? `あと${cooldownRemainingSeconds}秒` : "招待リンクを作成"}
     </button>
   );
 }
@@ -56,7 +62,11 @@ export function HouseholdInvitationForm({
   activeInvitationCount: number;
   maxActiveInvitations: number;
 }) {
-  const [state, formAction] = useActionState(createHouseholdInvitation, INITIAL_STATE);
+  const [state, setState] = useState<CreateHouseholdInvitationState>(INITIAL_STATE);
+  const [createdInviteUrl, setCreatedInviteUrl] = useState<string | null>(null);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<number | null>(null);
+  const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState(0);
+  const [pending, startTransition] = useTransition();
   const [toast, setToast] = useState<Toast | null>(null);
   const [manualCopySucceeded, setManualCopySucceeded] = useState(false);
   const toastIdRef = useRef(0);
@@ -65,9 +75,9 @@ export function HouseholdInvitationForm({
   const manualCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastAnimationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
-  const inviteUrl = state.inviteToken ? buildInvitationUrl(invitationOrigin, state.inviteToken) : "";
   const activeLimitReached = activeInvitationCount >= maxActiveInvitations;
   const activeLimitMessageId = "active-invitation-limit-message";
+  const cooldownMessageId = "invitation-creation-cooldown-message";
 
   const clearToastTimers = useCallback(() => {
     if (toastTimerRef.current) {
@@ -149,6 +159,26 @@ export function HouseholdInvitationForm({
     }
   }, [showToast]);
 
+  function formAction(formData: FormData) {
+    startTransition(async () => {
+      const nextState = await createHouseholdInvitation(INITIAL_STATE, formData);
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setState(nextState);
+      if (nextState.retryAfterSeconds) {
+        setCooldownEndsAt(Date.now() + nextState.retryAfterSeconds * 1000);
+        setCooldownRemainingSeconds(nextState.retryAfterSeconds);
+      }
+      if (nextState.inviteToken) {
+        const nextInviteUrl = buildInvitationUrl(invitationOrigin, nextState.inviteToken);
+        setCreatedInviteUrl(nextInviteUrl);
+        void copyInvitationUrl(nextInviteUrl, true);
+      }
+    });
+  }
+
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -162,12 +192,21 @@ export function HouseholdInvitationForm({
   }, [clearToastTimers]);
 
   useEffect(() => {
-    if (!inviteUrl) {
+    if (!cooldownEndsAt) {
       return;
     }
 
-    void copyInvitationUrl(inviteUrl, true);
-  }, [copyInvitationUrl, inviteUrl]);
+    const timer = setInterval(() => {
+      const remainingSeconds = Math.max(0, Math.ceil((cooldownEndsAt - Date.now()) / 1000));
+      setCooldownRemainingSeconds(remainingSeconds);
+      if (remainingSeconds === 0) {
+        setCooldownEndsAt(null);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownEndsAt]);
 
   return (
     <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -188,7 +227,15 @@ export function HouseholdInvitationForm({
           <CreateInvitationButton
             activeLimitReached={activeLimitReached}
             activeLimitMessageId={activeLimitMessageId}
+            cooldownRemainingSeconds={cooldownRemainingSeconds}
+            cooldownMessageId={cooldownMessageId}
+            pending={pending}
           />
+          {cooldownRemainingSeconds > 0 ? (
+            <p id={cooldownMessageId} className="mt-2 text-center text-xs text-slate-600">
+              再度作成できるまで、あと約 {cooldownRemainingSeconds} 秒です。
+            </p>
+          ) : null}
         </form>
       </div>
 
@@ -196,21 +243,22 @@ export function HouseholdInvitationForm({
         {state.errorMessage ? (
           <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <p>{state.errorMessage}</p>
-            {state.retryAfterSeconds ? (
-              <p className="mt-1 text-xs">再度作成できるまで、あと約 {state.retryAfterSeconds} 秒です。</p>
+            {cooldownRemainingSeconds > 0 ? (
+              <p className="mt-1 text-xs">再度作成できるまで、あと約 {cooldownRemainingSeconds} 秒です。</p>
             ) : null}
           </div>
-        ) : inviteUrl ? (
+        ) : null}
+        {createdInviteUrl ? (
           <label className="mt-4 grid gap-1 text-sm font-medium text-slate-700">
             招待相手に共有するリンク
             <span className="flex flex-col gap-2 sm:flex-row">
               <span className="relative block min-w-0 flex-1">
                 <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-                <input readOnly value={inviteUrl} className="w-full pl-9" aria-label="招待リンク" />
+                <input readOnly value={createdInviteUrl} className="w-full pl-9" aria-label="招待リンク" />
               </span>
               <button
                 type="button"
-                onClick={() => void copyInvitationUrl(inviteUrl, false)}
+                onClick={() => void copyInvitationUrl(createdInviteUrl, false)}
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 {manualCopySucceeded ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
@@ -219,11 +267,11 @@ export function HouseholdInvitationForm({
             </span>
             <span className="text-xs font-normal text-slate-500">このリンクは作成直後のこの画面でのみ確認できます。</span>
           </label>
-        ) : (
+        ) : !state.errorMessage ? (
           <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             招待リンクを作成すると、ここに共有用URLが表示されます。
           </p>
-        )}
+        ) : null}
       </div>
       {toast ? (
         <div

@@ -23,6 +23,7 @@ import {
   createInvitationToken,
   hashInvitationToken,
   invitationAcceptanceFailure,
+  INVITATION_CREATION_COOLDOWN_MS,
   invitationExpiresAt,
   isValidInvitationToken,
   MAX_ACTIVE_HOUSEHOLD_INVITATIONS,
@@ -224,7 +225,12 @@ export async function createHouseholdInvitation(
     revalidatePathsSafely([{ path: "/settings/members" }], "members.createInvitation.revalidate", {
       householdId: context.household.id
     });
-    return { inviteToken: token, errorCode: null, errorMessage: null, retryAfterSeconds: null };
+    return {
+      inviteToken: token,
+      errorCode: null,
+      errorMessage: null,
+      retryAfterSeconds: Math.ceil(INVITATION_CREATION_COOLDOWN_MS / 1000)
+    };
   } catch (error) {
     handleServerActionError(error, { operation: "members.createInvitation", pathname: "/settings/members" });
   }
