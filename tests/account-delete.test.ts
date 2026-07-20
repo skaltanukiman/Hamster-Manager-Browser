@@ -18,6 +18,10 @@ import { deleteHouseholdImageDirectoriesSafely } from "../src/lib/household-dele
 import type { HouseholdLeaveRepository } from "../src/lib/household-leave";
 import { deleteHamsterImageHouseholdDirectory } from "../src/lib/hamster-image";
 import { deleteRecordImageHouseholdDirectory } from "../src/lib/record-image";
+import {
+  requiresAccountDeleteAttention,
+  type AccountDeleteDisposition
+} from "../src/lib/account-delete-shared";
 
 type StoredUser = { id: string; appRole: AppRole; name: string; email: string };
 type StoredMembership = {
@@ -636,6 +640,69 @@ test("設定・確認UIは確認導線、件数サマリー、グループ別表
   assert.match(loginPage, /同じGoogleアカウントで再度ログインした場合は、新しいアカウントとして開始されます/);
   assert.match(authContext, /cookieStore\.delete\(CURRENT_HOUSEHOLD_COOKIE\)/);
   assert.match(authContext, /authjs\.session-token/);
+});
+
+test("アカウント削除の対応要否は移譲とblockedだけを対象にする", () => {
+  const dispositions: AccountDeleteDisposition[] = [
+    "deleteHousehold",
+    "leaveHousehold",
+    "transferOwnership",
+    "blocked"
+  ];
+
+  assert.deepEqual(dispositions.filter(requiresAccountDeleteAttention), [
+    "transferOwnership",
+    "blocked"
+  ]);
+});
+
+test("対応要否フィルターは必要・不要の両方がある場合だけ表示内容を変えられる", () => {
+  const canShowFilter = (dispositions: AccountDeleteDisposition[]) => {
+    const attentionRequiredCount = dispositions.filter(requiresAccountDeleteAttention).length;
+    return attentionRequiredCount > 0 && attentionRequiredCount < dispositions.length;
+  };
+  const case1: AccountDeleteDisposition[] = [
+    "deleteHousehold",
+    "deleteHousehold",
+    "leaveHousehold",
+    "leaveHousehold",
+    "leaveHousehold",
+    "transferOwnership",
+    "transferOwnership"
+  ];
+  const case2: AccountDeleteDisposition[] = [
+    "transferOwnership",
+    "blocked",
+    "leaveHousehold",
+    "leaveHousehold"
+  ];
+
+  assert.equal(case1.length, 7);
+  assert.equal(case1.filter(requiresAccountDeleteAttention).length, 2);
+  assert.equal(canShowFilter(case1), true);
+  assert.deepEqual(case2.filter(requiresAccountDeleteAttention), ["transferOwnership", "blocked"]);
+  assert.equal(canShowFilter(case2), true);
+  assert.equal(canShowFilter(["deleteHousehold", "leaveHousehold"]), false);
+  assert.equal(canShowFilter(["transferOwnership", "blocked"]), false);
+});
+
+test("確認UIの絞り込みは表示配列だけを切り替え、移譲先と送信項目を保持する", async () => {
+  const deleteForm = await readFile(
+    join(process.cwd(), "src/components/account-delete-form.tsx"),
+    "utf8"
+  );
+
+  assert.match(deleteForm, /useState\(false\)/);
+  assert.match(deleteForm, /attentionRequiredCount > 0 && attentionRequiredCount < households\.length/);
+  assert.match(
+    deleteForm,
+    /visibleHouseholds = showOnlyAttentionRequired \? attentionRequiredHouseholds : households/
+  );
+  assert.match(deleteForm, /visibleHouseholds\.map\(\(household\) =>/);
+  assert.match(deleteForm, /対応が必要なグループのみ表示（\{attentionRequiredCount\}件）/);
+  assert.match(deleteForm, /name={`transferToUserId:\$\{household\.householdId\}`}/);
+  assert.doesNotMatch(deleteForm, /setTransferTargets\([^)]*showOnlyAttentionRequired/);
+  assert.doesNotMatch(deleteForm, /name="account-delete-attention-filter"/);
 });
 
 test("多数のHouseholdがあっても共通ヘッダーが横幅を押し広げない", async () => {

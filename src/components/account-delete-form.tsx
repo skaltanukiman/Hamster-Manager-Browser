@@ -9,6 +9,7 @@ import { useFormStatus } from "react-dom";
 import { deleteCurrentUserAccount } from "@/app/actions/account";
 import {
   ACCOUNT_DELETE_CONFIRMATION,
+  requiresAccountDeleteAttention,
   type AccountDeleteDisposition
 } from "@/lib/account-delete-shared";
 import { HOUSEHOLD_ROLE_LABELS } from "@/lib/authorization";
@@ -122,9 +123,17 @@ export function AccountDeleteForm({
 }) {
   const [confirmationText, setConfirmationText] = useState("");
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>({});
+  const [showOnlyAttentionRequired, setShowOnlyAttentionRequired] = useState(false);
   const transferHouseholds = households.filter(
     (household) => household.disposition === "transferOwnership"
   );
+  const attentionRequiredHouseholds = households.filter((household) =>
+    requiresAccountDeleteAttention(household.disposition)
+  );
+  const attentionRequiredCount = attentionRequiredHouseholds.length;
+  const showAttentionFilter =
+    attentionRequiredCount > 0 && attentionRequiredCount < households.length;
+  const visibleHouseholds = showOnlyAttentionRequired ? attentionRequiredHouseholds : households;
   const deleteHouseholdCount = households.filter(
     (household) => household.disposition === "deleteHousehold"
   ).length;
@@ -179,8 +188,36 @@ export function AccountDeleteForm({
             現在所属している共有グループはありません。アカウントと認証情報だけが削除されます。
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {households.map((household) => {
+          <>
+            {showAttentionFilter ? (
+              <label
+                htmlFor="account-delete-attention-filter"
+                className="flex min-h-12 cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <input
+                  id="account-delete-attention-filter"
+                  type="checkbox"
+                  checked={showOnlyAttentionRequired}
+                  onChange={(event) => setShowOnlyAttentionRequired(event.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2"
+                />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-ink">
+                    対応が必要なグループのみ表示（{attentionRequiredCount}件）
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+                    オーナー移譲や確認が必要なグループを表示します
+                  </span>
+                </span>
+              </label>
+            ) : null}
+            {visibleHouseholds.length === 0 ? (
+              <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+                対応が必要な共有グループはありません。
+              </div>
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {visibleHouseholds.map((household) => {
               const isTransfer = household.disposition === "transferOwnership";
               const isBlocked = household.disposition === "blocked";
               const presentation = DISPOSITION_PRESENTATION[household.disposition];
@@ -265,8 +302,10 @@ export function AccountDeleteForm({
                   ) : null}
                 </article>
               );
-            })}
-          </div>
+                })}
+              </div>
+            )}
+          </>
         )}
       </section>
 

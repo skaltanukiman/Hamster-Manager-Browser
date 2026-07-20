@@ -126,7 +126,7 @@
 
 ## アカウント削除
 
-- **画面または URL:** `/settings/account/delete`。削除されるグループ数、退出するグループ数、オーナー移譲が必要なグループ数を先に要約し、各グループは状態バッジ・説明・権限・メンバー数を表示する。唯一OWNERの共有グループだけ移譲先を選び、確認文字列 `アカウントを削除` の完全一致を必須にする。
+- **画面または URL:** `/settings/account/delete`。削除されるグループ数、退出するグループ数、オーナー移譲が必要なグループ数を先に要約し、各グループは状態バッジ・説明・権限・メンバー数を表示する。対応必要（`transferOwnership`、`blocked`）と対応不要のグループが混在する場合は、ローカルstateのチェックボックスで対応必要なカードだけに絞り込める。唯一OWNERの共有グループだけ移譲先を選び、確認文字列 `アカウントを削除` の完全一致を必須にする。
 - **主なコンポーネント:** `AccountDeleteEntryForm`、`AccountDeleteForm`、`StatusMessage`。通常設定フォームとは分離し、確認ページには `/settings` へ戻る「削除をやめる」導線を置く。送信中、確認未完了、最後の`SUPER_ADMIN`、処理不能グループがある場合は削除ボタンを無効化する。最後の`SUPER_ADMIN`の理由はページ内の案内だけに表示する。
 - **Server Action または API:** `deleteCurrentUserAccount`（`src/app/actions/account.ts`）。フォームのUser IDは受け取らず `getRequiredSessionUser()` から現在ユーザーを確定し、初期Householdを作成しない。
 - **データアクセス・Prismaモデル:** `src/lib/account-delete.ts` がユーザー単位lock、`SUPER_ADMIN`全体lock、ID昇順の全Household lockを同一Prisma transactionで取得し、最新状態と画面state tokenを再確認する。単独OWNERグループは `deleteSoleOwnerHousehold`、共有グループは `leaveHouseholdMembership` を同一transactionのRepositoryで再利用し、全処理成功後に `User` を削除する。`Account`、`Session`、`HouseholdMember`、`AppSetting` はUser Cascade、`DashboardHamster` はAppSetting Cascade。共有記録・招待・保存タグの作成者は既存の `SetNull` を維持する。

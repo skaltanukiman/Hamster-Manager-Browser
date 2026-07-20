@@ -5,3 +5,7 @@ export type AccountDeleteDisposition =
   | "leaveHousehold"
   | "transferOwnership"
   | "blocked";
+
+export function requiresAccountDeleteAttention(disposition: AccountDeleteDisposition) {
+  return disposition === "transferOwnership" || disposition === "blocked";
+}
