@@ -599,7 +599,7 @@ test("本番処理はユーザーlock、ID順Household lock、既存退出・完
   assert.ok(userLockIndex >= 0 && userLockIndex < householdLockIndex);
 });
 
-test("設定・確認UIは独立フォーム、グループ別表示、移譲選択、完全一致、pending無効化を備える", async () => {
+test("設定・確認UIは確認導線、件数サマリー、グループ別表示、移譲選択、キャンセルを備える", async () => {
   const settingsPage = await readFile(join(process.cwd(), "src/app/settings/page.tsx"), "utf8");
   const entryForm = await readFile(join(process.cwd(), "src/components/account-delete-entry-form.tsx"), "utf8");
   const deletePage = await readFile(join(process.cwd(), "src/app/settings/account/delete/page.tsx"), "utf8");
@@ -608,20 +608,32 @@ test("設定・確認UIは独立フォーム、グループ別表示、移譲選
   const authContext = await readFile(join(process.cwd(), "src/lib/auth-context.ts"), "utf8");
 
   assert.match(settingsPage, /<DashboardSettingsForm[\s\S]+<AccountDeleteEntryForm/);
-  assert.match(entryForm, /危険な操作/);
-  assert.match(entryForm, /<form action="\/settings\/account\/delete" method="get"/);
-  assert.match(entryForm, /アカウントを削除/);
+  assert.match(entryForm, /アカウントの削除/);
+  assert.match(entryForm, /取り消しできない操作/);
+  assert.match(entryForm, /<form[\s\S]+action="\/settings\/account\/delete"[\s\S]+method="get"/);
+  assert.match(entryForm, /削除内容を確認する/);
+  assert.doesNotMatch(entryForm, /deleteCurrentUserAccount/);
   assert.match(deletePage, /getRequiredSessionUser\(\)/);
   assert.doesNotMatch(deletePage, /import[^\n]+getRequiredHouseholdContext/);
-  assert.match(deleteForm, /このグループとすべてのデータが削除されます/);
-  assert.match(deleteForm, /このグループから退出します/);
-  assert.match(deleteForm, /所有権の移譲が必要です/);
+  assert.match(deleteForm, /削除内容の確認/);
+  assert.match(deleteForm, /グループごと削除/);
+  assert.match(deleteForm, /グループから退出/);
+  assert.match(deleteForm, /オーナー移譲が必要/);
+  assert.match(deleteForm, /transferHouseholds\.length > 0/);
+  assert.match(deleteForm, /新しいオーナーを選択/);
+  assert.match(deleteForm, /（現在：/);
   assert.match(deleteForm, /name={`transferToUserId:\$\{household\.householdId\}`}/);
   assert.match(deleteForm, /confirmationText === ACCOUNT_DELETE_CONFIRMATION/);
   assert.match(deleteForm, /disabled={!enabled \|\| pending}/);
-  assert.match(deleteForm, /アカウント削除は取り消せません/);
-  assert.match(deleteForm, /削除後はログアウトし、このアカウントではログインできなくなります/);
+  assert.match(deleteForm, /placeholder={ACCOUNT_DELETE_CONFIRMATION}/);
+  assert.match(deleteForm, /表示されている文字と完全に一致した場合のみ削除できます/);
+  assert.match(deleteForm, /href="\/settings"/);
+  assert.match(deleteForm, /削除をやめる/);
+  assert.match(deletePage, /preview\.isLastSuperAdmin\s*\? undefined/);
+  assert.match(deletePage, /このアカウントは現在削除できません/);
+  assert.equal(deletePage.match(/最後のスーパー管理者/g)?.length, 1);
   assert.match(loginPage, /アカウントの削除が完了しました/);
+  assert.match(loginPage, /同じGoogleアカウントで再度ログインした場合は、新しいアカウントとして開始されます/);
   assert.match(authContext, /cookieStore\.delete\(CURRENT_HOUSEHOLD_COOKIE\)/);
   assert.match(authContext, /authjs\.session-token/);
 });

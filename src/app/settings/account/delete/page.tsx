@@ -28,7 +28,7 @@ export default async function AccountDeletePage({
     (household) => household.disposition === "blocked"
   );
   const blockingStatus = preview.isLastSuperAdmin
-    ? "accountDeleteLastSuperAdmin"
+    ? undefined
     : hasBlockedHousehold
       ? "accountDeleteStateChanged"
       : getParam(params.status);
@@ -38,26 +38,31 @@ export default async function AccountDeletePage({
       <div>
         <Link
           href="/settings"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-moss"
+          className="inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-slate-600 hover:text-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
           設定へ戻る
         </Link>
-        <h2 className="mt-3 text-xl font-bold text-ink">アカウントの削除</h2>
+        <h2 className="mt-3 text-xl font-bold text-ink">アカウントを削除</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          所属している共有グループへの影響を確認し、必要な所有権移譲を指定してください。
+          削除前に、所属グループごとの扱いと削除されるデータを確認してください。
         </p>
       </div>
 
       <StatusMessage status={blockingStatus} errorId={getParam(params.errorId)} />
 
       {preview.isLastSuperAdmin ? (
-        <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
+        <section
+          role="alert"
+          className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950"
+        >
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-1 h-5 w-5 shrink-0" aria-hidden />
             <div>
-              <h3 className="font-bold">現在はアカウントを削除できません</h3>
-              <p className="mt-2">ほかのスーパー管理者を用意してから、最新の状態でやり直してください。</p>
+              <h3 className="font-bold">このアカウントは現在削除できません</h3>
+              <p className="mt-2">
+                このアカウントは最後のスーパー管理者です。別のユーザーをスーパー管理者に変更してから、もう一度お試しください。
+              </p>
             </div>
           </div>
         </section>

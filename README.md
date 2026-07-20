@@ -368,7 +368,7 @@ Auth.js / NextAuth の Prisma Adapter が使用する認証テーブルです。
 
 ### アカウント削除
 
-`/settings` の「危険な操作」から `/settings/account/delete` へ進むと、所属グループごとの処理を確認して自分のアカウントを削除できます。メンバー1人・対象ユーザーがOWNER・OWNER数1人のグループはHouseholdのCascadeで全データを削除し、DB commit後にハムスター画像と思い出画像のHouseholdディレクトリを削除します。ほかのメンバーがいるグループは共有データを残して本人のmembershipと個人設定だけを削除し、本人が唯一OWNERの場合は同じグループの別メンバーを移譲先として明示選択する必要があります。
+`/settings` の「アカウントの削除」から「削除内容を確認する」で `/settings/account/delete` へ進むと、処理件数の要約と所属グループごとの扱いを確認して自分のアカウントを削除できます。メンバー1人・対象ユーザーがOWNER・OWNER数1人のグループはHouseholdのCascadeで全データを削除し、DB commit後にハムスター画像と思い出画像のHouseholdディレクトリを削除します。ほかのメンバーがいるグループは共有データを残して本人のmembershipと個人設定だけを削除し、本人が唯一OWNERの場合は同じグループの別メンバーを移譲先として明示選択する必要があります。
 
 削除処理はユーザー単位lockの後、Household ID順にHousehold単位lockを取得し、画面表示後の状態変更と移譲先所属をDBで再確認します。全グループの処理とUser削除は1 transactionで行い、`Account`、`Session`、`HouseholdMember`、`AppSetting`、`DashboardHamster`はCascadeで削除します。共有グループ内の記録・招待・保存タグは残し、削除ユーザーの作成者参照は既存の`SetNull`に従います。最後の`SUPER_ADMIN`は削除できません。成功後はHousehold CookieとAuth.js Session Cookieを削除してログイン画面へ移動し、`account_deleted`監査ログを記録します。
 

@@ -115,19 +115,19 @@
 
 ## 設定（プロフィール・ダッシュボード）
 
-- **画面または URL:** `/settings`。最下部の危険な操作からアカウント削除確認 `/settings/account/delete` へ移動する。
-- **主なコンポーネント:** `ProfileSettingsFields`、`DashboardSettingsForm`、`DirtySubmitButton`、`UnsavedChangesGuard`、`HamsterCombobox`、`MobileDirtySaveArea`、`AccountDeleteEntryForm`、`AccountDeleteForm`。プロフィールとダッシュボード設定は1フォーム・1保存ボタンで扱い、危険な操作は別フォームに分離する。
+- **画面または URL:** `/settings`。最下部の「アカウントの削除」から、赤枠の「削除内容を確認する」でアカウント削除確認 `/settings/account/delete` へ移動する。
+- **主なコンポーネント:** `ProfileSettingsFields`、`DashboardSettingsForm`、`DirtySubmitButton`、`UnsavedChangesGuard`、`HamsterCombobox`、`MobileDirtySaveArea`、`AccountDeleteEntryForm`、`AccountDeleteForm`。プロフィールとダッシュボード設定は1フォーム・1保存ボタンで扱い、アカウント削除の入口は別フォームに分離する。
 - **Server Action または API:** `saveSettings`（`src/app/actions/settings.ts`）。表示名とダッシュボード設定をまとめて差分比較し、変更がなければ `unchanged` を返す。
 - **データアクセス・Prismaモデル:** `getDashboardSettingsPageData`、`User`、`Household`、`HouseholdMember`、`AppSetting`、`DashboardHamster`、`Hamster`。
 - **バリデーション:** `updateUserProfileSchema`（表示名）、`dashboardSettingsSchema`、`normalizeDashboardBoardCount` / `normalizeHamsterSelectorMode`。
-- **関連テスト:** `tests/settings.test.ts`（表示名・表示件数・選択方式・表示対象順序の差分判定）、`tests/account-delete.test.ts`（危険な操作と確認UI）。
+- **関連テスト:** `tests/settings.test.ts`（表示名・表示件数・選択方式・表示対象順序の差分判定）、`tests/account-delete.test.ts`（アカウント削除の確認導線と確認UI）。
 - **関連設定:** `src/lib/dashboard-settings.ts`、`src/lib/search.ts`。
 - **依存関係:** 表示名とユーザー・Household別ダッシュボード設定は個人設定のためVIEWERにも更新を許可する。表示名変更は `User.name` だけを更新し、初回作成後の共有グループ名や所有権移譲後の名前とは連動させない。初回Household名だけは `defaultHouseholdName()` で生成する。ダッシュボード対象に変更がある場合だけ全 `DashboardHamster` を削除して作り直すため、順序と上限を Action と UI で一致させる。未保存変更がある間は他画面への移動確認を表示する。
 
 ## アカウント削除
 
-- **画面または URL:** `/settings/account/delete`。所属グループごとの削除・退出・移譲を表示し、唯一OWNERの共有グループごとに移譲先を選ぶ。確認文字列は `アカウントを削除` の完全一致を必須にする。
-- **主なコンポーネント:** `AccountDeleteEntryForm`、`AccountDeleteForm`、`StatusMessage`。通常設定フォームとは分離し、送信中は削除ボタンを無効化する。
+- **画面または URL:** `/settings/account/delete`。削除されるグループ数、退出するグループ数、オーナー移譲が必要なグループ数を先に要約し、各グループは状態バッジ・説明・権限・メンバー数を表示する。唯一OWNERの共有グループだけ移譲先を選び、確認文字列 `アカウントを削除` の完全一致を必須にする。
+- **主なコンポーネント:** `AccountDeleteEntryForm`、`AccountDeleteForm`、`StatusMessage`。通常設定フォームとは分離し、確認ページには `/settings` へ戻る「削除をやめる」導線を置く。送信中、確認未完了、最後の`SUPER_ADMIN`、処理不能グループがある場合は削除ボタンを無効化する。最後の`SUPER_ADMIN`の理由はページ内の案内だけに表示する。
 - **Server Action または API:** `deleteCurrentUserAccount`（`src/app/actions/account.ts`）。フォームのUser IDは受け取らず `getRequiredSessionUser()` から現在ユーザーを確定し、初期Householdを作成しない。
 - **データアクセス・Prismaモデル:** `src/lib/account-delete.ts` がユーザー単位lock、`SUPER_ADMIN`全体lock、ID昇順の全Household lockを同一Prisma transactionで取得し、最新状態と画面state tokenを再確認する。単独OWNERグループは `deleteSoleOwnerHousehold`、共有グループは `leaveHouseholdMembership` を同一transactionのRepositoryで再利用し、全処理成功後に `User` を削除する。`Account`、`Session`、`HouseholdMember`、`AppSetting` はUser Cascade、`DashboardHamster` はAppSetting Cascade。共有記録・招待・保存タグの作成者は既存の `SetNull` を維持する。
 - **バリデーション:** 単独削除はメンバー1・対象OWNER・OWNER1の完全一致だけ。共有で別OWNERがいれば退出し、唯一OWNERなら同じグループの自分以外を明示選択してOWNER昇格後に退出する。画面後の状態変更、移譲先退出、二重削除、最後の`SUPER_ADMIN`を拒否してtransaction全体をロールバックする。招待受諾もユーザーlock→Household lock順に統一する。

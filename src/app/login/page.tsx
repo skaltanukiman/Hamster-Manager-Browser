@@ -52,9 +52,17 @@ export default async function LoginPage({
           </p>
         ) : null}
         {accountStatus === "accountDeleted" ? (
-          <p role="status" className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            アカウントの削除が完了しました。ご利用ありがとうございました。
-          </p>
+          <div
+            role="status"
+            className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          >
+            <p className="font-semibold">
+              アカウントの削除が完了しました。ご利用ありがとうございました。
+            </p>
+            <p className="mt-1 text-xs leading-5 text-emerald-700">
+              同じGoogleアカウントで再度ログインした場合は、新しいアカウントとして開始されます。
+            </p>
+          </div>
         ) : null}
         {accountStatus === "accountAlreadyDeleted" ? (
           <p role="status" className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
