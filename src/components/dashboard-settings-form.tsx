@@ -1,12 +1,14 @@
 "use client";
 
-import { ChevronDown, Save, Search } from "lucide-react";
+import { Save, Search } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 
 import { saveSettings } from "@/app/actions/settings";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { ProfileSettingsFields } from "@/components/profile-settings-form";
+import { SETTINGS_CARD_RESPONSIVE_PADDING } from "@/components/settings-layout";
+import { SettingsScrollToSaveButton } from "@/components/settings-scroll-to-save-button";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import {
   MAX_DASHBOARD_BOARD_COUNT,
@@ -110,29 +112,16 @@ export function DashboardSettingsForm({
     });
   }
 
-  function scrollToSaveButton() {
-    document.getElementById("dashboard-settings-save")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
-
   return (
     <UnsavedChangesGuard>
-      <button
-        type="button"
-        onClick={scrollToSaveButton}
-        aria-label="保存ボタンまでスクロール"
-        title="保存ボタンまでスクロール"
-        className="fixed bottom-4 right-4 z-40 grid h-11 w-11 place-items-center rounded-md bg-[#999999] text-white shadow-lg shadow-slate-400/50 transition hover:bg-[#7f7f7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 sm:bottom-5 sm:right-5 sm:h-12 sm:w-12 xl:bottom-8 xl:right-8 xl:h-14 xl:w-14"
-      >
-        <ChevronDown className="h-7 w-7 stroke-[3] sm:h-8 sm:w-8 xl:h-9 xl:w-9" aria-hidden />
-      </button>
+      <SettingsScrollToSaveButton />
 
       <form action={saveSettings} data-dirty-watch className="space-y-6">
       <ProfileSettingsFields name={name} email={email} />
 
-      <div className="space-y-5 rounded-md border border-slate-200 bg-white py-5 pl-5 pr-16 shadow-sm sm:pr-20 xl:p-5">
+      <div
+        className={`space-y-5 rounded-md border border-slate-200 bg-white shadow-sm ${SETTINGS_CARD_RESPONSIVE_PADDING}`}
+      >
       <div className="grid gap-4 md:grid-cols-[220px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           表示ボード数
