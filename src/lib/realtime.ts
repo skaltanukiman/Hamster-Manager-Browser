@@ -44,6 +44,7 @@ const REALTIME_ACTOR_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/;
 function getRealtimeBus() {
   const globalForRealtime = globalThis as RealtimeGlobal;
 
+  // SSE配信はプロセス内バスなので、再生成を避けて同一プロセスの購読者を共有する。
   if (!globalForRealtime.__hamsterRealtimeBus) {
     globalForRealtime.__hamsterRealtimeBus = {
       nextId: 1,
@@ -159,6 +160,7 @@ export async function commitHouseholdMutation<T>(
   transactionExecutor: TransactionExecutor = executeTransaction
 ) {
   return transactionExecutor(async (tx) => {
+    // 業務データとrevisionを同時commitし、通知だけが先行する状態を作らない。
     const result = await mutate(tx);
     const change = await updateHouseholdRevision(tx, householdId, source, actorClientId, actorUserId);
     return { result, change };
@@ -171,6 +173,7 @@ export function publishHouseholdChangeSafely(
   reportError: typeof logUnexpectedError = logUnexpectedError
 ) {
   try {
+    // commit後のプロセス内通知失敗はDB更新を巻き戻せないため、記録してpoll側の追従に委ねる。
     publisher(change);
     return true;
   } catch (error) {

@@ -89,6 +89,7 @@ export async function updateHouseholdNameMutation(
   execute: HouseholdNameExecutor = executePrismaHouseholdNameUpdate
 ): Promise<HouseholdNameMutationResult> {
   return execute(async (repository) => {
+    // 画面表示後の権限・名称変更を見落とさないよう、lock取得後の値を基準に判定する。
     await repository.lockHousehold(input.householdId);
 
     const membership = await repository.findMembership(input.householdId, input.actorUserId);
@@ -102,6 +103,7 @@ export async function updateHouseholdNameMutation(
       return { status: "unchanged" };
     }
 
+    // 更新条件にも旧名称とOWNER権限を含め、確認後の状態変化を楽観的に検出する。
     const updatedCount = await repository.updateName({
       householdId: input.householdId,
       actorUserId: input.actorUserId,

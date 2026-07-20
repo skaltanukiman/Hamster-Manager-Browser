@@ -183,6 +183,7 @@ export async function createHouseholdInvitation(
     }
 
     const now = new Date();
+    // 平文tokenは作成直後の応答だけに残し、DBには漏えい時に再利用できないhashだけを保存する。
     const token = createInvitationToken();
     const result = await createRateLimitedHouseholdInvitation({
       householdId: context.household.id,
@@ -350,6 +351,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
 
     publishHouseholdChangeSafely(change);
     try {
+      // membershipはすでに確定済みなので、Cookie更新失敗だけで参加結果を失敗扱いにはしない。
       await setCurrentHouseholdCookie(invitation.householdId);
     } catch (cookieError) {
       logUnexpectedError(cookieError, {
@@ -383,6 +385,7 @@ export async function removeHouseholdMember(formData: FormData) {
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
       mutate: async (tx) => {
+        // OWNER数の確認から削除までを直列化し、同時操作でOWNER不在になることを防ぐ。
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${context.household.id}, 0))`;
         const targetMember = await tx.householdMember.findFirst({
           where: { id: memberId, householdId: context.household.id },

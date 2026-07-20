@@ -380,6 +380,7 @@ export async function deleteWeightRecords(formData: FormData) {
         const deleted = await tx.weightRecord.deleteMany({
           where: { id: { in: result.data.ids }, hamsterId: result.data.hamsterId }
         });
+        // 一部だけ対象外・削除済みなら全体をロールバックし、選択件数との不一致を残さない。
         if (deleted.count !== result.data.ids.length) redirect("/weights?status=invalid");
       }
     });
@@ -468,6 +469,7 @@ export async function importGasWeightRecordsCsv(
         where: { hamsterId: { in: hamsterIds }, recordDate: { in: recordDates } },
         select: { hamsterId: true, recordDate: true }
       });
+      // DB既存行とCSV内重複を同じキーで除外し、同じ個体・測定日の一意性を保つ。
       const existingKeys = new Set(
         existingRecords.map((record) => `${record.hamsterId}:${toDateInputValue(record.recordDate)}`)
       );
@@ -544,6 +546,7 @@ export async function importAppWeightRecordsCsv(
 
     const parsed = parseAppWeightCsvImport(await csvFile.text());
     const errors: WeightCsvImportIssue[] = [...parsed.errors];
+    // アプリ版は一括編集用途のため、1行でも不正なら部分適用せず全件を差し戻す。
     if (parsed.rows.length === 0 || errors.length > 0) {
       return weightCsvImportState({
         errors,

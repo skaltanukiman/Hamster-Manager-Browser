@@ -30,6 +30,7 @@ function isEmptyRecord(cells: string[]) {
 }
 
 export function parseCsvRecords(text: string) {
+  // Excelなどが付与するUTF-8 BOMを、先頭ヘッダー名の一部として扱わない。
   const source = text.replace(/^\uFEFF/, "");
   const records: CsvRecord[] = [];
   let cells: string[] = [];
@@ -60,6 +61,7 @@ export function parseCsvRecords(text: string) {
       } else if (char === '"') {
         inQuotes = false;
       } else if (char === "\r") {
+        // quoted cell内の改行は値へ残しつつ、エラー表示用の物理行番号も進める。
         cell += "\n";
 
         if (source[index + 1] === "\n") {

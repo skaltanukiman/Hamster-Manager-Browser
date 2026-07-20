@@ -28,6 +28,7 @@ export async function deleteHouseholdImageDirectoriesSafely(
   const deleteRecordDirectory =
     dependencies.deleteRecordDirectory ?? deleteRecordImageHouseholdDirectory;
   const warn = dependencies.warn ?? ((kind) => defaultWarning(householdId, kind));
+  // DB削除後の後処理なので、一方の失敗で他方の削除まで中断しない。
   const results = await Promise.allSettled([
     deleteHamsterDirectory(householdId),
     deleteRecordDirectory(householdId)

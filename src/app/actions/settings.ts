@@ -107,6 +107,7 @@ export async function saveSettings(formData: FormData) {
           await tx.dashboardHamster.create({ data: { settingId: setting.id, hamsterId, sortOrder: index } });
         }
       }
+      // 表示名は全所属Householdに現れるため、個人用ダッシュボード設定と異なり全所属先へ通知する。
       const householdIds = profileChanged
         ? (
             await tx.householdMember.findMany({

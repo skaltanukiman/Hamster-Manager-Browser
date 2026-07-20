@@ -12,6 +12,7 @@ export function revalidatePathsSafely(
   operation: string,
   context?: Record<string, string | number | boolean | null | undefined>
 ) {
+  // DB commit後のcache無効化失敗は業務更新を失敗扱いにせず、個別に記録して残りも試行する。
   for (const target of targets) {
     try {
       if (target.type) {

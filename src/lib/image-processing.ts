@@ -50,14 +50,17 @@ export async function prepareWebpWithinStorageLimit(file: ImageInput, options: P
   const input = Buffer.from(await file.arrayBuffer());
 
   try {
+    // Content-Typeは送信側が指定できるため、デコード結果の実形式も許可リストで検証する。
     const metadata = await createDecoder(input).metadata();
 
     if (!metadata.format || !(SUPPORTED_DECODED_FORMATS as readonly string[]).includes(metadata.format)) {
       throw new ImageProcessingError("unsupported");
     }
 
+    // 画質・寸法を段階的に下げ、保存上限を満たす最初の候補だけを採用する。
     for (const candidate of options.candidates) {
       const buffer = await createDecoder(input)
+        // EXIFの向きを画素へ反映してから寸法を確定する。
         .rotate()
         .resize(candidate.maxSize, candidate.maxSize, {
           fit: options.fit,

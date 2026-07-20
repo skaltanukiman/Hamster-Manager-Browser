@@ -84,6 +84,7 @@ export async function saveCleaningMonth(formData: FormData) {
     );
     if (hasFutureInput) cleaningRedirect(hamsterId, yearMonth, "future", includeInactive);
 
+    // 未来日は保存対象外とし、送信されないチェックボックスを空データと誤認しない。
     const editableDays = days.filter((day) => !isFutureDateInput(day.date));
     if (editableDays.length === 0) cleaningRedirect(hamsterId, yearMonth, "future", includeInactive);
 
@@ -125,6 +126,7 @@ export async function saveCleaningMonth(formData: FormData) {
           }
         });
         const existingByDate = new Map(existingRecords.map((record) => [toDateInputValue(record.recordDate), record]));
+        // 月全体の送信でも、空行は残さず、実際に差分がある日だけを更新する。
         const operations = submittedDays.flatMap((day) => {
           const existing = existingByDate.get(day.date);
           if (!day.hasRecord) {

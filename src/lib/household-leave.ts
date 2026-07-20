@@ -115,6 +115,7 @@ export async function leaveHouseholdMembership(
 ): Promise<HouseholdLeaveMutationResult> {
   try {
     return await execute(async (repository) => {
+      // OWNER移譲と退出を分離できないよう、Household単位のlock内で最新状態を再確認する。
       await repository.lockHousehold(input.householdId);
 
       const membership = await repository.findMembership(input.householdId, input.actorUserId);
@@ -147,11 +148,13 @@ export async function leaveHouseholdMembership(
         });
         if (targetDenial) return { status: targetDenial };
 
+        // 退出者を削除する前に移譲先をOWNERへ更新し、transaction内でもOWNER不在の順序を作らない。
         if (!transferTarget || (await repository.promoteToOwner(transferTarget)) !== 1) {
           throw new HouseholdLeaveConflictError();
         }
       }
 
+      // 個人設定はmembershipのCascade対象ではないため、退出するHousehold分だけ明示的に削除する。
       await repository.deleteAppSetting(input.householdId, input.actorUserId);
       if ((await repository.deleteMembership(membership)) !== 1) {
         throw new HouseholdLeaveConflictError();

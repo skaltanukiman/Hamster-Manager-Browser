@@ -11,6 +11,7 @@ export function invitationCleanupWhere(now = new Date()): Prisma.HouseholdInvita
   const usedBefore = new Date(now.getTime() - USED_INVITATION_RETENTION_DAYS * DAY_MS);
   const expiredBefore = new Date(now.getTime() - EXPIRED_INVITATION_RETENTION_DAYS * DAY_MS);
 
+  // 使用済みと未使用の期限切れでは保持日数が異なるため、acceptedAtの有無で期限を分ける。
   return {
     OR: [
       { acceptedAt: { lt: usedBefore } },

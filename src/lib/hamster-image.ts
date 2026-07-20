@@ -66,6 +66,7 @@ function assertSafeHouseholdId(householdId: string) {
 }
 
 export function getHamsterImageHouseholdDirectory(householdId: string, rootDir = getHamsterImageRoot()) {
+  // householdIdをディレクトリ名に使うため、文字種と解決後のroot配下判定を二重に行う。
   assertSafeHouseholdId(householdId);
 
   const root = path.resolve(/* turbopackIgnore: true */ rootDir);
@@ -116,6 +117,7 @@ export async function saveHamsterImage(
   let handle: Awaited<ReturnType<typeof open>> | undefined;
 
   try {
+    // 排他的な一時ファイルを同期してからrenameし、読み手に書きかけの画像を見せない。
     handle = await open(temporaryPath, "wx", 0o640);
     await handle.writeFile(image.buffer);
     await handle.sync();
@@ -160,6 +162,7 @@ export async function commitWithNewHamsterImage<T>({
   commit: (fileName: string) => Promise<T>;
   rootDir?: string;
 }) {
+  // ファイルを先に保存し、DB commit失敗時は補償削除して参照切れと孤立ファイルを避ける。
   await saveHamsterImage(householdId, image, rootDir);
 
   try {

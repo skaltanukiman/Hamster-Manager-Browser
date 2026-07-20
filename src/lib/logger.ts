@@ -99,6 +99,7 @@ function addRotatingFileTransport(
         lastWarningAt = now;
         directStderrWarning("logger_file_write_failed", "ログファイルへ書き込めないため標準出力のみを使用します。");
       }
+      // 壊れたtransportを残すと書き込みごとに失敗するため、標準出力だけで継続する。
       logger.remove(fileTransport);
       fileTransport.close?.();
     });
@@ -161,6 +162,7 @@ export function createServerLogger(options: ServerLoggerOptions = {}) {
 
 export function getServerLogger() {
   const globalForLogger = globalThis as LoggerGlobal;
+  // 開発時の再評価や同一プロセス内の呼び出しでtransportを重複登録しない。
   if (!globalForLogger.__hamsterServerLogger) {
     globalForLogger.__hamsterServerLogger = createServerLogger();
   }

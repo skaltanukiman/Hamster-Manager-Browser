@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         enqueue(encodeSse("household-change", event));
       });
 
+      // 更新がない間も中継プロキシに接続を閉じられないよう、コメント行を定期送信する。
       const heartbeat = setInterval(() => {
         enqueue(": heartbeat\n\n");
       }, 25000);

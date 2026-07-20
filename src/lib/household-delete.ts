@@ -113,6 +113,7 @@ export async function deleteSoleOwnerHousehold(
 ): Promise<HouseholdDeleteMutationResult> {
   try {
     return await execute(async (repository) => {
+      // OWNER数・メンバー数の確認から削除までを、退出や招待受諾と同じHousehold単位で直列化する。
       await repository.lockHousehold(input.householdId);
 
       const household = await repository.findHousehold(input.householdId);
@@ -126,6 +127,7 @@ export async function deleteSoleOwnerHousehold(
         repository.countOwners(input.householdId)
       ]);
 
+      // 単独メンバーなのにOWNERでない状態は通常操作では作れないため、削除せず監査可能な警告を残す。
       if (memberCount === 1 && (membership.role !== "OWNER" || ownerCount !== 1)) {
         warnRoleStateInvalid({
           householdId: input.householdId,
@@ -146,6 +148,7 @@ export async function deleteSoleOwnerHousehold(
       return { status: "deleted", actorHouseholdRole: "OWNER" };
     });
   } catch (error) {
+    // 確認後に対象が消えた競合も、利用者には一貫して状態変更として返す。
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       return { status: "stateChanged" };
     }

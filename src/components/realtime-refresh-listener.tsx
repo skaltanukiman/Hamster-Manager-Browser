@@ -61,6 +61,7 @@ function writeSessionStorage(key: string, value: string) {
 }
 
 function ensureClientId() {
+  // 同一タブのServer Actionへ安定した識別子を渡し、自分の更新による再refreshを抑止する。
   const existingClientId = readSessionStorage(CLIENT_STORAGE_KEY);
 
   if (existingClientId) {
@@ -177,6 +178,7 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
     }
 
     function applyRemoteChange() {
+      // 自動refreshで入力中のフォームを上書きしないよう、利用者の明示操作まで保留する。
       if (hasDirtyForms()) {
         setHasPendingChange(true);
         return;
@@ -228,6 +230,7 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
 
         const { actorClientId, actorUserId, revision } = revisionPayload;
 
+        // 初回取得値は比較基準であり、接続前の更新として即refreshしない。
         if (!lastRevisionRef.current) {
           lastRevisionRef.current = revision;
           return;
@@ -316,6 +319,7 @@ export function RealtimeRefreshListener({ currentUserId, householdId }: Realtime
 
     cleanupRealtimeQueryParam();
     syncActorFields();
+    // プロセス内SSEで届かない更新も拾えるよう、DB revisionのpollを常時併用する。
     void checkRevision(true);
 
     const observer = new MutationObserver(syncActorFields);

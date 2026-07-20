@@ -144,6 +144,7 @@ function nullableDateValue(value: Date | null) {
 }
 
 async function deleteImageAfterMutation(householdId: string, fileName: string, operation: string, recordId: string) {
+  // DB更新を正とし、後処理のファイル削除失敗で確定済みの記録操作を失敗扱いにしない。
   try {
     await deleteRecordImage(householdId, fileName);
   } catch (error) {
@@ -531,6 +532,7 @@ export async function updateMemoryRecord(formData: FormData) {
               isFavorite: result.data.isFavorite
             }
           });
+          // undefinedは画像を維持、nullは削除、文字列は置換として区別する。
           if (fileName !== undefined) {
             await tx.memoryRecordImage.deleteMany({ where: { memoryRecordId: record.id } });
             if (fileName) {
@@ -543,6 +545,7 @@ export async function updateMemoryRecord(formData: FormData) {
       ? await commitWithNewRecordImage({ householdId: context.household.id, image: preparedImage, commit })
       : await commit(removeImage ? null : undefined);
     publishAndRevalidate(change, context.household.id, "records.memory.update");
+    // 新しい参照の確定後に旧ファイルを消し、DBが削除済みファイルを指す状態を避ける。
     if ((preparedImage || removeImage) && oldImage) {
       await deleteImageAfterMutation(context.household.id, oldImage, "records.memory.update.deleteOldImage", record.id);
     }

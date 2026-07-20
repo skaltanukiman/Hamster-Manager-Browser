@@ -36,6 +36,7 @@ export function createInvitationToken() {
 }
 
 export function hashInvitationToken(token: string) {
+  // DB流出時に招待URLを再構成できないよう、検索には不可逆なhashを使う。
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -119,6 +120,7 @@ export function isValidInvitationToken(token: string) {
 
 export function buildInvitationUrl(origin: string, token: string) {
   const url = new URL("/invitations/accept", origin);
+  // tokenをHTTPリクエストやサーバーログへ送らないため、queryではなくfragmentへ格納する。
   url.hash = new URLSearchParams({ token }).toString();
   return url.toString();
 }

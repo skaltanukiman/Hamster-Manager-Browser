@@ -35,6 +35,7 @@ async function main() {
     throw new Error(`User not found: ${email}. Run Google login once before assigning legacy data.`);
   }
 
+  // 既存所属が複数ある場合は最古の所属先を移行先として固定し、再実行でも同じ結果にする。
   const membership =
     (await prisma.householdMember.findFirst({
       where: { userId: user.id },
@@ -69,6 +70,7 @@ async function main() {
       }
     }
   });
+  // 未所属の旧データだけを対象にし、すでにHouseholdへ割り当てたデータは再実行で動かさない。
   const assignedHamsters = await prisma.hamster.updateMany({
     where: { householdId: null },
     data: { householdId: membership.householdId }
@@ -102,6 +104,7 @@ async function main() {
     const householdHamsterIds = new Set(householdHamsters.map((hamster) => hamster.id));
 
     for (const entry of legacySetting.dashboardHamsters) {
+      // 移行先Householdに属さない選択履歴を持ち込むと参照範囲が交差するため除外する。
       if (!householdHamsterIds.has(entry.hamsterId)) {
         continue;
       }

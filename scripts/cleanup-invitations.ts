@@ -41,6 +41,7 @@ async function main() {
     process.stderr.write(`Invitation cleanup failed. errorId=${errorId}\n`);
     process.exitCode = 1;
   } finally {
+    // cron終了前にDB接続と非同期ログtransportを閉じ、最終結果の欠落を防ぐ。
     await prisma.$disconnect();
     await closeServerLogger(logger);
   }
