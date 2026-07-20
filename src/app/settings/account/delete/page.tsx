@@ -1,0 +1,73 @@
+import { AlertTriangle, ChevronLeft } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { AccountDeleteForm } from "@/components/account-delete-form";
+import { StatusMessage } from "@/components/status-message";
+import { getAccountDeletePreview } from "@/lib/account-delete";
+import { getRequiredSessionUser } from "@/lib/auth-context";
+
+export const dynamic = "force-dynamic";
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AccountDeletePage({
+  searchParams
+}: {
+  searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  // getRequiredHouseholdContext()を使わず、所属0件でも初期Householdを作成しない。
+  const user = await getRequiredSessionUser();
+  const preview = await getAccountDeletePreview(user.id);
+  if (!preview) redirect("/login?status=accountAlreadyDeleted");
+
+  const hasBlockedHousehold = preview.households.some(
+    (household) => household.disposition === "blocked"
+  );
+  const blockingStatus = preview.isLastSuperAdmin
+    ? "accountDeleteLastSuperAdmin"
+    : hasBlockedHousehold
+      ? "accountDeleteStateChanged"
+      : getParam(params.status);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <Link
+          href="/settings"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-moss"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          設定へ戻る
+        </Link>
+        <h2 className="mt-3 text-xl font-bold text-ink">アカウントの削除</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          所属している共有グループへの影響を確認し、必要な所有権移譲を指定してください。
+        </p>
+      </div>
+
+      <StatusMessage status={blockingStatus} errorId={getParam(params.errorId)} />
+
+      {preview.isLastSuperAdmin ? (
+        <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-1 h-5 w-5 shrink-0" aria-hidden />
+            <div>
+              <h3 className="font-bold">現在はアカウントを削除できません</h3>
+              <p className="mt-2">ほかのスーパー管理者を用意してから、最新の状態でやり直してください。</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <AccountDeleteForm
+        expectedStateToken={preview.stateToken}
+        households={preview.households}
+        deletionBlocked={preview.isLastSuperAdmin || hasBlockedHousehold}
+      />
+    </div>
+  );
+}

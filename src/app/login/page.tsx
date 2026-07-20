@@ -27,11 +27,16 @@ async function signInWithGoogle(formData: FormData) {
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ callbackUrl?: string | string[]; error?: string | string[] }>;
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+    error?: string | string[];
+    status?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const callbackUrl = safeCallbackUrl(getParam(params.callbackUrl));
   const hasAuthError = Boolean(getParam(params.error));
+  const accountStatus = getParam(params.status);
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md items-center">
@@ -44,6 +49,16 @@ export default async function LoginPage({
         {hasAuthError ? (
           <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             Googleログインに失敗しました。時間をおいて再度お試しください。
+          </p>
+        ) : null}
+        {accountStatus === "accountDeleted" ? (
+          <p role="status" className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            アカウントの削除が完了しました。ご利用ありがとうございました。
+          </p>
+        ) : null}
+        {accountStatus === "accountAlreadyDeleted" ? (
+          <p role="status" className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            このアカウントは既に削除されています。
           </p>
         ) : null}
 

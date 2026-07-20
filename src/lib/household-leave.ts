@@ -1,4 +1,4 @@
-import type { HouseholdRole } from "@prisma/client";
+import { Prisma, type HouseholdRole } from "@prisma/client";
 
 import {
   getHouseholdLeaveRequirement,
@@ -35,51 +35,55 @@ export type HouseholdLeaveExecutor = <T>(
 
 class HouseholdLeaveConflictError extends Error {}
 
+export function createPrismaHouseholdLeaveRepository(
+  tx: Prisma.TransactionClient
+): HouseholdLeaveRepository {
+  return {
+    lockHousehold: async (householdId) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
+    },
+    findMembership: (householdId, userId) =>
+      tx.householdMember.findUnique({
+        where: { householdId_userId: { householdId, userId } },
+        select: { id: true, householdId: true, userId: true, role: true }
+      }),
+    countMembers: (householdId) => tx.householdMember.count({ where: { householdId } }),
+    countOwners: (householdId) =>
+      tx.householdMember.count({ where: { householdId, role: "OWNER" } }),
+    promoteToOwner: async (membership) => {
+      const updated = await tx.householdMember.updateMany({
+        where: {
+          id: membership.id,
+          householdId: membership.householdId,
+          userId: membership.userId,
+          role: membership.role
+        },
+        data: { role: "OWNER" }
+      });
+      return updated.count;
+    },
+    deleteAppSetting: async (householdId, userId) => {
+      const deleted = await tx.appSetting.deleteMany({ where: { householdId, userId } });
+      return deleted.count;
+    },
+    deleteMembership: async (membership) => {
+      const deleted = await tx.householdMember.deleteMany({
+        where: {
+          id: membership.id,
+          householdId: membership.householdId,
+          userId: membership.userId,
+          role: membership.role
+        }
+      });
+      return deleted.count;
+    },
+    commitChange: ({ householdId, actorClientId, actorUserId }) =>
+      updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId)
+  };
+}
+
 const executePrismaHouseholdLeave: HouseholdLeaveExecutor = (operation) =>
-  prisma.$transaction(async (tx) =>
-    operation({
-      lockHousehold: async (householdId) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
-      },
-      findMembership: (householdId, userId) =>
-        tx.householdMember.findUnique({
-          where: { householdId_userId: { householdId, userId } },
-          select: { id: true, householdId: true, userId: true, role: true }
-        }),
-      countMembers: (householdId) => tx.householdMember.count({ where: { householdId } }),
-      countOwners: (householdId) =>
-        tx.householdMember.count({ where: { householdId, role: "OWNER" } }),
-      promoteToOwner: async (membership) => {
-        const updated = await tx.householdMember.updateMany({
-          where: {
-            id: membership.id,
-            householdId: membership.householdId,
-            userId: membership.userId,
-            role: membership.role
-          },
-          data: { role: "OWNER" }
-        });
-        return updated.count;
-      },
-      deleteAppSetting: async (householdId, userId) => {
-        const deleted = await tx.appSetting.deleteMany({ where: { householdId, userId } });
-        return deleted.count;
-      },
-      deleteMembership: async (membership) => {
-        const deleted = await tx.householdMember.deleteMany({
-          where: {
-            id: membership.id,
-            householdId: membership.householdId,
-            userId: membership.userId,
-            role: membership.role
-          }
-        });
-        return deleted.count;
-      },
-      commitChange: ({ householdId, actorClientId, actorUserId }) =>
-        updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId)
-    })
-  );
+  prisma.$transaction(async (tx) => operation(createPrismaHouseholdLeaveRepository(tx)));
 
 type HouseholdLeaveFailureStatus =
   | "notMember"

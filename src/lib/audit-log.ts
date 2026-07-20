@@ -13,7 +13,12 @@ export const HOUSEHOLD_AUDIT_EVENTS = {
   ownershipTransferredAndMemberLeft: "household_ownership_transferred_and_member_left"
 } as const;
 
+export const ACCOUNT_AUDIT_EVENTS = {
+  accountDeleted: "account_deleted"
+} as const;
+
 export type HouseholdAuditEvent = (typeof HOUSEHOLD_AUDIT_EVENTS)[keyof typeof HOUSEHOLD_AUDIT_EVENTS];
+export type AccountAuditEvent = (typeof ACCOUNT_AUDIT_EVENTS)[keyof typeof ACCOUNT_AUDIT_EVENTS];
 
 export function writeHouseholdAuditLog(
   event: HouseholdAuditEvent,
@@ -25,6 +30,23 @@ export function writeHouseholdAuditLog(
     {
       event,
       message: "Household管理操作が完了しました。",
+      operation: `audit.${event}`,
+      context
+    },
+    logger
+  );
+}
+
+export function writeAccountAuditLog(
+  event: AccountAuditEvent,
+  context: Record<string, string>,
+  logger?: Logger
+) {
+  writeServerLog(
+    "info",
+    {
+      event,
+      message: "アカウント削除が完了しました。",
       operation: `audit.${event}`,
       context
     },

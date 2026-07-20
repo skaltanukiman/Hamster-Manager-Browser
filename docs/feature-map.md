@@ -21,7 +21,7 @@
 - **バリデーション:** OAuth プロバイダー設定と Auth.js が担当。画面アクセス制御は `src/proxy.ts`。
 - **関連テスト:** `tests/authorization.test.ts`（セッションユーザーID必須、アプリロール判定）、`tests/logger.test.ts`（例外処理）。
 - **関連設定:** `.env*.example` の `AUTH_SECRET`、`AUTH_GOOGLE_ID`、`AUTH_GOOGLE_SECRET`、`AUTH_URL`、`src/types/next-auth.d.ts`。
-- **依存関係:** ログイン後の全データ機能は `auth-context.ts` の初期 Household 作成に依存する。`proxy.ts` の matcher / 公開パス変更は OAuth コールバックを遮断しないよう注意する。
+- **依存関係:** ログイン後の通常データ機能は `auth-context.ts` の初期 Household 作成に依存する。アカウント削除ページ・Actionだけは所属0件で再作成しないよう `getRequiredSessionUser()` を使う。`proxy.ts` の matcher / 公開パス変更は OAuth コールバックを遮断しないよう注意する。
 
 ## Household 共有・メンバー管理
 
@@ -32,7 +32,7 @@
 - **バリデーション:** `idSchema`、`updateHouseholdNameSchema`（trim後1〜50文字）、招待 token の SHA-256、作成間隔30秒・ユーザー単位で過去1時間5件、Household単位で有効な招待リンク10件（`src/lib/invitations.ts`、`src/lib/invitation-mutations.ts`）。共有グループ名更新は現在選択中のHouseholdだけを対象に、Household単位のadvisory transaction lock内でOWNER所属・画面表示時の旧名称・条件付き更新を再確認する。ユーザー単位レート制限はHousehold横断で、ユーザー単位のPostgreSQL advisory transaction lockにより同時作成を直列化する。有効件数上限はHousehold単位の別のadvisory transaction lockで直列化する。OWNER / ADMIN / MEMBER / VIEWER を `src/lib/authorization.ts` と Action 内トランザクションで再確認する。招待参加時の初期ロールはMEMBERのまま。
 - **関連テスト:** `tests/household-name.test.ts`（表示名との分離、初回命名、OWNER限定更新、競合、revision、同名切替表示、UI）、`tests/invitations.test.ts`（tokenをクエリではなくフラグメントへ格納し、不正tokenと無効化済みtokenを拒否する）、`tests/invitation-management.test.ts`（30秒・1時間・別ユーザー・別Household・同時実行・無効化・権限）、`tests/invitation-cleanup.test.ts`（使用済み90日・未使用期限切れ30日の削除条件）、`tests/authorization.test.ts`（招待・削除・権限変更・自己退出ポリシー）、`tests/household-leave.test.ts`（退出・所有権移譲・設定削除・共有データ保持・競合・Cookie切替・UI）、`tests/household-delete.test.ts`（唯一OWNER認可、権限不整合拒否、Cascade範囲、二重実行、画像パス安全性、削除後分岐、招待受諾lock、UI）、`tests/audit-log.test.ts`（成功監査ログ）。
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限、`src/lib/invitation-cleanup.ts`、`scripts/cleanup-invitations.ts`、`npm run invitations:cleanup`。
-- **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。共有画面はメンバー一覧の下に有効な招待だけの作成日時・期限・状態・作成者を表示し、有効な招待が0件なら一覧自体を表示しない。未使用かつ期限内だけOWNER / ADMINが無効化できる。受諾は未使用・未無効化・期限内を同一更新条件で確定し、Household削除と同じadvisory transaction lockを取る。使用済みは90日、未使用（無効化済みを含む）の期限切れは元の期限から30日保持してVPS cronから整理し、有効な招待は削除しない。自己退出は `src/lib/household-leave.ts` がHousehold単位のlock内で最新ロール・OWNER数・メンバー数・移譲先所属を再確認し、唯一OWNERなら移譲先を先にOWNERへ更新してから本人の `AppSetting` とmembershipを削除する。共有データは削除しない。唯一のメンバーかつOWNERの完全削除は `src/lib/household-delete.ts` が同じlock内で最新状態と確認名を再検証し、`Household` のCascade削除を起点にする。DB commit後だけ `HAMSTER_IMAGE_DIR/{householdId}` と `RECORD_IMAGE_DIR/{householdId}` を安全検証して削除し、失敗はwarningに留める。削除後は `auth-context.ts` の既存選択順序を再利用し、membershipが残れば切替、0件の場合だけユーザー単位lock付き初期Household作成を行ってCookieを更新する。成功監査イベントは `household_deleted`。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
+- **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。共有画面はメンバー一覧の下に有効な招待だけの作成日時・期限・状態・作成者を表示し、有効な招待が0件なら一覧自体を表示しない。未使用かつ期限内だけOWNER / ADMINが無効化できる。受諾は未使用・未無効化・期限内を同一更新条件で確定し、アカウント削除と共通のユーザー単位lockを先に、Household削除と共通のHousehold単位lockを後に取る。使用済みは90日、未使用（無効化済みを含む）の期限切れは元の期限から30日保持してVPS cronから整理し、有効な招待は削除しない。自己退出は `src/lib/household-leave.ts` がHousehold単位のlock内で最新ロール・OWNER数・メンバー数・移譲先所属を再確認し、唯一OWNERなら移譲先を先にOWNERへ更新してから本人の `AppSetting` とmembershipを削除する。共有データは削除しない。唯一のメンバーかつOWNERの完全削除は `src/lib/household-delete.ts` が同じlock内で最新状態と確認名を再検証し、`Household` のCascade削除を起点にする。DB commit後だけ `HAMSTER_IMAGE_DIR/{householdId}` と `RECORD_IMAGE_DIR/{householdId}` を安全検証して削除し、失敗はwarningに留める。削除後は `auth-context.ts` の既存選択順序を再利用し、membershipが残れば切替、0件の場合だけユーザー単位lock付き初期Household作成を行ってCookieを更新する。成功監査イベントは `household_deleted`。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
 ## ダッシュボード
 
@@ -115,14 +115,24 @@
 
 ## 設定（プロフィール・ダッシュボード）
 
-- **画面または URL:** `/settings`。
-- **主なコンポーネント:** `ProfileSettingsFields`、`DashboardSettingsForm`、`DirtySubmitButton`、`UnsavedChangesGuard`、`HamsterCombobox`、`MobileDirtySaveArea`。プロフィールとダッシュボード設定は1フォーム・1保存ボタンで扱う。
+- **画面または URL:** `/settings`。最下部の危険な操作からアカウント削除確認 `/settings/account/delete` へ移動する。
+- **主なコンポーネント:** `ProfileSettingsFields`、`DashboardSettingsForm`、`DirtySubmitButton`、`UnsavedChangesGuard`、`HamsterCombobox`、`MobileDirtySaveArea`、`AccountDeleteEntryForm`、`AccountDeleteForm`。プロフィールとダッシュボード設定は1フォーム・1保存ボタンで扱い、危険な操作は別フォームに分離する。
 - **Server Action または API:** `saveSettings`（`src/app/actions/settings.ts`）。表示名とダッシュボード設定をまとめて差分比較し、変更がなければ `unchanged` を返す。
 - **データアクセス・Prismaモデル:** `getDashboardSettingsPageData`、`User`、`Household`、`HouseholdMember`、`AppSetting`、`DashboardHamster`、`Hamster`。
 - **バリデーション:** `updateUserProfileSchema`（表示名）、`dashboardSettingsSchema`、`normalizeDashboardBoardCount` / `normalizeHamsterSelectorMode`。
-- **関連テスト:** `tests/settings.test.ts`（表示名・表示件数・選択方式・表示対象順序の差分判定）。
+- **関連テスト:** `tests/settings.test.ts`（表示名・表示件数・選択方式・表示対象順序の差分判定）、`tests/account-delete.test.ts`（危険な操作と確認UI）。
 - **関連設定:** `src/lib/dashboard-settings.ts`、`src/lib/search.ts`。
 - **依存関係:** 表示名とユーザー・Household別ダッシュボード設定は個人設定のためVIEWERにも更新を許可する。表示名変更は `User.name` だけを更新し、初回作成後の共有グループ名や所有権移譲後の名前とは連動させない。初回Household名だけは `defaultHouseholdName()` で生成する。ダッシュボード対象に変更がある場合だけ全 `DashboardHamster` を削除して作り直すため、順序と上限を Action と UI で一致させる。未保存変更がある間は他画面への移動確認を表示する。
+
+## アカウント削除
+
+- **画面または URL:** `/settings/account/delete`。所属グループごとの削除・退出・移譲を表示し、唯一OWNERの共有グループごとに移譲先を選ぶ。確認文字列は `アカウントを削除` の完全一致を必須にする。
+- **主なコンポーネント:** `AccountDeleteEntryForm`、`AccountDeleteForm`、`StatusMessage`。通常設定フォームとは分離し、送信中は削除ボタンを無効化する。
+- **Server Action または API:** `deleteCurrentUserAccount`（`src/app/actions/account.ts`）。フォームのUser IDは受け取らず `getRequiredSessionUser()` から現在ユーザーを確定し、初期Householdを作成しない。
+- **データアクセス・Prismaモデル:** `src/lib/account-delete.ts` がユーザー単位lock、`SUPER_ADMIN`全体lock、ID昇順の全Household lockを同一Prisma transactionで取得し、最新状態と画面state tokenを再確認する。単独OWNERグループは `deleteSoleOwnerHousehold`、共有グループは `leaveHouseholdMembership` を同一transactionのRepositoryで再利用し、全処理成功後に `User` を削除する。`Account`、`Session`、`HouseholdMember`、`AppSetting` はUser Cascade、`DashboardHamster` はAppSetting Cascade。共有記録・招待・保存タグの作成者は既存の `SetNull` を維持する。
+- **バリデーション:** 単独削除はメンバー1・対象OWNER・OWNER1の完全一致だけ。共有で別OWNERがいれば退出し、唯一OWNERなら同じグループの自分以外を明示選択してOWNER昇格後に退出する。画面後の状態変更、移譲先退出、二重削除、最後の`SUPER_ADMIN`を拒否してtransaction全体をロールバックする。招待受諾もユーザーlock→Household lock順に統一する。
+- **ファイル・ログアウト・監査:** DB commit後に、削除結果へ含まれる単独Household IDだけ `deleteHouseholdImageDirectoriesSafely` へ渡す。パス安全性は既存画像処理を再利用し、失敗はwarning。`hamster_current_household` とAuth.js Session cookieを消し、DB SessionのCascade削除後に `/login?status=accountDeleted` へ遷移する。成功監査イベントは `account_deleted` で、削除User IDとグループ件数だけをファイルログへ残す。
+- **関連テスト:** `tests/account-delete.test.ts`（単独Cascade、共有保持、所有権移譲、複数グループ、確認文字列、状態変更、移譲先消失、SUPER_ADMIN、二重送信、画像、SetNull、排他順序、UI）、`tests/audit-log.test.ts`（`account_deleted`）。
 
 ## アプリ全体管理
 

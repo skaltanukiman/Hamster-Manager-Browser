@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 
 export const CURRENT_HOUSEHOLD_COOKIE = "hamster_current_household";
 export const DEFAULT_HOUSEHOLD_NAME_SUFFIX = "のハムスター管理";
+export const AUTH_SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"] as const;
 
 export type SessionUser = {
   id: string;
@@ -256,6 +257,22 @@ export async function setCurrentHouseholdCookie(householdId: string) {
     path: "/",
     maxAge: 60 * 60 * 24 * 365
   });
+}
+
+export async function clearDeletedAccountCookies() {
+  const cookieStore = await cookies();
+  const sessionCookieNames = new Set<string>(AUTH_SESSION_COOKIE_NAMES);
+
+  cookieStore.delete(CURRENT_HOUSEHOLD_COOKIE);
+  // DB SessionはUserのCascadeで消える。ブラウザー側も通常・Secure双方と分割cookieを破棄する。
+  for (const cookie of cookieStore.getAll()) {
+    if (
+      sessionCookieNames.has(cookie.name) ||
+      AUTH_SESSION_COOKIE_NAMES.some((name) => cookie.name.startsWith(`${name}.`))
+    ) {
+      cookieStore.delete(cookie.name);
+    }
+  }
 }
 
 export function hasHouseholdRole(role: HouseholdRole, allowedRoles: HouseholdRole[]) {

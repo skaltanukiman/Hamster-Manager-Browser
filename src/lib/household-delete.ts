@@ -36,31 +36,35 @@ export type HouseholdDeleteWarning = (context: {
   ownerCount: number;
 }) => void;
 
+export function createPrismaHouseholdDeleteRepository(
+  tx: Prisma.TransactionClient
+): HouseholdDeleteRepository {
+  return {
+    lockHousehold: async (householdId) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
+    },
+    findHousehold: (householdId) =>
+      tx.household.findUnique({
+        where: { id: householdId },
+        select: { id: true, name: true }
+      }),
+    findMembership: (householdId, userId) =>
+      tx.householdMember.findUnique({
+        where: { householdId_userId: { householdId, userId } },
+        select: { id: true, householdId: true, userId: true, role: true }
+      }),
+    countMembers: (householdId) => tx.householdMember.count({ where: { householdId } }),
+    countOwners: (householdId) =>
+      tx.householdMember.count({ where: { householdId, role: "OWNER" } }),
+    deleteHousehold: async (householdId) => {
+      await tx.household.delete({ where: { id: householdId } });
+      return 1;
+    }
+  };
+}
+
 const executePrismaHouseholdDelete: HouseholdDeleteExecutor = (operation) =>
-  prisma.$transaction(async (tx) =>
-    operation({
-      lockHousehold: async (householdId) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
-      },
-      findHousehold: (householdId) =>
-        tx.household.findUnique({
-          where: { id: householdId },
-          select: { id: true, name: true }
-        }),
-      findMembership: (householdId, userId) =>
-        tx.householdMember.findUnique({
-          where: { householdId_userId: { householdId, userId } },
-          select: { id: true, householdId: true, userId: true, role: true }
-        }),
-      countMembers: (householdId) => tx.householdMember.count({ where: { householdId } }),
-      countOwners: (householdId) =>
-        tx.householdMember.count({ where: { householdId, role: "OWNER" } }),
-      deleteHousehold: async (householdId) => {
-        await tx.household.delete({ where: { id: householdId } });
-        return 1;
-      }
-    })
-  );
+  prisma.$transaction(async (tx) => operation(createPrismaHouseholdDeleteRepository(tx)));
 
 export function warnHouseholdDeleteRoleStateInvalid({
   householdId,

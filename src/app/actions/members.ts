@@ -287,7 +287,8 @@ export async function acceptHouseholdInvitation(formData: FormData) {
     if (initialFailure) redirectInvitationFailure(initialFailure);
 
     const change = await prisma.$transaction(async (tx) => {
-      // Household削除とmembership作成を同じHousehold単位で直列化する。
+      // アカウント削除と新規membership作成を直列化してから、Household削除とも直列化する。
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${user.id}, 0))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitation.householdId}, 0))`;
       const updateResult = await tx.householdInvitation.updateMany({
         where: {
