@@ -1,7 +1,7 @@
 "use client";
 
-import { Copy, Link as LinkIcon, Plus } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { Check, Copy, Link as LinkIcon, Plus } from "lucide-react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createHouseholdInvitation, type CreateHouseholdInvitationState } from "@/app/actions/members";
@@ -12,6 +12,13 @@ const INITIAL_STATE: CreateHouseholdInvitationState = {
   errorCode: null,
   errorMessage: null,
   retryAfterSeconds: null
+};
+
+type Toast = {
+  id: number;
+  message: string;
+  variant: "success" | "error";
+  visible: boolean;
 };
 
 function CreateInvitationButton({
@@ -50,36 +57,117 @@ export function HouseholdInvitationForm({
   maxActiveInvitations: number;
 }) {
   const [state, formAction] = useActionState(createHouseholdInvitation, INITIAL_STATE);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [manualCopySucceeded, setManualCopySucceeded] = useState(false);
+  const toastIdRef = useRef(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastRemovalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastAnimationFrameRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
   const inviteUrl = state.inviteToken ? buildInvitationUrl(invitationOrigin, state.inviteToken) : "";
   const activeLimitReached = activeInvitationCount >= maxActiveInvitations;
   const activeLimitMessageId = "active-invitation-limit-message";
 
-  async function copyInvitationUrl(url: string, isAutomatic: boolean) {
+  const clearToastTimers = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    if (toastRemovalTimerRef.current) {
+      clearTimeout(toastRemovalTimerRef.current);
+    }
+    if (toastAnimationFrameRef.current) {
+      cancelAnimationFrame(toastAnimationFrameRef.current);
+    }
+  }, []);
+
+  const showToast = useCallback(
+    (message: string, variant: Toast["variant"], duration: number) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      clearToastTimers();
+      const id = ++toastIdRef.current;
+      setToast({ id, message, variant, visible: false });
+
+      toastAnimationFrameRef.current = requestAnimationFrame(() => {
+        if (isMountedRef.current) {
+          setToast((currentToast) =>
+            currentToast?.id === id ? { ...currentToast, visible: true } : currentToast
+          );
+        }
+      });
+
+      toastTimerRef.current = setTimeout(() => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setToast((currentToast) =>
+          currentToast?.id === id ? { ...currentToast, visible: false } : currentToast
+        );
+        toastRemovalTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setToast((currentToast) => (currentToast?.id === id ? null : currentToast));
+          }
+        }, 200);
+      }, duration);
+    },
+    [clearToastTimers]
+  );
+
+  const copyInvitationUrl = useCallback(async (url: string, isAutomatic: boolean) => {
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("Clipboard API is unavailable");
       }
 
       await navigator.clipboard.writeText(url);
-      setCopyFeedback(isAutomatic ? "招待リンクを作成し、クリップボードにコピーしました" : "コピーしました");
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (isAutomatic) {
+        showToast("招待リンクをコピーしました", "success", 2500);
+        return;
+      }
+
+      if (manualCopyTimerRef.current) {
+        clearTimeout(manualCopyTimerRef.current);
+      }
+      setManualCopySucceeded(true);
+      manualCopyTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          setManualCopySucceeded(false);
+        }
+      }, 2000);
     } catch {
-      setCopyFeedback(
-        isAutomatic
-          ? "招待リンクを作成しました。コピーボタンからコピーしてください"
-          : "コピーに失敗しました。もう一度お試しください"
-      );
+      if (isMountedRef.current) {
+        showToast("コピーできませんでした。もう一度お試しください", "error", 4000);
+      }
     }
-  }
+  }, [showToast]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      clearToastTimers();
+      if (manualCopyTimerRef.current) {
+        clearTimeout(manualCopyTimerRef.current);
+      }
+    };
+  }, [clearToastTimers]);
 
   useEffect(() => {
     if (!inviteUrl) {
       return;
     }
 
-    setCopyFeedback(null);
     void copyInvitationUrl(inviteUrl, true);
-  }, [inviteUrl]);
+  }, [copyInvitationUrl, inviteUrl]);
 
   return (
     <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -125,8 +213,8 @@ export function HouseholdInvitationForm({
                 onClick={() => void copyInvitationUrl(inviteUrl, false)}
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <Copy className="h-4 w-4" aria-hidden />
-                コピー
+                {manualCopySucceeded ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+                {manualCopySucceeded ? "コピー済み" : "コピー"}
               </button>
             </span>
             <span className="text-xs font-normal text-slate-500">このリンクは作成直後のこの画面でのみ確認できます。</span>
@@ -136,12 +224,25 @@ export function HouseholdInvitationForm({
             招待リンクを作成すると、ここに共有用URLが表示されます。
           </p>
         )}
-        {copyFeedback ? (
-          <p role="status" aria-live="polite" className="mt-2 text-sm text-slate-600">
-            {copyFeedback}
-          </p>
-        ) : null}
       </div>
+      {toast ? (
+        <div
+          role={toast.variant === "error" ? "alert" : "status"}
+          aria-live={toast.variant === "error" ? "assertive" : "polite"}
+          className={`pointer-events-none fixed bottom-6 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-md border px-4 py-3 text-sm shadow-lg transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:bottom-5 sm:left-auto sm:right-5 sm:w-auto sm:min-w-[20rem] sm:translate-x-0 ${
+            toast.visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+          } ${
+            toast.variant === "success"
+              ? "border-emerald-200 bg-white text-slate-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {toast.variant === "success" ? (
+            <Check className="h-5 w-5 shrink-0 text-moss" aria-hidden />
+          ) : null}
+          <span>{toast.message}</span>
+        </div>
+      ) : null}
     </section>
   );
 }
