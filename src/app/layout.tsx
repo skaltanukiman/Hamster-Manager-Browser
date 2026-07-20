@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <p className="text-sm font-semibold uppercase tracking-wide text-persimmon">Hamster Manager</p>
                       <h1 className="text-2xl font-bold text-ink">ハムスター管理</h1>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 text-sm text-slate-600">
                       {householdSwitcherData ? (
                         <HouseholdSwitcher
                           currentHouseholdId={householdSwitcherData.context.household.id}

@@ -637,3 +637,20 @@ test("設定・確認UIは確認導線、件数サマリー、グループ別表
   assert.match(authContext, /cookieStore\.delete\(CURRENT_HOUSEHOLD_COOKIE\)/);
   assert.match(authContext, /authjs\.session-token/);
 });
+
+test("多数のHouseholdがあっても共通ヘッダーが横幅を押し広げない", async () => {
+  const layout = await readFile(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+  const householdSwitcher = await readFile(
+    join(process.cwd(), "src/components/household-switcher.tsx"),
+    "utf8"
+  );
+  const globals = await readFile(join(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(
+    layout,
+    /className="flex min-w-0 max-w-full flex-wrap items-center gap-3 text-sm text-slate-600"/
+  );
+  assert.match(householdSwitcher, /className="flex min-w-0 flex-wrap items-center gap-2"/);
+  assert.match(householdSwitcher, /max-w-\[min\(100%,18rem\)\]/);
+  assert.doesNotMatch(globals, /(?:html|body)[^{]*\{[^}]*overflow-x\s*:\s*hidden/);
+});
