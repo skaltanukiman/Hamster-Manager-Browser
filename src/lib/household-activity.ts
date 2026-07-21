@@ -68,6 +68,10 @@ function numberDetail(details: Record<string, Prisma.JsonValue>, key: string) {
   return typeof details[key] === "number" && Number.isFinite(details[key]) ? details[key] as number : null;
 }
 
+function booleanDetail(details: Record<string, Prisma.JsonValue>, key: string) {
+  return typeof details[key] === "boolean" ? details[key] as boolean : null;
+}
+
 const ROLE_LABELS: Record<HouseholdRole, string> = {
   OWNER: "オーナー",
   ADMIN: "管理者",
@@ -141,6 +145,49 @@ export function formatHouseholdActivity(activity: HouseholdActivityListItem) {
         const month = formatMonthInput(stringDetail(details, "yearMonth"));
         const count = numberDetail(details, "changedDayCount");
         return { summary: `${actor}さんが「${target}」の掃除記録を更新しました`, detail: month && count !== null ? `${month}・${count}日分` : null };
+      }
+      case "HEALTH_RECORD_CREATED":
+      case "HEALTH_RECORD_UPDATED":
+      case "HEALTH_RECORD_DELETED": {
+        const action = activity.eventType === "HEALTH_RECORD_CREATED" ? "追加" : activity.eventType === "HEALTH_RECORD_UPDATED" ? "更新" : "削除";
+        return {
+          summary: `${actor}さんが「${target}」の健康記録を${action}しました`,
+          detail: formatDateInput(stringDetail(details, "recordDate"))
+        };
+      }
+      case "MEDICAL_RECORD_CREATED":
+      case "MEDICAL_RECORD_UPDATED":
+      case "MEDICAL_RECORD_DELETED": {
+        const action = activity.eventType === "MEDICAL_RECORD_CREATED" ? "追加" : activity.eventType === "MEDICAL_RECORD_UPDATED" ? "更新" : "削除";
+        return {
+          summary: `${actor}さんが「${target}」の通院記録を${action}しました`,
+          detail: formatDateInput(stringDetail(details, "recordDate"))
+        };
+      }
+      case "MEMORY_RECORD_CREATED":
+      case "MEMORY_RECORD_UPDATED":
+      case "MEMORY_RECORD_DELETED": {
+        const action = activity.eventType === "MEMORY_RECORD_CREATED" ? "追加" : activity.eventType === "MEMORY_RECORD_UPDATED" ? "更新" : "削除";
+        return {
+          summary: `${actor}さんが「${target}」の思い出を${action}しました`,
+          detail: formatDateInput(stringDetail(details, "recordDate"))
+        };
+      }
+      case "HAMSTER_PROFILE_IMAGE_UPDATED": {
+        const action = stringDetail(details, "imageAction");
+        const label = action === "ADDED" ? "登録" : action === "REPLACED" ? "変更" : action === "REMOVED" ? "削除" : "更新";
+        return { summary: `${actor}さんが「${target}」のプロフィール画像を${label}しました`, detail: null };
+      }
+      case "HAMSTER_ACTIVE_STATUS_UPDATED": {
+        const before = booleanDetail(details, "previousIsActive");
+        const after = booleanDetail(details, "newIsActive");
+        if (before === true && after === false) {
+          return { summary: `${actor}さんが「${target}」を管理外に切り替えました`, detail: "管理中 → 管理外" };
+        }
+        if (before === false && after === true) {
+          return { summary: `${actor}さんが「${target}」を管理中に戻しました`, detail: "管理外 → 管理中" };
+        }
+        return { summary: `${actor}さんが「${target}」の管理状態を変更しました`, detail: null };
       }
       default: return fallback;
     }

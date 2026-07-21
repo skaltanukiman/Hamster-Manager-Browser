@@ -5,6 +5,7 @@ import type { ZodIssue } from "zod";
 
 import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
 import { isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
+import { activityActorName } from "@/lib/household-activity";
 import { writeServerLog } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { isFutureRecordTime } from "@/lib/record-time";
@@ -159,7 +160,11 @@ async function deleteImageAfterMutation(householdId: string, fileName: string, o
 
 function publishAndRevalidate(change: Parameters<typeof publishHouseholdChangeSafely>[0], householdId: string, operation: string) {
   publishHouseholdChangeSafely(change);
-  revalidatePathsSafely([{ path: "/records" }], `${operation}.revalidate`, { householdId });
+  revalidatePathsSafely(
+    [{ path: "/records" }, { path: "/settings/members" }, { path: "/settings/members/activity" }],
+    `${operation}.revalidate`,
+    { householdId }
+  );
 }
 
 export async function createHealthRecord(formData: FormData): Promise<RecordCreateActionResult> {
@@ -177,6 +182,7 @@ export async function createHealthRecord(formData: FormData): Promise<RecordCrea
       source: "record",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: (tx) =>
         tx.hamsterRecord.create({
           data: {
@@ -198,8 +204,17 @@ export async function createHealthRecord(formData: FormData): Promise<RecordCrea
                 symptoms: result.data.symptoms
               }
             }
-          }
-        })
+          },
+          select: { id: true, recordDate: true, hamster: { select: { name: true } } }
+        }),
+      activity: (record) => ({
+        eventType: "HEALTH_RECORD_CREATED",
+        category: "CARE_RECORD",
+        targetType: "HEALTH_RECORD",
+        targetId: record.id,
+        targetNameSnapshot: record.hamster.name,
+        details: { recordDate: toDateInputValue(record.recordDate) }
+      })
     });
     publishAndRevalidate(change, context.household.id, "records.health.create");
     return { success: true };
@@ -222,6 +237,7 @@ export async function createMedicalRecord(formData: FormData): Promise<RecordCre
       source: "record",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: (tx) =>
         tx.hamsterRecord.create({
           data: {
@@ -245,8 +261,17 @@ export async function createMedicalRecord(formData: FormData): Promise<RecordCre
                 consultationFee: result.data.consultationFee
               }
             }
-          }
-        })
+          },
+          select: { id: true, recordDate: true, hamster: { select: { name: true } } }
+        }),
+      activity: (record) => ({
+        eventType: "MEDICAL_RECORD_CREATED",
+        category: "CARE_RECORD",
+        targetType: "MEDICAL_RECORD",
+        targetId: record.id,
+        targetNameSnapshot: record.hamster.name,
+        details: { recordDate: toDateInputValue(record.recordDate) }
+      })
     });
     publishAndRevalidate(change, context.household.id, "records.medical.create");
     return { success: true };
@@ -271,6 +296,7 @@ export async function createMemoryRecord(formData: FormData): Promise<RecordCrea
         source: "record",
         actorClientId: getRealtimeActorId(formData),
         actorUserId: context.user.id,
+        actorNameSnapshot: activityActorName(context.user),
         mutate: async (tx) => {
           if (result.data.saveTags && result.data.tags.length > 0) {
             await tx.savedMemoryTag.createMany({
@@ -295,9 +321,18 @@ export async function createMemoryRecord(formData: FormData): Promise<RecordCrea
                   ...(fileName ? { images: { create: { fileName, sortOrder: 0 } } } : {})
                 }
               }
-            }
+            },
+            select: { id: true, recordDate: true, hamster: { select: { name: true } } }
           });
-        }
+        },
+        activity: (record) => ({
+          eventType: "MEMORY_RECORD_CREATED",
+          category: "CARE_RECORD",
+          targetType: "MEMORY_RECORD",
+          targetId: record.id,
+          targetNameSnapshot: record.hamster.name,
+          details: { recordDate: toDateInputValue(record.recordDate) }
+        })
       });
     const { change } = preparedImage
       ? await commitWithNewRecordImage({ householdId: context.household.id, image: preparedImage, commit })
@@ -350,7 +385,7 @@ async function getEditableRecord(id: string, hamsterId: string, householdId: str
   const record = await prisma.hamsterRecord.findFirst({
     where: { id, hamsterId, hamster: { householdId } },
     include: {
-      hamster: { select: { isActive: true } },
+      hamster: { select: { isActive: true, name: true } },
       healthDetail: true,
       medicalDetail: true,
       memoryDetail: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } }
@@ -390,9 +425,10 @@ export async function updateHealthRecord(formData: FormData) {
       source: "record",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: async (tx) => {
-        await tx.hamsterRecord.update({
-          where: { id: record.id },
+        const updated = await tx.hamsterRecord.updateMany({
+          where: { id: record.id, updatedAt: record.updatedAt },
           data: {
             recordDate: parseDateInput(result.data.recordDate),
             recordTimeMinutes: result.data.recordTime,
@@ -401,6 +437,7 @@ export async function updateHealthRecord(formData: FormData) {
             searchText: buildHealthSearchText(result.data)
           }
         });
+        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
         await tx.healthRecordDetail.update({
           where: { hamsterRecordId: record.id },
           data: {
@@ -412,7 +449,19 @@ export async function updateHealthRecord(formData: FormData) {
             symptoms: result.data.symptoms
           }
         });
-      }
+        return tx.hamsterRecord.findUniqueOrThrow({
+          where: { id: record.id },
+          select: { id: true, recordDate: true, hamster: { select: { name: true } } }
+        });
+      },
+      activity: (updatedRecord) => ({
+        eventType: "HEALTH_RECORD_UPDATED",
+        category: "CARE_RECORD",
+        targetType: "HEALTH_RECORD",
+        targetId: updatedRecord.id,
+        targetNameSnapshot: updatedRecord.hamster.name,
+        details: { recordDate: toDateInputValue(updatedRecord.recordDate) }
+      })
     });
     publishAndRevalidate(change, context.household.id, "records.health.update");
     recordRedirect(result.data.hamsterId, "recordUpdated");
@@ -452,9 +501,10 @@ export async function updateMedicalRecord(formData: FormData) {
       source: "record",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: async (tx) => {
-        await tx.hamsterRecord.update({
-          where: { id: record.id },
+        const updated = await tx.hamsterRecord.updateMany({
+          where: { id: record.id, updatedAt: record.updatedAt },
           data: {
             recordDate: parseDateInput(result.data.recordDate),
             title: buildMedicalRecordTitle(result.data.hospitalName),
@@ -462,6 +512,7 @@ export async function updateMedicalRecord(formData: FormData) {
             searchText: buildMedicalSearchText(result.data)
           }
         });
+        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
         await tx.medicalVisitDetail.update({
           where: { hamsterRecordId: record.id },
           data: {
@@ -476,7 +527,19 @@ export async function updateMedicalRecord(formData: FormData) {
             consultationFee: result.data.consultationFee
           }
         });
-      }
+        return tx.hamsterRecord.findUniqueOrThrow({
+          where: { id: record.id },
+          select: { id: true, recordDate: true, hamster: { select: { name: true } } }
+        });
+      },
+      activity: (updatedRecord) => ({
+        eventType: "MEDICAL_RECORD_UPDATED",
+        category: "CARE_RECORD",
+        targetType: "MEDICAL_RECORD",
+        targetId: updatedRecord.id,
+        targetNameSnapshot: updatedRecord.hamster.name,
+        details: { recordDate: toDateInputValue(updatedRecord.recordDate) }
+      })
     });
     publishAndRevalidate(change, context.household.id, "records.medical.update");
     recordRedirect(result.data.hamsterId, "recordUpdated");
@@ -514,9 +577,10 @@ export async function updateMemoryRecord(formData: FormData) {
         source: "record",
         actorClientId: getRealtimeActorId(formData),
         actorUserId: context.user.id,
+        actorNameSnapshot: activityActorName(context.user),
         mutate: async (tx) => {
-          await tx.hamsterRecord.update({
-            where: { id: record.id },
+          const updated = await tx.hamsterRecord.updateMany({
+            where: { id: record.id, updatedAt: record.updatedAt },
             data: {
               recordDate: parseDateInput(result.data.recordDate),
               title: result.data.title,
@@ -524,6 +588,7 @@ export async function updateMemoryRecord(formData: FormData) {
               searchText: buildMemorySearchText(result.data)
             }
           });
+          if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
           await tx.memoryRecordDetail.update({
             where: { hamsterRecordId: record.id },
             data: {
@@ -539,7 +604,19 @@ export async function updateMemoryRecord(formData: FormData) {
               await tx.memoryRecordImage.create({ data: { memoryRecordId: record.id, fileName, sortOrder: 0 } });
             }
           }
-        }
+          return tx.hamsterRecord.findUniqueOrThrow({
+            where: { id: record.id },
+            select: { id: true, recordDate: true, hamster: { select: { name: true } } }
+          });
+        },
+        activity: (updatedRecord) => ({
+          eventType: "MEMORY_RECORD_UPDATED",
+          category: "CARE_RECORD",
+          targetType: "MEMORY_RECORD",
+          targetId: updatedRecord.id,
+          targetNameSnapshot: updatedRecord.hamster.name,
+          details: { recordDate: toDateInputValue(updatedRecord.recordDate) }
+        })
       });
     const { change } = preparedImage
       ? await commitWithNewRecordImage({ householdId: context.household.id, image: preparedImage, commit })
@@ -576,12 +653,35 @@ export async function deleteHamsterRecord(formData: FormData) {
       source: "record",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: async (tx) => {
+        const target = await tx.hamsterRecord.findFirst({
+          where: { id: result.data.id, hamsterId: result.data.hamsterId, hamster: { householdId: context.household.id } },
+          select: { id: true, recordType: true, recordDate: true, hamster: { select: { name: true } } }
+        });
+        if (!target) recordRedirect(result.data.hamsterId, "invalid");
         const deleted = await tx.hamsterRecord.deleteMany({
           where: { id: result.data.id, hamsterId: result.data.hamsterId, hamster: { householdId: context.household.id } }
         });
         if (deleted.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
-      }
+        return target;
+      },
+      activity: (deletedRecord) => ({
+        eventType: deletedRecord.recordType === "HEALTH"
+          ? "HEALTH_RECORD_DELETED"
+          : deletedRecord.recordType === "MEDICAL"
+            ? "MEDICAL_RECORD_DELETED"
+            : "MEMORY_RECORD_DELETED",
+        category: "CARE_RECORD",
+        targetType: deletedRecord.recordType === "HEALTH"
+          ? "HEALTH_RECORD"
+          : deletedRecord.recordType === "MEDICAL"
+            ? "MEDICAL_RECORD"
+            : "MEMORY_RECORD",
+        targetId: deletedRecord.id,
+        targetNameSnapshot: deletedRecord.hamster.name,
+        details: { recordDate: toDateInputValue(deletedRecord.recordDate) }
+      })
     });
     publishAndRevalidate(change, context.household.id, "records.delete");
     if (imageFileName) {

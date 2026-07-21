@@ -267,25 +267,36 @@ enum HouseholdActivityEvent {
   WEIGHT_CSV_APP_IMPORTED
   WEIGHT_CSV_GAS_IMPORTED
   CLEANING_MONTH_SAVED
+  HEALTH_RECORD_CREATED
+  HEALTH_RECORD_UPDATED
+  HEALTH_RECORD_DELETED
+  MEDICAL_RECORD_CREATED
+  MEDICAL_RECORD_UPDATED
+  MEDICAL_RECORD_DELETED
+  MEMORY_RECORD_CREATED
+  MEMORY_RECORD_UPDATED
+  MEMORY_RECORD_DELETED
+  HAMSTER_PROFILE_IMAGE_UPDATED
+  HAMSTER_ACTIVE_STATUS_UPDATED
 }
 
 model HamsterRecord {
-  id              String              @id @default(cuid())
-  hamsterId       String              @map("hamster_id")
-  hamster         Hamster             @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
-  recordType      HamsterRecordType   @map("record_type")
-  recordDate      DateTime            @map("record_date") @db.Date
-  recordTimeMinutes Int?              @map("record_time_minutes") @db.SmallInt
-  title           String
-  memo            String?             @db.Text
-  searchText      String              @map("search_text") @db.Text
-  createdByUserId String?             @map("created_by_user_id")
-  createdBy       User?               @relation("HamsterRecordCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
-  healthDetail    HealthRecordDetail?
-  medicalDetail   MedicalVisitDetail?
-  memoryDetail    MemoryRecordDetail?
+  id                String              @id @default(cuid())
+  hamsterId         String              @map("hamster_id")
+  hamster           Hamster             @relation(fields: [hamsterId], references: [id], onDelete: Cascade)
+  recordType        HamsterRecordType   @map("record_type")
+  recordDate        DateTime            @map("record_date") @db.Date
+  recordTimeMinutes Int?                @map("record_time_minutes") @db.SmallInt
+  title             String
+  memo              String?             @db.Text
+  searchText        String              @map("search_text") @db.Text
+  createdByUserId   String?             @map("created_by_user_id")
+  createdBy         User?               @relation("HamsterRecordCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  healthDetail      HealthRecordDetail?
+  medicalDetail     MedicalVisitDetail?
+  memoryDetail      MemoryRecordDetail?
 
   @@index([hamsterId, recordDate, recordTimeMinutes, createdAt])
   @@index([hamsterId, recordType, recordDate])

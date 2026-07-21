@@ -172,7 +172,8 @@ export async function updateHamster(formData: FormData) {
         birthDate: true,
         adoptionDate: true,
         profileImageFileName: true,
-        isActive: true
+        isActive: true,
+        updatedAt: true
       }
     });
 
@@ -199,20 +200,35 @@ export async function updateHamster(formData: FormData) {
     }
 
     const preparedImage = imageFile ? await prepareHamsterImage(imageFile) : null;
+    const imageAction = preparedImage
+      ? hamster.profileImageFileName ? "REPLACED" : "ADDED"
+      : removeProfileImage && hamster.profileImageFileName ? "REMOVED" : null;
     const commit = (profileImageFileName?: string | null) =>
       commitHouseholdMutation({
         householdId: context.household.id,
         source: "hamster",
         actorClientId: getRealtimeActorId(formData),
         actorUserId: context.user.id,
-        mutate: (tx) =>
-          tx.hamster.update({
-            where: { id },
+        actorNameSnapshot: activityActorName(context.user),
+        mutate: async (tx) => {
+          const updated = await tx.hamster.updateMany({
+            where: { id, householdId: context.household.id, isActive: true, updatedAt: hamster.updatedAt },
             data: {
               ...data,
               ...(profileImageFileName !== undefined ? { profileImageFileName } : {})
             }
-          })
+          });
+          if (updated.count !== 1) redirect("/hamsters?status=invalid");
+          return tx.hamster.findUniqueOrThrow({ where: { id }, select: { id: true, name: true } });
+        },
+        activity: imageAction ? (updatedHamster) => ({
+          eventType: "HAMSTER_PROFILE_IMAGE_UPDATED",
+          category: "CARE_RECORD",
+          targetType: "HAMSTER",
+          targetId: updatedHamster.id,
+          targetNameSnapshot: updatedHamster.name,
+          details: { imageAction }
+        }) : null
       });
     const { change } = preparedImage
       ? await commitWithNewHamsterImage({ householdId: context.household.id, image: preparedImage, commit })
@@ -221,10 +237,15 @@ export async function updateHamster(formData: FormData) {
     if ((preparedImage || removeProfileImage) && hamster.profileImageFileName) {
       await deleteImageAfterMutation(context.household.id, hamster.profileImageFileName, "hamsters.update.deleteOldImage", id);
     }
-    revalidatePathsSafely([{ path: "/" }, { path: "/hamsters" }], "hamsters.update.revalidate", {
-      householdId: context.household.id,
-      hamsterId: id
-    });
+    revalidatePathsSafely(
+      [
+        { path: "/" },
+        { path: "/hamsters" },
+        ...(imageAction ? [{ path: "/settings/members" }, { path: "/settings/members/activity" }] : [])
+      ],
+      "hamsters.update.revalidate",
+      { householdId: context.household.id, hamsterId: id }
+    );
     redirect("/hamsters?status=updated");
   } catch (error) {
     if (error instanceof HamsterImageError) {
@@ -251,17 +272,38 @@ export async function updateHamsterActiveStatus(formData: FormData) {
       source: "hamster",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: async (tx) => {
-        const updated = await tx.hamster.updateMany({
+        const hamster = await tx.hamster.findFirst({
           where: { id: result.data.id, householdId: context.household.id },
+          select: { id: true, name: true, isActive: true }
+        });
+        if (!hamster) redirect("/hamsters?status=invalid");
+        if (hamster.isActive === result.data.isActive) redirect("/hamsters?status=unchanged");
+        const updated = await tx.hamster.updateMany({
+          where: { id: result.data.id, householdId: context.household.id, isActive: hamster.isActive },
           data: { isActive: result.data.isActive }
         });
         if (updated.count !== 1) redirect("/hamsters?status=invalid");
-      }
+        return {
+          id: hamster.id,
+          name: hamster.name,
+          previousIsActive: hamster.isActive,
+          newIsActive: result.data.isActive
+        };
+      },
+      activity: (hamster) => ({
+        eventType: "HAMSTER_ACTIVE_STATUS_UPDATED",
+        category: "CARE_RECORD",
+        targetType: "HAMSTER",
+        targetId: hamster.id,
+        targetNameSnapshot: hamster.name,
+        details: { previousIsActive: hamster.previousIsActive, newIsActive: hamster.newIsActive }
+      })
     });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely(
-      ["/", "/hamsters", "/cleaning", "/weights", "/settings"].map((path) => ({ path })),
+      ["/", "/hamsters", "/cleaning", "/weights", "/settings", "/settings/members", "/settings/members/activity"].map((path) => ({ path })),
       "hamsters.activeStatus.revalidate",
       { householdId: context.household.id, hamsterId: result.data.id }
     );

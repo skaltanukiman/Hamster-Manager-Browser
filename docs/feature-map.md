@@ -38,13 +38,13 @@
 
 - **画面または URL:** `/settings/members` のメンバー一覧後・危険操作領域前に最新5件、全件は `/settings/members/activity`。カード型タイムラインでJST日時を表示する。
 - **主なコンポーネント:** `HouseholdActivityList`、既存 `PaginationLayout`。一覧フィルターは「すべて」「飼育記録」「メンバー」「グループ設定」で、変更時は1ページ目へ戻る。
-- **Server Action または API:** `commitHouseholdMutation` の任意 `activity` を業務更新後・revision更新前に実行する。名称・招待・退出の専用Mutation Repository、招待受諾、CSV importも各既存Prisma transaction内で `createHouseholdActivity` を実行する。別WebSocketや独自pollは追加せず既存Household revision / SSE / revision pollを利用する。
+- **Server Action または API:** `commitHouseholdMutation` の任意 `activity` を業務更新後・revision更新前に実行する。名称・招待・退出の専用Mutation Repository、招待受諾、CSV import、健康・通院・思い出記録、プロフィール画像、管理状態も各既存Prisma transaction内で `createHouseholdActivity` を実行する。別WebSocketや独自pollは追加せず既存Household revision / SSE / revision pollを利用する。
 - **データアクセス・Prismaモデル:** `HouseholdActivity`、`HouseholdActivityEvent`、`HouseholdActivityCategory`。`getCurrentHouseholdActivityPage` は `getRequiredHouseholdContext` で現在所属を確定し、Household IDと任意カテゴリーをDB条件に含め、`createdAt desc, id desc`、20件でページングする。最新表示も同じHousehold条件で5件だけ取得する。
-- **対象イベント:** グループ名変更、招待作成・無効化・参加、権限変更・参加解除・退出・所有権移譲退出、ハムスター登録・削除、体重登録・更新・削除・一括削除、アプリ版/GAS版CSV import、掃除月保存。bulk/CSV/掃除は1操作1件の要約。
-- **認可・プライバシー:** 現在所属する OWNER / ADMIN / MEMBER / VIEWER のみ閲覧可能。アプリ全体 ADMIN / SUPER_ADMIN も未所属なら取得不可。操作者・対象名は操作時snapshotを保存し、未設定名は安全な固定文言を使いメールを代用しない。token/URL、メール、CSV本文・ファイル名、フォーム、掃除メモ等は保存しない。
+- **対象イベント:** 第一段階はグループ名変更、招待作成・無効化・参加、権限変更・参加解除・退出・所有権移譲退出、ハムスター登録・削除、体重登録・更新・削除・一括削除、アプリ版/GAS版CSV import、掃除月保存。第二段階は健康・通院・思い出の作成・更新・削除、プロフィール画像の登録・差し替え・削除、管理中・管理外切り替え。第二段階も既存 `CARE_RECORD` に分類し、bulk/CSV/掃除、写真を含む思い出操作は1操作1件の要約。
+- **認可・プライバシー:** 現在所属する OWNER / ADMIN / MEMBER / VIEWER のみ閲覧可能。アプリ全体 ADMIN / SUPER_ADMIN も未所属なら取得不可。操作者・対象名は操作時snapshotを保存し、未設定名は安全な固定文言を使いメールを代用しない。token/URL、メール、CSV本文・ファイル名、フォーム、掃除メモ、健康・通院・思い出の内容、画像ファイル情報等は保存しない。第二段階は記録日、画像操作種別、管理状態の変更前後だけをdetailsへ保存する。
 - **削除・監査:** Household削除はCascade、User削除は参照をSetNullにして名前snapshotを残す。既存 `writeHouseholdAuditLog` / サーバーログは障害調査・内部監査用として維持し、利用者向けDB履歴へ置換しない。
-- **関連テスト:** `tests/household-activity.test.ts`（formatter、snapshot、transaction rollback、Household分離、安定順、ページング、filter、最新5件、機密情報の非保存）と各既存Mutationテスト。
-- **今回対象外:** 健康・通院・思い出、プロフィール画像、ハムスター編集・管理状態、手動削除、CSV出力、保持期限、通知、過去履歴生成、項目単位差分。
+- **関連テスト:** `tests/household-activity.test.ts`（formatter、snapshot、transaction rollback、Household分離、安定順、ページング、filter、最新5件、第二段階Mutation、機密情報の非保存、enum migration）と各既存Mutationテスト。
+- **今回対象外:** ハムスタープロフィールのテキスト項目編集、思い出画像専用イベント、保存済みタグ候補、手動削除、CSV出力、保持期限、通知、過去履歴生成、項目単位差分。
 
 ## ダッシュボード
 
@@ -66,7 +66,7 @@
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
 - **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
-- **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。
+- **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。プロフィール画像の実変更と管理状態の切り替えは業務更新・操作履歴・revisionを同一transactionで確定し、画像の旧ファイル削除はcommit後の後処理とする。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
 
 ## 健康・通院・思い出記録
@@ -79,7 +79,7 @@
 - **バリデーション:** `src/lib/record-schemas.ts`。健康の各enum・複数症状、通院理由、0円以上の整数診察費、思い出のタイトル・内容・最大20タグ・タグ保存チェック、保存候補削除の1件以上選択とタグ文字数、全項目の文字数上限を検証する。タグは `src/lib/tags.ts` でNFKC正規化し、全角英数字・記号等を半角へ揃えながら英字の大文字小文字を保持する。記録日は `src/lib/date.ts` の暦日変換を再利用して未来日を拒否し、次回通院予定日だけ未来日を許可する。画像は共有の `src/lib/image-constraints.ts` と `src/lib/image-processing.ts` をクライアント事前検証とサーバー検証で再利用する。元画像は10MB以内に制限し、サーバーでMIME/実体・4,000万画素上限を検証する。プロフィール画像は512px正方形、思い出画像は縦横比を維持して長辺1920px以内・拡大なしとし、WebP品質と解像度を段階調整して必ず2MB以下にしてからUUID名で原子的に保存する。
 - **関連テスト:** `tests/records.test.ts`（種類別入力、診察費、enum、タグ、検索対象、Household絞り込み、ページング、データモデル、画像変換/分離/後片付け、realtime構造）、`tests/authorization.test.ts`（全記録ActionのVIEWER共通拒否）。
 - **関連設定:** `RECORD_IMAGE_DIR`（Dockerは `/app/uploads/records`）、`docker-compose.yml` の `./uploads:/app/uploads`、migration `20260715120000_add_hamster_records` / `20260716130000_separate_record_keyword_and_tag_search` / `20260716160000_add_saved_memory_tags` / `20260716190000_normalize_memory_tag_width_preserve_case` / `20260716210000_add_memory_record_search_tags`、`package.json` のテスト列挙。
-- **依存関係:** OWNER / ADMIN / MEMBERは更新可能、VIEWERは閲覧・検索・絞り込み・ページ移動だけでActionも拒否する。全取得・更新は対象ハムスターが現在のHousehold所属であることをDB条件に含める。管理外ハムスターの健康・通院は閲覧のみ、思い出は登録・編集・削除可能。全更新は `source: "record"` の realtime mutation を通し、業務データとrevisionを同一トランザクションで確定する。画像差し替え・記録削除・ハムスター削除後は旧ファイルを削除し、失敗は警告ログへ残す。初回は1記録1枚だが画像別テーブルと表示順で複数枚へ拡張できる。
+- **依存関係:** OWNER / ADMIN / MEMBERは更新可能、VIEWERは閲覧・検索・絞り込み・ページ移動だけでActionも拒否する。全取得・更新は対象ハムスターが現在のHousehold所属であることをDB条件に含める。管理外ハムスターの健康・通院は閲覧のみ、思い出は登録・編集・削除可能。全更新は `source: "record"` の realtime mutation を通し、業務データ・`CARE_RECORD` 操作履歴・revisionを同一トランザクションで確定する。履歴detailsは記録日だけとし、健康・通院・思い出の入力内容や画像情報は保存しない。画像差し替え・記録削除・ハムスター削除後は旧ファイルを削除し、失敗は警告ログへ残す。初回は1記録1枚だが画像別テーブルと表示順で複数枚へ拡張できる。
 
 ## 体重履歴
 
