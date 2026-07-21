@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { History, LogOut, Save, Settings2, Users } from "lucide-react";
+import { History, LogOut, Save, Settings2, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 
 import { updateCurrentHouseholdName } from "@/app/actions/members";
@@ -165,9 +165,12 @@ export default async function MembersPage({
         />
       ) : (
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <div>
-            <h3 className="text-base font-bold text-ink">招待リンク</h3>
-            <p className="mt-1 text-sm text-slate-600">リンクは作成から {INVITATION_TTL_DAYS} 日間だけ有効です。</p>
+          <div className="flex min-w-0 items-start gap-3">
+            <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-moss" aria-hidden />
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-ink">招待リンク</h3>
+              <p className="mt-1 text-sm text-slate-600">リンクは作成から {INVITATION_TTL_DAYS} 日間だけ有効です。</p>
+            </div>
           </div>
           <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             招待リンクを作成できるのはオーナーまたは管理者です。

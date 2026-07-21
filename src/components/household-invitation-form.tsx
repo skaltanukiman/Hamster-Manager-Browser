@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Link as LinkIcon, Plus } from "lucide-react";
+import { Check, Copy, Link as LinkIcon, Plus, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { createHouseholdInvitation, type CreateHouseholdInvitationState } from "@/app/actions/members";
@@ -211,17 +211,20 @@ export function HouseholdInvitationForm({
   return (
     <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-bold text-ink">招待リンク</h3>
-          <p className="mt-1 text-sm text-slate-600">リンクは作成から {ttlDays} 日間だけ有効です。</p>
-          <p className="mt-1 text-sm font-medium text-slate-700">
-            有効なリンク {activeInvitationCount} / {maxActiveInvitations}件
-          </p>
-          {activeLimitReached ? (
-            <p id={activeLimitMessageId} className="mt-2 text-sm text-amber-700">
-              不要な招待リンクを無効化すると、新しいリンクを作成できます。
+        <div className="flex min-w-0 items-start gap-3">
+          <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-moss" aria-hidden />
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-ink">招待リンク</h3>
+            <p className="mt-1 text-sm text-slate-600">リンクは作成から {ttlDays} 日間だけ有効です。</p>
+            <p className="mt-1 text-sm font-medium text-slate-700">
+              有効なリンク {activeInvitationCount} / {maxActiveInvitations}件
             </p>
-          ) : null}
+            {activeLimitReached ? (
+              <p id={activeLimitMessageId} className="mt-2 text-sm text-amber-700">
+                不要な招待リンクを無効化すると、新しいリンクを作成できます。
+              </p>
+            ) : null}
+          </div>
         </div>
         <form action={formAction}>
           <CreateInvitationButton
