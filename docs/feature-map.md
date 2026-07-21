@@ -36,14 +36,14 @@
 
 ## 共有グループの操作履歴
 
-- **画面または URL:** `/settings/members` のメンバー一覧後・危険操作領域前に最新5件、全件は `/settings/members/activity`。カード型タイムラインでJST日時を表示する。
+- **画面または URL:** `/settings/members` のメンバー一覧後・危険操作領域前に最新5件、全件は `/settings/members/activity`。カード型タイムラインでJST日時を表示する。全件画面ではServer Componentが自動削除と同じ `getHouseholdActivityRetentionDays` を使って保持日数を表示し、不正・未設定時はフォールバックせず「設定不明」とする。
 - **主なコンポーネント:** `HouseholdActivityList`、既存 `PaginationLayout`。一覧フィルターは「すべて」「飼育記録」「メンバー」「グループ設定」で、変更時は1ページ目へ戻る。
 - **Server Action または API:** `commitHouseholdMutation` の任意 `activity` を業務更新後・revision更新前に実行する。名称・招待・退出の専用Mutation Repository、招待受諾、CSV import、健康・通院・思い出記録、プロフィール画像、管理状態も各既存Prisma transaction内で `createHouseholdActivity` を実行する。別WebSocketや独自pollは追加せず既存Household revision / SSE / revision pollを利用する。期限切れ履歴は `scripts/cleanup-household-activities.ts` のCLIだけから全Householdを対象に整理し、revision更新・SSE通知・操作履歴追加は行わない。
 - **データアクセス・Prismaモデル:** `HouseholdActivity`、`HouseholdActivityEvent`、`HouseholdActivityCategory`。`getCurrentHouseholdActivityPage` は `getRequiredHouseholdContext` で現在所属を確定し、Household IDと任意カテゴリーをDB条件に含め、`createdAt desc, id desc`、20件でページングする。最新表示も同じHousehold条件で5件だけ取得する。全Householdの期限切れ検索用に `createdAt` 単独indexを持つ。
 - **対象イベント:** 第一段階はグループ名変更、招待作成・無効化・参加、権限変更・参加解除・退出・所有権移譲退出、ハムスター登録・削除、体重登録・更新・削除・一括削除、アプリ版/GAS版CSV import、掃除月保存。第二段階は健康・通院・思い出の作成・更新・削除、プロフィール画像の登録・差し替え・削除、管理中・管理外切り替え。第二段階も既存 `CARE_RECORD` に分類し、bulk/CSV/掃除、写真を含む思い出操作は1操作1件の要約。
 - **認可・プライバシー:** 現在所属する OWNER / ADMIN / MEMBER / VIEWER のみ閲覧可能。アプリ全体 ADMIN / SUPER_ADMIN も未所属なら取得不可。操作者・対象名は操作時snapshotを保存し、未設定名は安全な固定文言を使いメールを代用しない。token/URL、メール、CSV本文・ファイル名、フォーム、掃除メモ、健康・通院・思い出の内容、画像ファイル情報等は保存しない。第二段階は記録日、画像操作種別、管理状態の変更前後だけをdetailsへ保存する。
 - **削除・監査:** Household削除はCascade、User削除は参照をSetNullにして名前snapshotを残す。`HOUSEHOLD_ACTIVITY_RETENTION_DAYS`（初期設定90日）より古い履歴は日次cron向け専用CLIで削除し、基準日時と同時刻は残す。既存 `writeHouseholdAuditLog` / サーバーログは障害調査・内部監査用として維持し、利用者向けDB履歴へ置換しない。
-- **関連テスト:** `tests/household-activity.test.ts`（formatter、snapshot、transaction rollback、Household分離、安定順、ページング、filter、最新5件、第二段階Mutation、機密情報の非保存、enum migration）、`tests/household-activity-cleanup.test.ts`（環境変数検証、基準日時、`lt`境界、deleteMany、dry-run）と各既存Mutationテスト。
+- **関連テスト:** `tests/household-activity.test.ts`（formatter、snapshot、transaction rollback、Household分離、安定順、ページング、filter、最新5件、保持日数のServer Component表示、第二段階Mutation、機密情報の非保存、enum migration）、`tests/household-activity-cleanup.test.ts`（自動削除・画面表示で共用する環境変数検証、基準日時、`lt`境界、deleteMany、dry-run）と各既存Mutationテスト。
 - **今回対象外:** ハムスタープロフィールのテキスト項目編集、思い出画像専用イベント、保存済みタグ候補、手動削除、CSV出力、通知、過去履歴生成、項目単位差分。
 
 ## ダッシュボード

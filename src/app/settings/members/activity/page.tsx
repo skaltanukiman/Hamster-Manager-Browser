@@ -5,6 +5,10 @@ import Link from "next/link";
 import { HouseholdActivityList } from "@/components/household-activity-list";
 import { PaginationLayout } from "@/components/pagination";
 import { parseActivityCategory, parseActivityPage } from "@/lib/household-activity";
+import {
+  getHouseholdActivityRetentionDays,
+  HouseholdActivityRetentionConfigError
+} from "@/lib/household-activity-cleanup";
 import { getCurrentHouseholdActivityPage } from "@/lib/household-activity-queries";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +27,15 @@ function activityHref(category: HouseholdActivityCategory | null, page = 1) {
   return `/settings/members/activity${params.size ? `?${params}` : ""}`;
 }
 
+function getHouseholdActivityRetentionDaysForDisplay() {
+  try {
+    return getHouseholdActivityRetentionDays();
+  } catch (error) {
+    if (error instanceof HouseholdActivityRetentionConfigError) return null;
+    throw error;
+  }
+}
+
 export default async function HouseholdActivityPage({
   searchParams
 }: {
@@ -30,6 +43,7 @@ export default async function HouseholdActivityPage({
 }) {
   const query = await searchParams;
   const category = parseActivityCategory(query.category);
+  const retentionDays = getHouseholdActivityRetentionDaysForDisplay();
   const data = await getCurrentHouseholdActivityPage({ category, page: parseActivityPage(query.page) });
   const buildActivityPageHref = (page: number) => activityHref(category, page);
   const renderPagination = (ariaLabel: string) => data.pagination.totalPages > 1 ? (
@@ -54,6 +68,11 @@ export default async function HouseholdActivityPage({
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-ink">共有グループの操作履歴</h2>
             <p className="mt-1 break-words text-sm text-slate-600">{data.context.household.name} で行われた主要な操作を表示します。</p>
+            <p className="mt-1 break-words text-sm text-slate-600">
+              {retentionDays === null
+                ? "操作履歴の保持期間は設定不明です。保持期間が正しく設定されるまで自動削除は実行されません。"
+                : `操作履歴は${retentionDays}日間保持され、期限を過ぎた履歴は定期的に自動削除されます。`}
+            </p>
           </div>
         </div>
       </div>

@@ -45,7 +45,7 @@ test("基準日時と同時刻の履歴は削除条件に含まれない", () =>
   assert.equal(matchesDeleteCondition(new Date(cutoffDate)), false);
 });
 
-test("正常な環境変数から保持日数を取得する", () => {
+test("環境変数が90の場合に自動削除と画面表示で共用する保持日数を取得する", () => {
   assert.equal(getHouseholdActivityRetentionDays({ [HOUSEHOLD_ACTIVITY_RETENTION_DAYS_ENV]: "90" }), 90);
 });
 
@@ -68,7 +68,7 @@ for (const [label, value] of [
   });
 }
 
-test("前後に空白がある正の整数を取得する", () => {
+test("別の正の整数へ変更すると前後の空白を除いて表示用にも反映する", () => {
   assert.equal(getHouseholdActivityRetentionDays({ [HOUSEHOLD_ACTIVITY_RETENTION_DAYS_ENV]: "  45 \t" }), 45);
 });
 
