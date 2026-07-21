@@ -177,7 +177,7 @@ export default async function MembersPage({
 
       <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={now} />
 
-      <section className="space-y-3 border-t border-slate-200 pt-6 sm:space-y-4 sm:pt-8">
+      <section className="space-y-3 border-t border-slate-300 pt-6 sm:space-y-4 sm:pt-8">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Users className="h-5 w-5 shrink-0 text-moss" aria-hidden />
@@ -285,7 +285,7 @@ export default async function MembersPage({
       </section>
 
       <section
-        className="space-y-3 border-t border-slate-200 pt-6 sm:space-y-4 sm:pt-8"
+        className="space-y-3 border-t border-slate-300 pt-6 sm:space-y-4 sm:pt-8"
         aria-labelledby="household-activity-heading"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
