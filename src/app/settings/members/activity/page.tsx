@@ -31,6 +31,17 @@ export default async function HouseholdActivityPage({
   const query = await searchParams;
   const category = parseActivityCategory(query.category);
   const data = await getCurrentHouseholdActivityPage({ category, page: parseActivityPage(query.page) });
+  const buildActivityPageHref = (page: number) => activityHref(category, page);
+  const renderPagination = (ariaLabel: string) => data.pagination.totalPages > 1 ? (
+    <PaginationLayout
+      ariaLabel={ariaLabel}
+      pagination={data.pagination}
+      visibleCount={data.activities.length}
+      buildHref={buildActivityPageHref}
+      scroll={false}
+      preserveScroll
+    />
+  ) : null;
 
   return (
     <div className="space-y-6">
@@ -63,15 +74,9 @@ export default async function HouseholdActivityPage({
         })}
       </nav>
 
+      {renderPagination("操作履歴上部のページ")}
       <HouseholdActivityList activities={data.activities} />
-      {data.pagination.totalPages > 1 ? (
-        <PaginationLayout
-          ariaLabel="操作履歴のページ"
-          pagination={data.pagination}
-          visibleCount={data.activities.length}
-          buildHref={(page) => activityHref(category, page)}
-        />
-      ) : null}
+      {renderPagination("操作履歴下部のページ")}
     </div>
   );
 }
