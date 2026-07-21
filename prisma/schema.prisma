@@ -240,6 +240,7 @@ model HouseholdActivity {
   @@index([householdId, createdAt, id])
   @@index([householdId, category, createdAt, id])
   @@index([actorUserId])
+  @@index([createdAt])
   @@map("household_activities")
 }
 
