@@ -1,3 +1,5 @@
+import { Link2 } from "lucide-react";
+
 import { InvitationRevokeForm } from "@/components/invitation-revoke-form";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { formatDateTimeJst } from "@/lib/date";
@@ -33,10 +35,16 @@ export function HouseholdInvitationList({
   }
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-base font-bold text-ink">有効な招待リンク</h3>
-        <p className="mt-1 text-sm text-slate-600">過去のリンク自体は再表示されません。有効なリンクだけ無効化できます。</p>
+    <section className="space-y-3 border-t border-slate-200 pt-6 sm:space-y-4 sm:pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-5 w-5 shrink-0 text-moss" aria-hidden />
+            <h3 className="text-base font-bold text-ink">有効な招待リンク</h3>
+          </div>
+          <p className="mt-1 text-sm text-slate-600">過去のリンク自体は再表示されません。有効なリンクだけ無効化できます。</p>
+        </div>
+        <span className="shrink-0 whitespace-nowrap text-sm text-slate-500">{activeInvitations.length}件</span>
       </div>
 
       <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
