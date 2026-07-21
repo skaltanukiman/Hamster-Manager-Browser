@@ -178,12 +178,9 @@ export default async function MembersPage({
       <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={now} />
 
       <section className="space-y-3 border-t border-slate-300 pt-6 sm:space-y-4 sm:pt-8">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Users className="h-5 w-5 shrink-0 text-moss" aria-hidden />
-            <h3 className="text-base font-bold text-ink">メンバー一覧</h3>
-          </div>
-          <span className="shrink-0 text-sm text-slate-500">{members.length}人</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <Users className="h-5 w-5 shrink-0 text-moss" aria-hidden />
+          <h3 className="text-base font-bold text-ink">メンバー一覧</h3>
         </div>
 
         <div className="hidden overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm lg:block">
@@ -293,15 +290,12 @@ export default async function MembersPage({
             <History className="h-5 w-5 shrink-0 text-moss" aria-hidden />
             <h3 id="household-activity-heading" className="text-base font-bold text-ink">共有グループの操作履歴</h3>
           </div>
-          <div className="ml-auto flex shrink-0 items-center gap-3">
-            <span className="whitespace-nowrap text-sm text-slate-500">直近{activities.length}件</span>
-            <Link
-              href="/settings/members/activity"
-              className="whitespace-nowrap text-sm font-semibold text-moss hover:underline"
-            >
-              すべての履歴を見る
-            </Link>
-          </div>
+          <Link
+            href="/settings/members/activity"
+            className="ml-auto shrink-0 whitespace-nowrap text-sm font-semibold text-moss hover:underline"
+          >
+            すべての履歴を見る
+          </Link>
         </div>
         <HouseholdActivityList activities={activities} />
       </section>
