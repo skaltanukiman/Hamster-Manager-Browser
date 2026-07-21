@@ -34,6 +34,18 @@
 - **関連設定:** `src/lib/auth-context.ts` の Cookie 名・個人用 Household 名、`src/lib/invitations.ts` の有効期限、`src/lib/invitation-cleanup.ts`、`scripts/cleanup-invitations.ts`、`npm run invitations:cleanup`。
 - **依存関係:** 招待の平文 token は管理画面URLへ載せず、作成直後のAction stateと受諾画面のメモリ内でのみ扱い、DBにはhashのみ保存する。共有URLはHTTPへ送信されないフラグメントを使い、未ログイン時はOAuth往復中だけ同一タブの `sessionStorage` に保持する。読み込み直後にアドレスバーから、ログイン後にstorageから削除する。共有画面はメンバー一覧の下に有効な招待だけの作成日時・期限・状態・作成者を表示し、有効な招待が0件なら一覧自体を表示しない。未使用かつ期限内だけOWNER / ADMINが無効化できる。受諾は未使用・未無効化・期限内を同一更新条件で確定し、アカウント削除と共通のユーザー単位lockを先に、Household削除と共通のHousehold単位lockを後に取る。使用済みは90日、未使用（無効化済みを含む）の期限切れは元の期限から30日保持してVPS cronから整理し、有効な招待は削除しない。自己退出は `src/lib/household-leave.ts` がHousehold単位のlock内で最新ロール・OWNER数・メンバー数・移譲先所属を再確認し、唯一OWNERなら移譲先を先にOWNERへ更新してから本人の `AppSetting` とmembershipを削除する。共有データは削除しない。唯一のメンバーかつOWNERの完全削除は `src/lib/household-delete.ts` が同じlock内で最新状態と確認名を再検証し、`Household` のCascade削除を起点にする。DB commit後だけ `HAMSTER_IMAGE_DIR/{householdId}` と `RECORD_IMAGE_DIR/{householdId}` を安全検証して削除し、失敗はwarningに留める。削除後は `auth-context.ts` の既存選択順序を再利用し、membershipが残れば切替、0件の場合だけユーザー単位lock付き初期Household作成を行ってCookieを更新する。成功監査イベントは `household_deleted`。メンバーの削除・権限変更は最後の OWNER、自分自身、操作権限の制約と、現在選択 Cookie の整合性に注意する。
 
+## 共有グループの操作履歴
+
+- **画面または URL:** `/settings/members` のメンバー一覧後・危険操作領域前に最新5件、全件は `/settings/members/activity`。カード型タイムラインでJST日時を表示する。
+- **主なコンポーネント:** `HouseholdActivityList`、既存 `PaginationLayout`。一覧フィルターは「すべて」「飼育記録」「メンバー」「グループ設定」で、変更時は1ページ目へ戻る。
+- **Server Action または API:** `commitHouseholdMutation` の任意 `activity` を業務更新後・revision更新前に実行する。名称・招待・退出の専用Mutation Repository、招待受諾、CSV importも各既存Prisma transaction内で `createHouseholdActivity` を実行する。別WebSocketや独自pollは追加せず既存Household revision / SSE / revision pollを利用する。
+- **データアクセス・Prismaモデル:** `HouseholdActivity`、`HouseholdActivityEvent`、`HouseholdActivityCategory`。`getCurrentHouseholdActivityPage` は `getRequiredHouseholdContext` で現在所属を確定し、Household IDと任意カテゴリーをDB条件に含め、`createdAt desc, id desc`、20件でページングする。最新表示も同じHousehold条件で5件だけ取得する。
+- **対象イベント:** グループ名変更、招待作成・無効化・参加、権限変更・参加解除・退出・所有権移譲退出、ハムスター登録・削除、体重登録・更新・削除・一括削除、アプリ版/GAS版CSV import、掃除月保存。bulk/CSV/掃除は1操作1件の要約。
+- **認可・プライバシー:** 現在所属する OWNER / ADMIN / MEMBER / VIEWER のみ閲覧可能。アプリ全体 ADMIN / SUPER_ADMIN も未所属なら取得不可。操作者・対象名は操作時snapshotを保存し、未設定名は安全な固定文言を使いメールを代用しない。token/URL、メール、CSV本文・ファイル名、フォーム、掃除メモ等は保存しない。
+- **削除・監査:** Household削除はCascade、User削除は参照をSetNullにして名前snapshotを残す。既存 `writeHouseholdAuditLog` / サーバーログは障害調査・内部監査用として維持し、利用者向けDB履歴へ置換しない。
+- **関連テスト:** `tests/household-activity.test.ts`（formatter、snapshot、transaction rollback、Household分離、安定順、ページング、filter、最新5件、機密情報の非保存）と各既存Mutationテスト。
+- **今回対象外:** 健康・通院・思い出、プロフィール画像、ハムスター編集・管理状態、手動削除、CSV出力、保持期限、通知、過去履歴生成、項目単位差分。
+
 ## ダッシュボード
 
 - **画面または URL:** `/`。

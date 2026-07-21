@@ -1,6 +1,11 @@
 import type { Prisma } from "@prisma/client";
 
 import { REALTIME_ACTOR_FIELD } from "@/lib/realtime-constants";
+import {
+  ACTOR_NAME_FALLBACK,
+  createHouseholdActivity,
+  type HouseholdActivityCreateInput
+} from "@/lib/household-activity";
 import { prisma } from "@/lib/prisma";
 import { logUnexpectedError } from "@/lib/server-errors";
 
@@ -149,12 +154,16 @@ export async function commitHouseholdMutation<T>(
     source,
     actorClientId,
     actorUserId,
+    actorNameSnapshot,
+    activity,
     mutate
   }: {
     householdId: string;
     source: HouseholdChangeSource;
     actorClientId?: string | null;
     actorUserId?: string | null;
+    actorNameSnapshot?: string;
+    activity?: HouseholdActivityCreateInput | HouseholdActivityCreateInput[] | null | ((result: T) => HouseholdActivityCreateInput | HouseholdActivityCreateInput[] | null);
     mutate: (tx: Prisma.TransactionClient) => Promise<T>;
   },
   transactionExecutor: TransactionExecutor = executeTransaction
@@ -162,6 +171,17 @@ export async function commitHouseholdMutation<T>(
   return transactionExecutor(async (tx) => {
     // 業務データとrevisionを同時commitし、通知だけが先行する状態を作らない。
     const result = await mutate(tx);
+    const activityInput = typeof activity === "function" ? activity(result) : activity;
+    if (activityInput) {
+      for (const item of Array.isArray(activityInput) ? activityInput : [activityInput]) {
+        await createHouseholdActivity(tx, {
+          ...item,
+          householdId,
+          actorUserId,
+          actorNameSnapshot: actorNameSnapshot || ACTOR_NAME_FALLBACK
+        });
+      }
+    }
     const change = await updateHouseholdRevision(tx, householdId, source, actorClientId, actorUserId);
     return { result, change };
   });

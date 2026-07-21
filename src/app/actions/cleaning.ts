@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
+import { activityActorName } from "@/lib/household-activity";
 import { getDaysInMonth, isFutureDateInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
@@ -64,7 +65,7 @@ export async function saveCleaningMonth(formData: FormData) {
     const { hamsterId, yearMonth } = result.data;
     const hamster = await prisma.hamster.findUnique({
       where: { id: hamsterId },
-      select: { householdId: true, isActive: true }
+      select: { householdId: true, isActive: true, name: true }
     });
     if (!hamster || !belongsToCurrentHousehold(hamster.householdId, context.household.id)) {
       redirect("/cleaning?status=invalid");
@@ -111,6 +112,7 @@ export async function saveCleaningMonth(formData: FormData) {
       source: "cleaning",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: async (tx) => {
         const existingRecords = await tx.cleaningRecord.findMany({
           where: { hamsterId, recordDate: { in: submittedDays.map((day) => day.recordDate) } },
@@ -141,11 +143,20 @@ export async function saveCleaningMonth(formData: FormData) {
         });
         if (operations.length === 0) cleaningRedirect(hamsterId, yearMonth, "unchanged", includeInactive);
         await Promise.all(operations);
-      }
+        return operations.length;
+      },
+      activity: (changedDayCount) => ({
+        eventType: "CLEANING_MONTH_SAVED",
+        category: "CARE_RECORD",
+        targetType: "HAMSTER",
+        targetId: hamsterId,
+        targetNameSnapshot: hamster.name,
+        details: { yearMonth, changedDayCount }
+      })
     });
 
     publishHouseholdChangeSafely(change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/cleaning" }], "cleaning.saveMonth.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/cleaning" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "cleaning.saveMonth.revalidate", {
       householdId: context.household.id,
       hamsterId
     });

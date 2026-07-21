@@ -1,0 +1,77 @@
+import type { HouseholdActivityCategory } from "@prisma/client";
+import { ArrowLeft, History } from "lucide-react";
+import Link from "next/link";
+
+import { HouseholdActivityList } from "@/components/household-activity-list";
+import { PaginationLayout } from "@/components/pagination";
+import { parseActivityCategory, parseActivityPage } from "@/lib/household-activity";
+import { getCurrentHouseholdActivityPage } from "@/lib/household-activity-queries";
+
+export const dynamic = "force-dynamic";
+
+const FILTERS: Array<{ value: HouseholdActivityCategory | null; label: string }> = [
+  { value: null, label: "すべて" },
+  { value: "CARE_RECORD", label: "飼育記録" },
+  { value: "MEMBER", label: "メンバー" },
+  { value: "GROUP_SETTING", label: "グループ設定" }
+];
+
+function activityHref(category: HouseholdActivityCategory | null, page = 1) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (page > 1) params.set("page", String(page));
+  return `/settings/members/activity${params.size ? `?${params}` : ""}`;
+}
+
+export default async function HouseholdActivityPage({
+  searchParams
+}: {
+  searchParams: Promise<{ category?: string | string[]; page?: string | string[] }>;
+}) {
+  const query = await searchParams;
+  const category = parseActivityCategory(query.category);
+  const data = await getCurrentHouseholdActivityPage({ category, page: parseActivityPage(query.page) });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link href="/settings/members" className="inline-flex items-center gap-1 text-sm font-semibold text-moss hover:underline">
+          <ArrowLeft className="h-4 w-4" aria-hidden />共有へ戻る
+        </Link>
+        <div className="mt-3 flex items-start gap-3">
+          <History className="mt-0.5 h-6 w-6 shrink-0 text-moss" aria-hidden />
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-ink">共有グループの操作履歴</h2>
+            <p className="mt-1 break-words text-sm text-slate-600">{data.context.household.name} で行われた主要な操作を表示します。</p>
+          </div>
+        </div>
+      </div>
+
+      <nav aria-label="操作履歴のカテゴリー" className="flex flex-wrap gap-2">
+        {FILTERS.map((filter) => {
+          const selected = filter.value === category;
+          return (
+            <Link
+              key={filter.label}
+              href={activityHref(filter.value)}
+              aria-current={selected ? "page" : undefined}
+              className={`inline-flex min-h-10 items-center rounded-md border px-4 py-2 text-sm font-semibold ${selected ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+            >
+              {filter.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <HouseholdActivityList activities={data.activities} />
+      {data.pagination.totalPages > 1 ? (
+        <PaginationLayout
+          ariaLabel="操作履歴のページ"
+          pagination={data.pagination}
+          visibleCount={data.activities.length}
+          buildHref={(page) => activityHref(category, page)}
+        />
+      ) : null}
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import type { ZodIssue } from "zod";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
 import { getRequiredHouseholdMutationContext } from "@/lib/auth-context";
+import { activityActorName, createHouseholdActivity } from "@/lib/household-activity";
 import { isFutureDateInput, isValidDateInput, isValidYearMonthInput, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
@@ -180,7 +181,7 @@ function weightRedirect(hamsterId: string, status: string, historyFilter: Weight
 async function ensureHamsterIsActive(hamsterId: string, householdId: string, historyFilter: WeightHistoryFilter = {}) {
   const hamster = await prisma.hamster.findUnique({
     where: { id: hamsterId },
-    select: { householdId: true, isActive: true }
+    select: { householdId: true, isActive: true, name: true }
   });
 
   if (!hamster) {
@@ -195,6 +196,7 @@ async function ensureHamsterIsActive(hamsterId: string, householdId: string, his
   if (!hamster.isActive) {
     weightRedirect(hamsterId, "locked", historyFilter);
   }
+  return hamster;
 }
 
 async function getEditableWeightRecord(
@@ -213,7 +215,8 @@ async function getEditableWeightRecord(
       hamster: {
         select: {
           householdId: true,
-          isActive: true
+          isActive: true,
+          name: true
         }
       }
     }
@@ -239,7 +242,7 @@ export async function createWeightRecord(formData: FormData) {
 
     const historyFilter = getWeightHistoryFilter(formData);
     if (isFutureDateInput(result.data.recordDate)) weightRedirect(result.data.hamsterId, "future", historyFilter);
-    await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
+    const hamster = await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
 
     const recordDate = parseDateInput(result.data.recordDate);
     const existingRecord = await prisma.weightRecord.findUnique({
@@ -253,13 +256,22 @@ export async function createWeightRecord(formData: FormData) {
       source: "weight",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
       mutate: (tx) =>
         tx.weightRecord.create({
           data: { hamsterId: result.data.hamsterId, recordDate, weightG: result.data.weightG }
-        })
+        }),
+      activity: (record) => ({
+        eventType: "WEIGHT_CREATED",
+        category: "CARE_RECORD",
+        targetType: "WEIGHT_RECORD",
+        targetId: record.id,
+        targetNameSnapshot: hamster.name,
+        details: { recordDate: result.data.recordDate, weightG: result.data.weightG }
+      })
     });
     publishHouseholdChangeSafely(change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.create.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.create.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.hamsterId
     });
@@ -303,6 +315,20 @@ export async function updateWeightRecord(formData: FormData) {
       source: "weight",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
+      activity: {
+        eventType: "WEIGHT_UPDATED",
+        category: "CARE_RECORD",
+        targetType: "WEIGHT_RECORD",
+        targetId: record.id,
+        targetNameSnapshot: record.hamster.name,
+        details: {
+          previousWeightG: record.weightG,
+          newWeightG: result.data.weightG,
+          previousRecordDate: toDateInputValue(record.recordDate),
+          newRecordDate: result.data.recordDate
+        }
+      },
       mutate: (tx) =>
         tx.weightRecord.update({
           where: { id: result.data.id },
@@ -310,7 +336,7 @@ export async function updateWeightRecord(formData: FormData) {
         })
     });
     publishHouseholdChangeSafely(change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.update.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.update.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.hamsterId
     });
@@ -332,13 +358,22 @@ export async function deleteWeightRecord(formData: FormData) {
     const result = deleteWeightRecordSchema.safeParse(Object.fromEntries(formData));
     if (!result.success) redirect("/weights?status=invalid");
     const historyFilter = getWeightHistoryFilter(formData);
-    await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
+    const record = await getEditableWeightRecord(result.data.id, result.data.hamsterId, context.household.id, historyFilter);
 
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "weight",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
+      activity: {
+        eventType: "WEIGHT_DELETED",
+        category: "CARE_RECORD",
+        targetType: "WEIGHT_RECORD",
+        targetId: record.id,
+        targetNameSnapshot: record.hamster.name,
+        details: { recordDate: toDateInputValue(record.recordDate), weightG: record.weightG }
+      },
       mutate: async (tx) => {
         const deleted = await tx.weightRecord.deleteMany({
           where: { id: result.data.id, hamsterId: result.data.hamsterId }
@@ -347,7 +382,7 @@ export async function deleteWeightRecord(formData: FormData) {
       }
     });
     publishHouseholdChangeSafely(change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.delete.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.delete.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.hamsterId
     });
@@ -370,12 +405,21 @@ export async function deleteWeightRecords(formData: FormData) {
     if (!result.success) redirect("/weights?status=invalid");
 
     const historyFilter = getWeightHistoryFilter(formData);
-    await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
+    const hamster = await ensureHamsterIsActive(result.data.hamsterId, context.household.id, historyFilter);
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
       source: "weight",
       actorClientId: getRealtimeActorId(formData),
       actorUserId: context.user.id,
+      actorNameSnapshot: activityActorName(context.user),
+      activity: {
+        eventType: "WEIGHTS_BULK_DELETED",
+        category: "CARE_RECORD",
+        targetType: "HAMSTER",
+        targetId: result.data.hamsterId,
+        targetNameSnapshot: hamster.name,
+        details: { count: result.data.ids.length }
+      },
       mutate: async (tx) => {
         const deleted = await tx.weightRecord.deleteMany({
           where: { id: { in: result.data.ids }, hamsterId: result.data.hamsterId }
@@ -385,7 +429,7 @@ export async function deleteWeightRecords(formData: FormData) {
       }
     });
     publishHouseholdChangeSafely(change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.deleteMany.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.deleteMany.revalidate", {
       householdId: context.household.id,
       hamsterId: result.data.hamsterId,
       targetCount: result.data.ids.length
@@ -492,13 +536,24 @@ export async function importGasWeightRecordsCsv(
       skippedCount += createRows.length - created.count;
       const change =
         created.count > 0
-          ? await updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id)
+          ? await (async () => {
+              await createHouseholdActivity(tx, {
+                householdId: context.household.id,
+                actorUserId: context.user.id,
+                actorNameSnapshot: activityActorName(context.user),
+                eventType: "WEIGHT_CSV_GAS_IMPORTED",
+                category: "CARE_RECORD",
+                targetType: "WEIGHT_IMPORT",
+                details: { createdCount: created.count, updatedCount: 0, skippedCount }
+              });
+              return updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id);
+            })()
           : null;
       return { successCount: created.count, skippedCount, change };
     });
 
     if (transactionResult.change) publishHouseholdChangeSafely(transactionResult.change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.importCsv.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.importCsv.revalidate", {
       householdId: context.household.id
     });
     return weightCsvImportState({
@@ -697,13 +752,24 @@ export async function importAppWeightRecordsCsv(
       const changeCount = created.count + updateRows.length;
       const change =
         changeCount > 0
-          ? await updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id)
+          ? await (async () => {
+              await createHouseholdActivity(tx, {
+                householdId: context.household.id,
+                actorUserId: context.user.id,
+                actorNameSnapshot: activityActorName(context.user),
+                eventType: "WEIGHT_CSV_APP_IMPORTED",
+                category: "CARE_RECORD",
+                targetType: "WEIGHT_IMPORT",
+                details: { createdCount: created.count, updatedCount: updateRows.length, skippedCount }
+              });
+              return updateHouseholdRevision(tx, context.household.id, "weight", actorClientId, context.user.id);
+            })()
           : null;
       return { createdCount: created.count, updatedCount: updateRows.length, change };
     });
 
     if (transactionResult.change) publishHouseholdChangeSafely(transactionResult.change);
-    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }], "weights.importAppCsv.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/weights" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "weights.importAppCsv.revalidate", {
       householdId: context.household.id
     });
     return weightCsvImportState({

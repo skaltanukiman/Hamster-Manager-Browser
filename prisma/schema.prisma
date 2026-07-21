@@ -114,6 +114,7 @@ model User {
   createdHouseholdInvitations HouseholdInvitation[] @relation("HouseholdInvitationCreator")
   createdHamsterRecords       HamsterRecord[]       @relation("HamsterRecordCreator")
   createdSavedMemoryTags      SavedMemoryTag[]      @relation("SavedMemoryTagCreator")
+  householdActivities         HouseholdActivity[]   @relation("HouseholdActivityActor")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
@@ -171,6 +172,7 @@ model Household {
   appSettings           AppSetting[]
   invitations           HouseholdInvitation[]
   savedMemoryTags       SavedMemoryTag[]
+  activities            HouseholdActivity[]
 
   @@map("households")
 }
@@ -218,6 +220,53 @@ enum AppRole {
   USER
   ADMIN
   SUPER_ADMIN
+}
+
+model HouseholdActivity {
+  id                 String                    @id @default(cuid())
+  householdId        String                    @map("household_id")
+  actorUserId        String?                   @map("actor_user_id")
+  actorNameSnapshot  String                    @map("actor_name_snapshot")
+  eventType          HouseholdActivityEvent    @map("event_type")
+  category           HouseholdActivityCategory
+  targetType         String?                   @map("target_type")
+  targetId           String?                   @map("target_id")
+  targetNameSnapshot String?                   @map("target_name_snapshot")
+  details            Json?
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  household          Household                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  actor              User?                     @relation("HouseholdActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, createdAt, id])
+  @@index([householdId, category, createdAt, id])
+  @@index([actorUserId])
+  @@map("household_activities")
+}
+
+enum HouseholdActivityCategory {
+  CARE_RECORD
+  MEMBER
+  GROUP_SETTING
+}
+
+enum HouseholdActivityEvent {
+  HOUSEHOLD_NAME_UPDATED
+  INVITATION_CREATED
+  INVITATION_REVOKED
+  MEMBER_JOINED
+  MEMBER_ROLE_UPDATED
+  MEMBER_REMOVED
+  MEMBER_LEFT
+  OWNERSHIP_TRANSFERRED_AND_LEFT
+  HAMSTER_CREATED
+  HAMSTER_DELETED
+  WEIGHT_CREATED
+  WEIGHT_UPDATED
+  WEIGHT_DELETED
+  WEIGHTS_BULK_DELETED
+  WEIGHT_CSV_APP_IMPORTED
+  WEIGHT_CSV_GAS_IMPORTED
+  CLEANING_MONTH_SAVED
 }
 
 model HamsterRecord {

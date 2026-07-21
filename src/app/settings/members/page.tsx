@@ -1,11 +1,12 @@
 import { headers } from "next/headers";
-import { LogOut, Save, Settings2, Users } from "lucide-react";
+import { History, LogOut, Save, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 
 import { updateCurrentHouseholdName } from "@/app/actions/members";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
 import { HouseholdInvitationForm } from "@/components/household-invitation-form";
 import { HouseholdInvitationList } from "@/components/household-invitation-list";
+import { HouseholdActivityList } from "@/components/household-activity-list";
 import {
   canManageHouseholdInvitations,
   canManageHouseholdMemberRoles,
@@ -17,6 +18,7 @@ import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { formatDateJst } from "@/lib/date";
 import { INVITATION_TTL_DAYS, MAX_ACTIVE_HOUSEHOLD_INVITATIONS } from "@/lib/invitations";
 import { prisma } from "@/lib/prisma";
+import { getCurrentHouseholdActivityPreview } from "@/lib/household-activity-queries";
 import { MemberRemoveForm } from "@/components/member-remove-form";
 import { MemberRoleForm } from "@/components/member-role-form";
 import { StatusMessage } from "@/components/status-message";
@@ -47,7 +49,7 @@ async function getInvitationOrigin() {
 async function getMembersPageData() {
   const context = await getRequiredHouseholdContext();
   const now = new Date();
-  const [members, invitations, hamsterCount] = await Promise.all([
+  const [members, invitations, hamsterCount, activityPreview] = await Promise.all([
     prisma.householdMember.findMany({
       where: { householdId: context.household.id },
       include: { user: true },
@@ -67,10 +69,11 @@ async function getMembersPageData() {
       },
       orderBy: { createdAt: "desc" }
     }),
-    prisma.hamster.count({ where: { householdId: context.household.id } })
+    prisma.hamster.count({ where: { householdId: context.household.id } }),
+    getCurrentHouseholdActivityPreview()
   ]);
 
-  return { context, members, invitations, hamsterCount, now };
+  return { context, members, invitations, hamsterCount, activities: activityPreview.activities, now };
 }
 
 export default async function MembersPage({
@@ -80,7 +83,7 @@ export default async function MembersPage({
 }) {
   const params = await searchParams;
   const invitationOrigin = await getInvitationOrigin();
-  const { context, members, invitations, hamsterCount, now } = await getMembersPageData();
+  const { context, members, invitations, hamsterCount, activities, now } = await getMembersPageData();
   const canManageInvitations = canManageHouseholdInvitations(context.membership.role);
   const canManageMemberRoles = canManageHouseholdMemberRoles(context.membership.role);
   const canRemoveMembers = canRemoveHouseholdMembers(context.membership.role);
@@ -171,6 +174,8 @@ export default async function MembersPage({
           </p>
         </section>
       )}
+
+      <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={now} />
 
       <section className="space-y-3">
         <div className="flex items-center gap-2">
@@ -276,6 +281,19 @@ export default async function MembersPage({
         </div>
       </section>
 
+      <section className="space-y-3" aria-labelledby="household-activity-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-moss" aria-hidden />
+            <h3 id="household-activity-heading" className="text-base font-bold text-ink">共有グループの操作履歴</h3>
+          </div>
+          <Link href="/settings/members/activity" className="text-sm font-semibold text-moss hover:underline">
+            すべての履歴を見る
+          </Link>
+        </div>
+        <HouseholdActivityList activities={activities} />
+      </section>
+
       <section className="rounded-md border border-red-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <LogOut className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
@@ -319,8 +337,6 @@ export default async function MembersPage({
           </Link>
         </div>
       </section>
-
-      <HouseholdInvitationList invitations={invitations} canManage={canManageInvitations} now={now} />
     </div>
   );
 }

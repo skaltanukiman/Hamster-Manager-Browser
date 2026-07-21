@@ -4,6 +4,7 @@ import {
   getHouseholdLeaveRequirement,
   ownershipTransferTargetDenial
 } from "@/lib/authorization";
+import { ACTOR_NAME_FALLBACK, createHouseholdActivity } from "@/lib/household-activity";
 import { prisma } from "@/lib/prisma";
 import { updateHouseholdRevision, type CommittedHouseholdChange } from "@/lib/realtime";
 
@@ -12,6 +13,7 @@ type LeaveMembership = {
   householdId: string;
   userId: string;
   role: HouseholdRole;
+  userName?: string | null;
 };
 
 export type HouseholdLeaveRepository = {
@@ -26,6 +28,10 @@ export type HouseholdLeaveRepository = {
     householdId: string;
     actorClientId: string | null;
     actorUserId: string;
+    actorNameSnapshot: string;
+    eventType: "MEMBER_LEFT" | "OWNERSHIP_TRANSFERRED_AND_LEFT";
+    targetUserId?: string;
+    targetNameSnapshot?: string | null;
   }): Promise<CommittedHouseholdChange>;
 };
 
@@ -45,8 +51,8 @@ export function createPrismaHouseholdLeaveRepository(
     findMembership: (householdId, userId) =>
       tx.householdMember.findUnique({
         where: { householdId_userId: { householdId, userId } },
-        select: { id: true, householdId: true, userId: true, role: true }
-      }),
+        select: { id: true, householdId: true, userId: true, role: true, user: { select: { name: true } } }
+      }).then((membership) => membership ? { ...membership, userName: membership.user.name } : null),
     countMembers: (householdId) => tx.householdMember.count({ where: { householdId } }),
     countOwners: (householdId) =>
       tx.householdMember.count({ where: { householdId, role: "OWNER" } }),
@@ -77,8 +83,19 @@ export function createPrismaHouseholdLeaveRepository(
       });
       return deleted.count;
     },
-    commitChange: ({ householdId, actorClientId, actorUserId }) =>
-      updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId)
+    commitChange: async ({ householdId, actorClientId, actorUserId, actorNameSnapshot, eventType, targetUserId, targetNameSnapshot }) => {
+      await createHouseholdActivity(tx, {
+        householdId,
+        actorUserId,
+        actorNameSnapshot,
+        eventType,
+        category: "MEMBER",
+        targetType: targetUserId ? "USER" : undefined,
+        targetId: targetUserId,
+        targetNameSnapshot
+      });
+      return updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId);
+    }
   };
 }
 
@@ -114,6 +131,7 @@ export async function leaveHouseholdMembership(
     actorUserId: string;
     actorClientId: string | null;
     transferToUserId: string | null;
+    actorNameSnapshot?: string;
   },
   execute: HouseholdLeaveExecutor = executePrismaHouseholdLeave
 ): Promise<HouseholdLeaveMutationResult> {
@@ -166,7 +184,11 @@ export async function leaveHouseholdMembership(
       const change = await repository.commitChange({
         householdId: input.householdId,
         actorClientId: input.actorClientId,
-        actorUserId: input.actorUserId
+        actorUserId: input.actorUserId,
+        actorNameSnapshot: input.actorNameSnapshot || ACTOR_NAME_FALLBACK,
+        eventType: transferTarget ? "OWNERSHIP_TRANSFERRED_AND_LEFT" : "MEMBER_LEFT",
+        targetUserId: transferTarget?.userId,
+        targetNameSnapshot: transferTarget?.userName || null
       });
 
       if (transferTarget) {

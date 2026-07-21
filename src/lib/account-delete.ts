@@ -17,6 +17,7 @@ import {
   type HouseholdLeaveExecutor
 } from "@/lib/household-leave";
 import { prisma } from "@/lib/prisma";
+import { activityActorName } from "@/lib/household-activity";
 import type { CommittedHouseholdChange } from "@/lib/realtime";
 
 export { ACCOUNT_DELETE_CONFIRMATION, type AccountDeleteDisposition } from "@/lib/account-delete-shared";
@@ -169,6 +170,7 @@ export async function getAccountDeletePreview(userId: string): Promise<AccountDe
 type AccountDeleteUser = {
   id: string;
   appRole: AppRole;
+  name?: string | null;
 };
 
 export type AccountDeleteRepository = {
@@ -199,7 +201,7 @@ const executePrismaAccountDelete: AccountDeleteExecutor = (operation) =>
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('hamster-manager-super-admin', 0))`;
         },
         findUser: (userId) =>
-          tx.user.findUnique({ where: { id: userId }, select: { id: true, appRole: true } }),
+          tx.user.findUnique({ where: { id: userId }, select: { id: true, appRole: true, name: true } }),
         countOtherSuperAdmins: (userId) =>
           tx.user.count({ where: { id: { not: userId }, appRole: "SUPER_ADMIN" } }),
         findHouseholds: (userId) => findAccountDeleteHouseholdStates(tx, userId),
@@ -339,6 +341,7 @@ export async function deleteUserAccount(
             householdId: state.householdId,
             actorUserId: user.id,
             actorClientId: input.actorClientId,
+            actorNameSnapshot: activityActorName(user),
             transferToUserId:
               disposition === "transferOwnership"
                 ? (input.transferTargets[state.householdId] ?? null)

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { HOUSEHOLD_AUDIT_EVENTS, writeHouseholdAuditLog } from "@/lib/audit-log";
+import { activityActorName, createHouseholdActivity } from "@/lib/household-activity";
 import {
   canManageHouseholdInvitations,
   canManageHouseholdMemberRoles,
@@ -141,7 +142,8 @@ export async function updateCurrentHouseholdName(formData: FormData) {
       actorUserId: context.user.id,
       actorClientId: getRealtimeActorId(formData),
       expectedName,
-      nextName: nameResult.data.name
+      nextName: nameResult.data.name,
+      actorNameSnapshot: activityActorName(context.user)
     });
     if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
     if (result.status === "stateChanged") redirect("/settings/members?status=householdStateChanged");
@@ -159,6 +161,7 @@ export async function updateCurrentHouseholdName(formData: FormData) {
         { path: "/", type: "layout" },
         { path: "/settings/members" },
         { path: "/settings/members/leave" },
+        { path: "/settings/members/activity" },
         { path: "/admin" }
       ],
       "members.updateHouseholdName.revalidate",
@@ -192,7 +195,8 @@ export async function createHouseholdInvitation(
       actorUserId: context.user.id,
       tokenHash: hashInvitationToken(token),
       now,
-      expiresAt: invitationExpiresAt(now)
+      expiresAt: invitationExpiresAt(now),
+      actorNameSnapshot: activityActorName(context.user)
     });
     if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
     if (result.status === "activeLimit") {
@@ -222,7 +226,7 @@ export async function createHouseholdInvitation(
       expiresAt: result.invitation.expiresAt.toISOString()
     });
     publishHouseholdChangeSafely(result.change);
-    revalidatePathsSafely([{ path: "/settings/members" }], "members.createInvitation.revalidate", {
+    revalidatePathsSafely([{ path: "/settings/members" }, { path: "/settings/members/activity" }], "members.createInvitation.revalidate", {
       householdId: context.household.id
     });
     return {
@@ -251,7 +255,8 @@ export async function revokeHouseholdInvitation(formData: FormData) {
       actorUserId: context.user.id,
       actorClientId: getRealtimeActorId(formData),
       invitationId,
-      now: new Date()
+      now: new Date(),
+      actorNameSnapshot: activityActorName(context.user)
     });
     if (result.status !== "revoked") {
       if (result.status === "forbidden") redirect("/settings/members?status=forbidden");
@@ -268,7 +273,7 @@ export async function revokeHouseholdInvitation(formData: FormData) {
       invitationId: result.invitationId
     });
     publishHouseholdChangeSafely(result.change);
-    revalidatePathsSafely([{ path: "/settings/members" }], "members.revokeInvitation.revalidate", {
+    revalidatePathsSafely([{ path: "/settings/members" }, { path: "/settings/members/activity" }], "members.revokeInvitation.revalidate", {
       householdId: context.household.id
     });
     redirect("/settings/members?status=invitationRevoked");
@@ -317,6 +322,10 @@ export async function acceptHouseholdInvitation(formData: FormData) {
       }
 
       // 招待URLは共有され得るため、参加先HouseholdへのmembershipをDB側で一意に確定する。
+      const existingMembership = await tx.householdMember.findUnique({
+        where: { householdId_userId: { householdId: invitation.householdId, userId: user.id } },
+        select: { id: true }
+      });
       await tx.householdMember.upsert({
         where: {
           householdId_userId: {
@@ -347,6 +356,18 @@ export async function acceptHouseholdInvitation(formData: FormData) {
           hamsterSelectorMode: DEFAULT_HAMSTER_SELECTOR_MODE
         }
       });
+      if (!existingMembership) {
+        await createHouseholdActivity(tx, {
+          householdId: invitation.householdId,
+          actorUserId: user.id,
+          actorNameSnapshot: activityActorName(user),
+          eventType: "MEMBER_JOINED",
+          category: "MEMBER",
+          targetType: "USER",
+          targetId: user.id,
+          targetNameSnapshot: activityActorName(user)
+        });
+      }
       return updateHouseholdRevision(
         tx,
         invitation.householdId,
@@ -366,7 +387,7 @@ export async function acceptHouseholdInvitation(formData: FormData) {
         context: { householdId: invitation.householdId, userId: user.id }
       });
     }
-    revalidatePathsSafely([{ path: "/" }, { path: "/settings/members" }], "members.acceptInvitation.revalidate", {
+    revalidatePathsSafely([{ path: "/" }, { path: "/settings/members" }, { path: "/settings/members/activity" }], "members.acceptInvitation.revalidate", {
       householdId: invitation.householdId,
       userId: user.id
     });
@@ -396,7 +417,7 @@ export async function removeHouseholdMember(formData: FormData) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${context.household.id}, 0))`;
         const targetMember = await tx.householdMember.findFirst({
           where: { id: memberId, householdId: context.household.id },
-          select: { id: true, userId: true, role: true }
+          select: { id: true, userId: true, role: true, user: { select: { name: true } } }
         });
         if (!targetMember) redirect("/settings/members?status=invalid");
         let ownerCount = Number.MAX_SAFE_INTEGER;
@@ -418,7 +439,15 @@ export async function removeHouseholdMember(formData: FormData) {
         });
         if (deleted.count !== 1) redirect("/settings/members?status=invalid");
         return targetMember;
-      }
+      },
+      actorNameSnapshot: activityActorName(context.user),
+      activity: (member) => ({
+        eventType: "MEMBER_REMOVED",
+        category: "MEMBER",
+        targetType: "USER",
+        targetId: member.userId,
+        targetNameSnapshot: activityActorName(member.user)
+      })
     });
 
     writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.memberRemoved, {
@@ -431,7 +460,7 @@ export async function removeHouseholdMember(formData: FormData) {
     });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely(
-      [{ path: "/", type: "layout" }, { path: "/settings/members" }],
+      [{ path: "/", type: "layout" }, { path: "/settings/members" }, { path: "/settings/members/activity" }],
       "members.remove.revalidate",
       { householdId: context.household.id, memberId }
     );
@@ -459,7 +488,7 @@ export async function updateHouseholdMemberRole(formData: FormData) {
       mutate: async (tx) => {
         const targetMember = await tx.householdMember.findFirst({
           where: { id: memberId, householdId: context.household.id },
-          select: { id: true, userId: true, role: true }
+          select: { id: true, userId: true, role: true, user: { select: { name: true } } }
         });
         if (!targetMember) redirect("/settings/members?status=invalid");
         const denial = memberRoleUpdateDenial({
@@ -476,7 +505,16 @@ export async function updateHouseholdMemberRole(formData: FormData) {
         });
         if (updated.count !== 1) redirect("/settings/members?status=invalid");
         return { ...targetMember, newRole: role };
-      }
+      },
+      actorNameSnapshot: activityActorName(context.user),
+      activity: (member) => ({
+        eventType: "MEMBER_ROLE_UPDATED",
+        category: "MEMBER",
+        targetType: "USER",
+        targetId: member.userId,
+        targetNameSnapshot: activityActorName(member.user),
+        details: { previousRole: member.role, newRole: member.newRole }
+      })
     });
 
     writeHouseholdAuditLog(HOUSEHOLD_AUDIT_EVENTS.memberRoleUpdated, {
@@ -490,7 +528,7 @@ export async function updateHouseholdMemberRole(formData: FormData) {
     });
     publishHouseholdChangeSafely(change);
     revalidatePathsSafely(
-      [{ path: "/", type: "layout" }, { path: "/settings/members" }],
+      [{ path: "/", type: "layout" }, { path: "/settings/members" }, { path: "/settings/members/activity" }],
       "members.updateRole.revalidate",
       { householdId: context.household.id, memberId }
     );
@@ -517,7 +555,8 @@ export async function leaveCurrentHousehold(formData: FormData) {
       householdId,
       actorUserId: context.user.id,
       actorClientId: getRealtimeActorId(formData),
-      transferToUserId
+      transferToUserId,
+      actorNameSnapshot: activityActorName(context.user)
     });
 
     if (result.status === "notMember") {
@@ -563,7 +602,7 @@ export async function leaveCurrentHousehold(formData: FormData) {
     const nextMembership = await ensureUserHouseholdMembership(context.user);
     await setCurrentHouseholdCookie(nextMembership.householdId);
     revalidatePathsSafely(
-      [{ path: "/", type: "layout" }, { path: "/settings/members" }, { path: "/settings/members/leave" }],
+      [{ path: "/", type: "layout" }, { path: "/settings/members" }, { path: "/settings/members/leave" }, { path: "/settings/members/activity" }],
       "members.leave.revalidate",
       { householdId, userId: context.user.id }
     );

@@ -1,6 +1,7 @@
-import type { HouseholdRole } from "@prisma/client";
+import type { HouseholdActivityEvent, HouseholdRole } from "@prisma/client";
 
 import { canManageHouseholdInvitations } from "@/lib/authorization";
+import { ACTOR_NAME_FALLBACK, createHouseholdActivity } from "@/lib/household-activity";
 import {
   evaluateInvitationCreationLimit,
   invitationAcceptanceFailure,
@@ -43,6 +44,9 @@ export type InvitationMutationRepository = {
     householdId: string;
     actorClientId: string | null;
     actorUserId: string;
+    actorNameSnapshot: string;
+    eventType: HouseholdActivityEvent;
+    targetId: string;
   }): Promise<CommittedHouseholdChange>;
 };
 
@@ -120,8 +124,18 @@ const executePrismaInvitationMutation: InvitationMutationExecutor = (operation) 
         });
         return result.count;
       },
-      commitChange: ({ householdId, actorClientId, actorUserId }) =>
-        updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId)
+      commitChange: async ({ householdId, actorClientId, actorUserId, actorNameSnapshot, eventType, targetId }) => {
+        await createHouseholdActivity(tx, {
+          householdId,
+          actorUserId,
+          actorNameSnapshot,
+          eventType,
+          category: "GROUP_SETTING",
+          targetType: "INVITATION",
+          targetId
+        });
+        return updateHouseholdRevision(tx, householdId, "member", actorClientId, actorUserId);
+      }
     })
   );
 
@@ -143,6 +157,7 @@ export async function createRateLimitedHouseholdInvitation(
     tokenHash: string;
     now: Date;
     expiresAt: Date;
+    actorNameSnapshot?: string;
   },
   execute: InvitationMutationExecutor = executePrismaInvitationMutation
 ): Promise<CreateInvitationMutationResult> {
@@ -201,7 +216,10 @@ export async function createRateLimitedHouseholdInvitation(
     const change = await repository.commitChange({
       householdId: input.householdId,
       actorClientId: input.actorClientId,
-      actorUserId: input.actorUserId
+      actorUserId: input.actorUserId,
+      actorNameSnapshot: input.actorNameSnapshot || ACTOR_NAME_FALLBACK,
+      eventType: "INVITATION_CREATED",
+      targetId: invitation.id
     });
     return { status: "created", invitation, change };
   });
@@ -218,6 +236,7 @@ export async function revokeHouseholdInvitationMutation(
     actorClientId: string | null;
     invitationId: string;
     now: Date;
+    actorNameSnapshot?: string;
   },
   execute: InvitationMutationExecutor = executePrismaInvitationMutation
 ): Promise<RevokeInvitationMutationResult> {
@@ -250,7 +269,10 @@ export async function revokeHouseholdInvitationMutation(
     const change = await repository.commitChange({
       householdId: input.householdId,
       actorClientId: input.actorClientId,
-      actorUserId: input.actorUserId
+      actorUserId: input.actorUserId,
+      actorNameSnapshot: input.actorNameSnapshot || ACTOR_NAME_FALLBACK,
+      eventType: "INVITATION_REVOKED",
+      targetId: invitation.id
     });
     return { status: "revoked", invitationId: invitation.id, change };
   });

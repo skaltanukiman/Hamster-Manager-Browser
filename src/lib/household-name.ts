@@ -1,6 +1,7 @@
 import type { HouseholdRole } from "@prisma/client";
 
 import { canUpdateHouseholdName } from "@/lib/authorization";
+import { ACTOR_NAME_FALLBACK, createHouseholdActivity } from "@/lib/household-activity";
 import { prisma } from "@/lib/prisma";
 import { updateHouseholdRevision, type CommittedHouseholdChange } from "@/lib/realtime";
 
@@ -24,6 +25,9 @@ export type HouseholdNameRepository = {
     householdId: string;
     actorClientId: string | null;
     actorUserId: string;
+    actorNameSnapshot: string;
+    previousName: string;
+    newName: string;
   }): Promise<CommittedHouseholdChange>;
 };
 
@@ -63,8 +67,20 @@ const executePrismaHouseholdNameUpdate: HouseholdNameExecutor = (operation) =>
         });
         return updated.count;
       },
-      commitChange: ({ householdId, actorClientId, actorUserId }) =>
-        updateHouseholdRevision(tx, householdId, "household", actorClientId, actorUserId)
+      commitChange: async ({ householdId, actorClientId, actorUserId, actorNameSnapshot, previousName, newName }) => {
+        await createHouseholdActivity(tx, {
+          householdId,
+          actorUserId,
+          actorNameSnapshot,
+          eventType: "HOUSEHOLD_NAME_UPDATED",
+          category: "GROUP_SETTING",
+          targetType: "HOUSEHOLD",
+          targetId: householdId,
+          targetNameSnapshot: newName,
+          details: { previousName, newName }
+        });
+        return updateHouseholdRevision(tx, householdId, "household", actorClientId, actorUserId);
+      }
     })
   );
 
@@ -85,6 +101,7 @@ export async function updateHouseholdNameMutation(
     actorClientId: string | null;
     expectedName: string;
     nextName: string;
+    actorNameSnapshot?: string;
   },
   execute: HouseholdNameExecutor = executePrismaHouseholdNameUpdate
 ): Promise<HouseholdNameMutationResult> {
@@ -117,7 +134,10 @@ export async function updateHouseholdNameMutation(
     const change = await repository.commitChange({
       householdId: input.householdId,
       actorClientId: input.actorClientId,
-      actorUserId: input.actorUserId
+      actorUserId: input.actorUserId,
+      actorNameSnapshot: input.actorNameSnapshot || ACTOR_NAME_FALLBACK,
+      previousName: membership.household.name,
+      newName: input.nextName
     });
     return {
       status: "updated",
