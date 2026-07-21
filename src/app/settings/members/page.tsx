@@ -105,7 +105,7 @@ export default async function MembersPage({
           <div>
             <h3 className="text-base font-bold text-ink">共有グループ設定</h3>
             <p className="mt-1 text-sm text-slate-600">
-              この名前は、操作対象の切り替えや共有画面に表示されます。
+              この名前は、操作対象の切り替えや共有グループの各画面に表示されます。
             </p>
           </div>
         </div>
