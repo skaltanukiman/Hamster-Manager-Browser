@@ -1,0 +1,89 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Quality, Tests, Build & Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hamster_manager_ci
+          POSTGRES_USER: hamster_user
+          POSTGRES_PASSWORD: hamster_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hamster_user -d hamster_manager_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://hamster_user:hamster_ci_password@localhost:5432/hamster_manager_ci?schema=public
+      AUTH_SECRET: ci-only-dummy-auth-secret-not-for-production
+      AUTH_GOOGLE_ID: ci-dummy-google-client-id
+      AUTH_GOOGLE_SECRET: ci-dummy-google-client-secret
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      LOG_LEVEL: info
+      LOG_DIR: ${{ runner.temp }}/hamster-manager/logs
+      HAMSTER_IMAGE_DIR: ${{ runner.temp }}/hamster-manager/uploads/hamsters
+      RECORD_IMAGE_DIR: ${{ runner.temp }}/hamster-manager/uploads/records
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "true"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create writable runtime directories
+        run: mkdir -p "$LOG_DIR" "$HAMSTER_IMAGE_DIR" "$RECORD_IMAGE_DIR"
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply existing Prisma migrations
+        run: npm run prisma:deploy
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check TypeScript types
+        run: npm run typecheck
+
+      - name: Run automated tests
+        run: npm run test
+
+      - name: Build Next.js for production
+        run: npm run build

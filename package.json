@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "tsx --test tests/household-activity.test.ts tests/household-activity-cleanup.test.ts tests/error-handling.test.ts tests/csv-and-realtime.test.ts tests/weight-csv-export.test.ts tests/date-validation.test.ts tests/dashboard-settings.test.ts tests/settings.test.ts tests/invitations.test.ts tests/invitation-management.test.ts tests/invitation-cleanup.test.ts tests/admin-invitations.test.ts tests/admin-overview.test.ts tests/admin-users.test.ts tests/admin-households.test.ts tests/logger.test.ts tests/audit-log.test.ts tests/authorization.test.ts tests/household-leave.test.ts tests/household-delete.test.ts tests/account-delete.test.ts tests/health.test.ts tests/security-headers.test.ts tests/hamster-image.test.tsx tests/hamster-list-pagination.test.ts tests/weight-validation.test.ts tests/records.test.ts",
+    "test": "tsx --test \"tests/**/*.test.ts\" \"tests/**/*.test.tsx\"",
     "log:smoke": "tsx scripts/log-smoke.ts",
     "invitations:cleanup": "tsx scripts/cleanup-invitations.ts",
     "household-activities:cleanup": "tsx scripts/cleanup-household-activities.ts",

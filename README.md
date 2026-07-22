@@ -835,6 +835,25 @@ npx prisma migrate dev
 npx prisma db seed
 ```
 
+## 継続的インテグレーション（GitHub Actions）
+
+`.github/workflows/ci.yml` は、`main` 向けPull Request、`main` へのpush、手動実行で、Prisma Client生成、スキーマ検証、空のPostgreSQL 16への既存migration適用、ESLint、TypeScript型チェック、自動テスト、Next.js本番ビルドを順に実行します。CIでは固定のダミー認証情報と一時ディレクトリを使用し、本番のSecretsや外部OAuth接続は必要ありません。
+
+ローカルで同等の検証を行う場合は、検証用PostgreSQLへ `DATABASE_URL` を設定して次を実行します。
+
+```bash
+npm ci
+npm run prisma:generate
+npx prisma validate
+npm run prisma:deploy
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+CIが失敗した場合は、GitHub Actionsの `Quality, Tests, Build & Migrations` ジョブで最初に失敗したstepを確認し、同じコマンドをローカルで再実行してください。migrationの失敗時は、空のPostgreSQL 16へ全migrationを順に適用できるかも確認します。
+
 ## 初回ログインと共有
 
 初回 Google ログイン時に、そのユーザーがどの Household にも所属していなければ個人用 Household を自動作成します。以降のハムスター登録、衛生記録、体重記録は現在の Household に紐づきます。
