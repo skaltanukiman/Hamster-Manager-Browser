@@ -38,7 +38,7 @@ export default async function AdminUsersPage({
           <Users className="h-6 w-6 text-moss" aria-hidden />
           <h2 className="text-xl font-bold text-ink">ユーザー管理</h2>
         </div>
-        <p className="mt-1 text-sm text-slate-600">ユーザー情報とアプリ全体権限を確認・管理します。</p>
+        <p className="mt-1 text-sm text-slate-600">ユーザー情報、利用状態、アプリ全体権限を確認・管理します。</p>
       </div>
 
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
@@ -47,6 +47,7 @@ export default async function AdminUsersPage({
       <AdminUserList
         users={users}
         canEditAppRoles={currentUser.appRole === "SUPER_ADMIN"}
+        canManageUserAccess={currentUser.appRole === "SUPER_ADMIN"}
         currentUserId={currentUser.id}
         returnPath="/admin/users"
       />

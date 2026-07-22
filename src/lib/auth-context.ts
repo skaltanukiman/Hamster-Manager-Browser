@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AppRole, HouseholdRole } from "@prisma/client";
+import type { AppRole, HouseholdRole, UserAccessStatus } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { canEditHouseholdSharedData, hasAuthenticatedUserId } from "@/lib/authorization";
@@ -14,6 +14,7 @@ export const AUTH_SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-auth
 export type SessionUser = {
   id: string;
   appRole: AppRole;
+  accessStatus: UserAccessStatus;
   name?: string | null;
   email?: string | null;
   image?: string | null;
@@ -52,19 +53,20 @@ async function getPreferredHouseholdId() {
 
 export async function getRequiredSessionUser(): Promise<SessionUser> {
   const session = await auth();
-  const user = session?.user;
+  const sessionUser = session?.user;
 
-  if (!hasAuthenticatedUserId(user)) {
+  if (!hasAuthenticatedUserId(sessionUser)) {
     redirect("/login");
   }
 
-  return {
-    id: user.id,
-    appRole: user.appRole ?? "USER",
-    name: user.name,
-    email: user.email,
-    image: user.image
-  };
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, appRole: true, accessStatus: true, name: true, email: true, image: true }
+  });
+  if (!user) redirect("/login");
+  if (user.accessStatus === "SUSPENDED") redirect("/login?status=accountSuspended");
+
+  return user;
 }
 
 async function findMembership(userId: string, preferredHouseholdId?: string) {
@@ -192,13 +194,14 @@ export async function getHouseholdContextForRoute(): Promise<CurrentHouseholdCon
   const session = await auth();
   const user = session?.user;
 
-  if (!hasAuthenticatedUserId(user)) {
+  if (!hasAuthenticatedUserId(user) || user.accessStatus === "SUSPENDED") {
     return null;
   }
 
   const sessionUser: SessionUser = {
     id: user.id,
     appRole: user.appRole ?? "USER",
+    accessStatus: user.accessStatus ?? "ACTIVE",
     name: user.name,
     email: user.email,
     image: user.image
@@ -292,11 +295,12 @@ export async function getRequiredAppAdminUser(allowedRoles: AppRole[] = ["ADMIN"
       name: true,
       email: true,
       image: true,
-      appRole: true
+      appRole: true,
+      accessStatus: true
     }
   });
 
-  if (!user || !hasAppRole(user.appRole, allowedRoles)) {
+  if (!user || user.accessStatus !== "ACTIVE" || !hasAppRole(user.appRole, allowedRoles)) {
     redirect("/");
   }
 

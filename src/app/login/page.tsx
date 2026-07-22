@@ -69,6 +69,12 @@ export default async function LoginPage({
             このアカウントは既に削除されています。
           </p>
         ) : null}
+        {accountStatus === "accountSuspended" ? (
+          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-semibold">このアカウントは現在利用を停止されています。</p>
+            <p className="mt-1 text-xs leading-5">詳細については管理者へお問い合わせください。</p>
+          </div>
+        ) : null}
 
         <form action={signInWithGoogle} className="mt-6">
           <input type="hidden" name="callbackUrl" value={callbackUrl} />

@@ -107,6 +107,10 @@ model User {
   emailVerified               DateTime?             @map("email_verified")
   image                       String?
   appRole                     AppRole               @default(USER) @map("app_role")
+  accessStatus                UserAccessStatus      @default(ACTIVE) @map("access_status")
+  suspendedAt                 DateTime?              @map("suspended_at")
+  suspendedByUserId           String?                @map("suspended_by_user_id")
+  suspensionReason            String?                @map("suspension_reason") @db.VarChar(500)
   accounts                    Account[]
   sessions                    Session[]
   memberships                 HouseholdMember[]
@@ -115,10 +119,36 @@ model User {
   createdHamsterRecords       HamsterRecord[]       @relation("HamsterRecordCreator")
   createdSavedMemoryTags      SavedMemoryTag[]      @relation("SavedMemoryTagCreator")
   householdActivities         HouseholdActivity[]   @relation("HouseholdActivityActor")
+  suspendedBy                 User?                  @relation("UserCurrentSuspensionActor", fields: [suspendedByUserId], references: [id], onDelete: SetNull)
+  suspendedUsers              User[]                 @relation("UserCurrentSuspensionActor")
+  performedUserAccessActions  UserAccessAction[]     @relation("UserAccessActionActor")
+  receivedUserAccessActions   UserAccessAction[]     @relation("UserAccessActionTarget")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
+  @@index([accessStatus])
+  @@index([suspendedByUserId])
   @@map("users")
+}
+
+model UserAccessAction {
+  id                    String               @id @default(cuid())
+  actionType            UserAccessActionType @map("action_type")
+  actorUserId           String?              @map("actor_user_id")
+  actorUserIdSnapshot   String                @map("actor_user_id_snapshot")
+  actorNameSnapshot     String                @map("actor_name_snapshot")
+  targetUserId          String?              @map("target_user_id")
+  targetUserIdSnapshot  String                @map("target_user_id_snapshot")
+  targetNameSnapshot    String                @map("target_name_snapshot")
+  reason                String?              @db.VarChar(500)
+  createdAt             DateTime             @default(now()) @map("created_at")
+  actor                 User?                @relation("UserAccessActionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target                User?                @relation("UserAccessActionTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+  @@map("user_access_actions")
 }
 
 model Account {
@@ -220,6 +250,16 @@ enum AppRole {
   USER
   ADMIN
   SUPER_ADMIN
+}
+
+enum UserAccessStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum UserAccessActionType {
+  SUSPENDED
+  RESTORED
 }
 
 model HouseholdActivity {

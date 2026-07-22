@@ -224,4 +224,15 @@ test("アプリ権限変更はSUPER_ADMINだけに許可し、自己降格と最
     appRoleUpdateDenial({ ...base, actorRole: "SUPER_ADMIN", currentRole: "SUPER_ADMIN", newRole: "ADMIN", superAdminCount: 1 }),
     "cannotRemoveLastSuperAdmin"
   );
+  assert.equal(
+    appRoleUpdateDenial({
+      ...base,
+      actorRole: "SUPER_ADMIN",
+      currentRole: "SUPER_ADMIN",
+      newRole: "ADMIN",
+      superAdminCount: 1,
+      targetAccessStatus: "SUSPENDED"
+    }),
+    null
+  );
 });

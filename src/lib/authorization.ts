@@ -1,4 +1,4 @@
-import type { AppRole, HouseholdRole } from "@prisma/client";
+import type { AppRole, HouseholdRole, UserAccessStatus } from "@prisma/client";
 
 export type ManageableHouseholdRole = Exclude<HouseholdRole, "OWNER">;
 
@@ -119,7 +119,8 @@ export function appRoleUpdateDenial({
   targetUserId,
   currentRole,
   newRole,
-  superAdminCount
+  superAdminCount,
+  targetAccessStatus = "ACTIVE"
 }: {
   actorRole: AppRole;
   actorUserId: string;
@@ -127,10 +128,16 @@ export function appRoleUpdateDenial({
   currentRole: AppRole;
   newRole: AppRole;
   superAdminCount: number;
+  targetAccessStatus?: UserAccessStatus;
 }) {
   if (actorRole !== "SUPER_ADMIN") return "forbidden";
   if (actorUserId === targetUserId && currentRole !== newRole) return "cannotChangeOwnRole";
-  if (currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && superAdminCount <= 1) {
+  if (
+    targetAccessStatus === "ACTIVE" &&
+    currentRole === "SUPER_ADMIN" &&
+    newRole !== "SUPER_ADMIN" &&
+    superAdminCount <= 1
+  ) {
     return "cannotRemoveLastSuperAdmin";
   }
   return null;

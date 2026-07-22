@@ -17,6 +17,15 @@ const adminUserSelect = {
   name: true,
   email: true,
   appRole: true,
+  accessStatus: true,
+  suspendedAt: true,
+  suspensionReason: true,
+  suspendedBy: {
+    select: {
+      id: true,
+      name: true
+    }
+  },
   createdAt: true,
   _count: {
     select: {

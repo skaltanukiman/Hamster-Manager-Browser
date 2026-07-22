@@ -152,7 +152,9 @@ export async function getAccountDeletePreview(userId: string): Promise<AccountDe
   const [states, otherSuperAdminCount] = await Promise.all([
     findAccountDeleteHouseholdStates(prisma, userId),
     user.appRole === "SUPER_ADMIN"
-      ? prisma.user.count({ where: { id: { not: userId }, appRole: "SUPER_ADMIN" } })
+      ? prisma.user.count({
+          where: { id: { not: userId }, appRole: "SUPER_ADMIN", accessStatus: "ACTIVE" }
+        })
       : Promise.resolve(1)
   ]);
 
@@ -203,7 +205,9 @@ const executePrismaAccountDelete: AccountDeleteExecutor = (operation) =>
         findUser: (userId) =>
           tx.user.findUnique({ where: { id: userId }, select: { id: true, appRole: true, name: true } }),
         countOtherSuperAdmins: (userId) =>
-          tx.user.count({ where: { id: { not: userId }, appRole: "SUPER_ADMIN" } }),
+          tx.user.count({
+            where: { id: { not: userId }, appRole: "SUPER_ADMIN", accessStatus: "ACTIVE" }
+          }),
         findHouseholds: (userId) => findAccountDeleteHouseholdStates(tx, userId),
         lockHousehold: async (householdId) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;

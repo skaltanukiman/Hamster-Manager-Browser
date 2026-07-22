@@ -16,6 +16,11 @@ function isPublicPath(pathname: string) {
 export default auth((request) => {
   const { nextUrl } = request;
   const isLoggedIn = Boolean(request.auth?.user);
+  const isSuspended = request.auth?.user?.accessStatus === "SUSPENDED";
+
+  if (isSuspended) {
+    return NextResponse.redirect(new URL("/login?status=accountSuspended", nextUrl));
+  }
 
   if (isPublicPath(nextUrl.pathname)) {
     if (isLoggedIn && nextUrl.pathname === "/login") {

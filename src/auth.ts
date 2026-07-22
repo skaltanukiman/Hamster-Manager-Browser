@@ -5,9 +5,31 @@ import Google from "next-auth/providers/google";
 import { writeServerLog } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { logUnexpectedError } from "@/lib/server-errors";
+import { isSuspendedUserForSignIn } from "@/lib/user-access";
+
+const baseAdapter = PrismaAdapter(prisma);
+
+const suspensionAwareAdapter = {
+  ...baseAdapter,
+  async getSessionAndUser(sessionToken: string) {
+    const result = await baseAdapter.getSessionAndUser?.(sessionToken);
+    if (!result) return null;
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: result.user.id },
+      select: { accessStatus: true }
+    });
+    if (!currentUser || currentUser.accessStatus === "SUSPENDED") {
+      await prisma.session.deleteMany({ where: { sessionToken } });
+      return null;
+    }
+
+    return result;
+  }
+};
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: suspensionAwareAdapter,
   providers: [Google],
   pages: {
     signIn: "/login"
@@ -31,10 +53,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }
   },
   callbacks: {
+    async signIn({ user }) {
+      if (await isSuspendedUserForSignIn({ id: user.id, email: user.email })) {
+        return "/login?status=accountSuspended";
+      }
+
+      return true;
+    },
     session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;
         session.user.appRole = user.appRole;
+        session.user.accessStatus = user.accessStatus;
       }
 
       return session;
