@@ -234,7 +234,7 @@ test("管理一覧はlg未満で全項目を持つカード表示へ切り替え
   assert.match(userListSource, /className="grid gap-3 lg:hidden"/);
 
   for (const label of ["名前", "メールアドレス", "アプリ全体権限", "所属共有数", "セッション数", "作成日"]) {
-    assert.equal(userListSource.match(new RegExp(`>${label}<`, "g"))?.length, 2);
+    assert.equal(userListSource.match(new RegExp(`>${label}<`, "g"))?.length, 1);
   }
   for (const label of ["共有", "状態", "作成者", "作成日時", "有効期限", "使用日時"]) {
     assert.equal(source.match(new RegExp(`>${label}<`, "g"))?.length, 2);

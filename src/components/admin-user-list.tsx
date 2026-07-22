@@ -7,11 +7,26 @@ import {
 } from "@/lib/admin-users";
 import { formatDateJst, formatDateTimeJst } from "@/lib/date";
 
-function UserAccessStatusBadge({ status }: { status: AdminUserListItem["accessStatus"] }) {
+function UserAccessStatusBadge({
+  status,
+  compact = false
+}: {
+  status: AdminUserListItem["accessStatus"];
+  compact?: boolean;
+}) {
   return status === "SUSPENDED" ? (
-    <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">利用停止中</span>
+    <span className="inline-flex whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+      利用停止中
+    </span>
+  ) : compact ? (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-emerald-700">
+      <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+      利用中
+    </span>
   ) : (
-    <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">利用中</span>
+    <span className="inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+      利用中
+    </span>
   );
 }
 
@@ -33,12 +48,14 @@ function AppRoleField({
   userId,
   currentRole,
   canEdit,
-  returnPath
+  returnPath,
+  compact = false
 }: {
   userId: string;
   currentRole: AdminUserListItem["appRole"];
   canEdit: boolean;
   returnPath: AdminRoleReturnPath;
+  compact?: boolean;
 }) {
   if (!canEdit) {
     return <span>{APP_ROLE_LABELS[currentRole]}</span>;
@@ -47,11 +64,20 @@ function AppRoleField({
   return (
     <form
       action={updateUserAppRole}
-      className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center lg:flex lg:min-w-[15rem]"
+      className={
+        compact
+          ? "inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap"
+          : "grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+      }
     >
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="returnTo" value={returnPath} />
-      <select name="appRole" defaultValue={currentRole} className="h-9 min-w-0 py-1.5 text-sm">
+      <select
+        name="appRole"
+        defaultValue={currentRole}
+        aria-label="アプリ全体権限"
+        className={compact ? "h-8 w-36 min-w-0 py-1 text-sm" : "h-9 min-w-0 py-1.5 text-sm"}
+      >
         {Object.entries(APP_ROLE_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
             {label}
@@ -60,7 +86,9 @@ function AppRoleField({
       </select>
       <button
         type="submit"
-        className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-moss px-3 text-sm font-semibold text-moss hover:bg-moss hover:text-white sm:w-auto"
+        className={`inline-flex shrink-0 items-center justify-center rounded-md border border-moss text-sm font-semibold text-moss hover:bg-moss hover:text-white ${
+          compact ? "h-8 px-2.5" : "h-9 w-full px-3 sm:w-auto"
+        }`}
       >
         変更
       </button>
@@ -92,46 +120,83 @@ export function AdminUserList({
   return (
     <>
       <div className="hidden overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
-        <table className="data-table">
+        <table className="data-table min-w-[64rem] table-fixed">
+          <colgroup>
+            <col className="w-[24%]" />
+            <col className="w-[25%]" />
+            <col className="w-[18%]" />
+            <col className="w-[13%]" />
+            <col className="w-[12%]" />
+            {canManageUserAccess ? <col className="w-[8%]" /> : null}
+          </colgroup>
           <thead>
             <tr>
-              <th>名前</th>
-              <th>メールアドレス</th>
-              <th>アプリ全体権限</th>
-              <th>利用状態</th>
-              <th>利用停止情報</th>
-              <th>所属共有数</th>
-              <th>セッション数</th>
-              <th>作成日</th>
-              {canManageUserAccess ? <th>操作</th> : null}
+              <th scope="col" className="whitespace-nowrap">ユーザー</th>
+              <th scope="col" className="whitespace-nowrap">アプリ権限</th>
+              <th scope="col" className="whitespace-nowrap">利用状態</th>
+              <th scope="col" className="whitespace-nowrap">利用状況</th>
+              <th scope="col" className="whitespace-nowrap">登録日</th>
+              {canManageUserAccess ? <th scope="col" className="whitespace-nowrap text-center">操作</th> : null}
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id}>
-                <td className="max-w-48 break-words font-semibold text-ink [overflow-wrap:anywhere]">
-                  {user.name || "未設定"}
+              <tr key={user.id} className={user.accessStatus === "SUSPENDED" ? "bg-red-50/40" : undefined}>
+                <td
+                  className={`min-w-0 border-l-2 ${
+                    user.accessStatus === "SUSPENDED" ? "border-l-red-300" : "border-l-transparent"
+                  }`}
+                >
+                  <p className="break-words font-semibold text-ink [overflow-wrap:anywhere]">
+                    {user.name || "未設定"}
+                  </p>
+                  <p className="mt-0.5 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">
+                    {user.email || "未設定"}
+                  </p>
                 </td>
-                <td className="max-w-56 break-words [overflow-wrap:anywhere]">{user.email || "未設定"}</td>
                 <td>
                   <AppRoleField
                     userId={user.id}
                     currentRole={user.appRole}
                     canEdit={canEditAppRoles && user.id !== currentUserId}
                     returnPath={returnPath}
+                    compact
                   />
                 </td>
-                <td><UserAccessStatusBadge status={user.accessStatus} /></td>
-                <td><SuspensionDetails user={user} /></td>
-                <td>{user._count.memberships}</td>
-                <td>{user._count.sessions}</td>
-                <td>{formatDateJst(user.createdAt)}</td>
+                <td>
+                  <UserAccessStatusBadge status={user.accessStatus} compact />
+                  {user.accessStatus === "SUSPENDED" ? (
+                    <p className="mt-1.5 whitespace-nowrap text-xs text-slate-500">
+                      {formatDateTimeJst(user.suspendedAt)}
+                    </p>
+                  ) : null}
+                </td>
+                <td>
+                  <div className="space-y-1 text-sm text-slate-700">
+                    <p className="whitespace-nowrap">共有 {user._count.memberships}</p>
+                    <p className="whitespace-nowrap">セッション {user._count.sessions}</p>
+                  </div>
+                </td>
+                <td className="whitespace-nowrap">{formatDateJst(user.createdAt)}</td>
                 {canManageUserAccess ? (
-                  <td>
+                  <td className="text-center">
                     {user.id === currentUserId ? (
-                      <span className="text-xs text-slate-500">自分自身</span>
+                      <span className="whitespace-nowrap text-xs text-slate-500">対象外</span>
                     ) : (
-                      <AdminUserAccessControls user={user} returnPath={returnPath} />
+                      <AdminUserAccessControls
+                        user={user}
+                        returnPath={returnPath}
+                        presentation="menu"
+                        suspensionDetails={
+                          user.accessStatus === "SUSPENDED"
+                            ? {
+                                suspendedAt: formatDateTimeJst(user.suspendedAt),
+                                reason: user.suspensionReason || "未記録",
+                                actorName: user.suspendedBy?.name || "削除済み・未設定"
+                              }
+                            : undefined
+                        }
+                      />
                     )}
                   </td>
                 ) : null}
