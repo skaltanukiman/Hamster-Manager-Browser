@@ -45,9 +45,6 @@ jobs:
       AUTH_URL: http://localhost:3000
       AUTH_TRUST_HOST: "true"
       LOG_LEVEL: info
-      LOG_DIR: ${{ runner.temp }}/hamster-manager/logs
-      HAMSTER_IMAGE_DIR: ${{ runner.temp }}/hamster-manager/uploads/hamsters
-      RECORD_IMAGE_DIR: ${{ runner.temp }}/hamster-manager/uploads/records
       NEXT_TELEMETRY_DISABLED: "1"
       CI: "true"
 
@@ -64,8 +61,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create writable runtime directories
-        run: mkdir -p "$LOG_DIR" "$HAMSTER_IMAGE_DIR" "$RECORD_IMAGE_DIR"
+      - name: Configure writable runtime directories
+        shell: bash
+        run: |
+          runtime_root="$RUNNER_TEMP/hamster-manager"
+          printf '%s\n' \
+            "LOG_DIR=$runtime_root/logs" \
+            "HAMSTER_IMAGE_DIR=$runtime_root/uploads/hamsters" \
+            "RECORD_IMAGE_DIR=$runtime_root/uploads/records" \
+            >> "$GITHUB_ENV"
+          mkdir -p "$runtime_root/logs" "$runtime_root/uploads/hamsters" "$runtime_root/uploads/records"
 
       - name: Generate Prisma Client
         run: npm run prisma:generate
