@@ -1,8 +1,7 @@
 "use client";
 
 import { ChevronDown, Search } from "lucide-react";
-import type { FocusEvent } from "react";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState, type FocusEvent } from "react";
 
 import { normalizeSearchText } from "@/lib/search";
 
@@ -53,9 +52,20 @@ export function HamsterCombobox({
     }));
   }, [allOptionLabel, options]);
   const selectedOption = comboboxOptions.find((option) => option.id === selectedId) ?? null;
+  const selectedOptionName = selectedOption?.name ?? "";
+  const [previousSelectedId, setPreviousSelectedId] = useState(selectedId);
+  const [previousSelectedName, setPreviousSelectedName] = useState(selectedOptionName);
   const [inputValue, setInputValue] = useState(selectedOption?.name ?? "");
   const [selectedValue, setSelectedValue] = useState(selectedOption?.id ?? "");
   const [isOpen, setIsOpen] = useState(false);
+
+  if (previousSelectedId !== selectedId || previousSelectedName !== selectedOptionName) {
+    setPreviousSelectedId(selectedId);
+    setPreviousSelectedName(selectedOptionName);
+    setSelectedValue(selectedOption?.id ?? "");
+    setInputValue(selectedOptionName);
+  }
+
   const currentSelectedOption = comboboxOptions.find((option) => option.id === selectedValue) ?? null;
   const normalizedInputValue = normalizeSearchText(inputValue);
   const filteredOptions =

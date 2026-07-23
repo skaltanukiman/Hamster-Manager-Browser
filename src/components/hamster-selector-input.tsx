@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { HamsterSelectorMode } from "@/lib/dashboard-settings";
 
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
@@ -26,6 +30,14 @@ export function HamsterSelectorInput({
   emptyMessage = "条件に一致するハムスターはいません",
   showEmptyOption = true
 }: HamsterSelectorInputProps) {
+  const [previousSelectedId, setPreviousSelectedId] = useState(selectedId);
+  const [selectValue, setSelectValue] = useState(selectedId);
+
+  if (previousSelectedId !== selectedId) {
+    setPreviousSelectedId(selectedId);
+    setSelectValue(selectedId);
+  }
+
   if (mode === "select") {
     const optionsElement = (
       <>
@@ -42,14 +54,24 @@ export function HamsterSelectorInput({
 
     if (!autoSubmit) {
       return (
-        <select name={name} defaultValue={selectedId} disabled={disabled}>
+        <select
+          name={name}
+          value={selectValue}
+          disabled={disabled}
+          onChange={(event) => setSelectValue(event.currentTarget.value)}
+        >
           {optionsElement}
         </select>
       );
     }
 
     return (
-      <AutoSubmitSelect name={name} defaultValue={selectedId} disabled={disabled}>
+      <AutoSubmitSelect
+        name={name}
+        value={selectValue}
+        disabled={disabled}
+        onChange={(event) => setSelectValue(event.currentTarget.value)}
+      >
         {optionsElement}
       </AutoSubmitSelect>
     );
