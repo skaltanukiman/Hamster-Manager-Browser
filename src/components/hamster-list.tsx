@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  Archive,
   CheckSquare,
-  RotateCcw,
   Save,
   Search,
   Square,
@@ -12,9 +10,10 @@ import {
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
-import { deleteHamsters, updateHamster, updateHamsterActiveStatus } from "@/app/actions/hamsters";
+import { deleteHamsters, updateHamster } from "@/app/actions/hamsters";
 import { ClientPagination } from "@/components/client-pagination";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
+import { HamsterActiveStatusForm } from "@/components/hamster-active-status-form";
 import { HamsterImageField } from "@/components/hamster-image-field";
 import { HamsterThumbnail } from "@/components/hamster-thumbnail";
 import { SelectionActionBar } from "@/components/selection-action-bar";
@@ -237,17 +236,9 @@ export function HamsterList({
                   >
                     {hamster.isActive ? "管理中" : "管理外"}
                   </span>
-                  {!readOnly ? <form action={updateHamsterActiveStatus} className="hidden lg:block">
-                    <input type="hidden" name="id" value={hamster.id} />
-                    <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
-                    <button
-                      type="submit"
-                      className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      {isLocked ? <RotateCcw className="h-3.5 w-3.5" aria-hidden /> : <Archive className="h-3.5 w-3.5" aria-hidden />}
-                      {isLocked ? "管理中に戻す" : "管理外にする"}
-                    </button>
-                  </form> : null}
+                  {!readOnly ? <div className="hidden lg:block">
+                    <HamsterActiveStatusForm hamsterId={hamster.id} isActive={hamster.isActive} compact />
+                  </div> : null}
                   {isLocked ? <span className="text-xs text-slate-500">記録とプロフィール編集をロック中</span> : null}
                 </div>
                 <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
@@ -300,17 +291,7 @@ export function HamsterList({
                     </DirtySubmitButton> : null}
                   </form>
                   {!readOnly ? <div className="flex w-full flex-wrap items-end gap-2 lg:hidden">
-                    <form action={updateHamsterActiveStatus} className="flex w-full items-end">
-                      <input type="hidden" name="id" value={hamster.id} />
-                      <input type="hidden" name="isActive" value={isLocked ? "true" : "false"} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        {isLocked ? <RotateCcw className="h-4 w-4" aria-hidden /> : <Archive className="h-4 w-4" aria-hidden />}
-                        {isLocked ? "管理中に戻す" : "管理外にする"}
-                      </button>
-                    </form>
+                    <HamsterActiveStatusForm hamsterId={hamster.id} isActive={hamster.isActive} />
                   </div> : null}
                 </div>
                 <p className="mt-3 text-xs text-slate-500">

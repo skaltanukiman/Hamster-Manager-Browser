@@ -191,7 +191,7 @@ test("第2段階Mutationは最小限の履歴を同一transactionへ組み込む
   assert.doesNotMatch(hamsters, /details: \{[^}]+(?:profileImageFileName|fileName|path|mime|size)/i);
   assert.match(hamsters, /HAMSTER_ACTIVE_STATUS_UPDATED/);
   assert.match(hamsters, /details: \{ previousIsActive: hamster\.previousIsActive, newIsActive: hamster\.newIsActive \}/);
-  assert.match(hamsters, /hamster\.isActive === result\.data\.isActive[\s\S]+status=unchanged/);
+  assert.match(hamsters, /hamster\.isActive === result\.data\.isActive[\s\S]+HamsterActiveStatusResultError\("unchanged"\)/);
   assert.match(hamsters, /isActive: hamster\.isActive[\s\S]+updated\.count !== 1/);
 
   const createStart = hamsters.indexOf("export async function createHamster");

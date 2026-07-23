@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import type { ZodIssue } from "zod";
 
 import { belongsToCurrentHousehold } from "@/lib/authorization";
@@ -19,7 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteRecordImage } from "@/lib/record-image";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
-import { handleServerActionError, isPrismaUniqueConstraintError } from "@/lib/server-errors";
+import { handleServerActionError, isPrismaUniqueConstraintError, logUnexpectedError } from "@/lib/server-errors";
 import {
   createHamsterSchema,
   deleteHamstersSchema,
@@ -260,12 +260,24 @@ export async function updateHamster(formData: FormData) {
   }
 }
 
-export async function updateHamsterActiveStatus(formData: FormData) {
+export type HamsterActiveStatusActionResult =
+  | { success: true; status: "updated"; errorId?: never }
+  | { success: false; status: "invalid" | "unchanged"; errorId?: never }
+  | { success: false; status: "systemError"; errorId: string };
+
+class HamsterActiveStatusResultError extends Error {
+  constructor(readonly status: "invalid" | "unchanged") {
+    super(status);
+    this.name = "HamsterActiveStatusResultError";
+  }
+}
+
+export async function updateHamsterActiveStatus(formData: FormData): Promise<HamsterActiveStatusActionResult> {
   try {
     const context = await getRequiredHouseholdMutationContext("/hamsters");
     const result = updateHamsterActiveStatusSchema.safeParse(Object.fromEntries(formData));
 
-    if (!result.success) redirect("/hamsters?status=invalid");
+    if (!result.success) return { success: false, status: "invalid" };
 
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
@@ -278,13 +290,13 @@ export async function updateHamsterActiveStatus(formData: FormData) {
           where: { id: result.data.id, householdId: context.household.id },
           select: { id: true, name: true, isActive: true }
         });
-        if (!hamster) redirect("/hamsters?status=invalid");
-        if (hamster.isActive === result.data.isActive) redirect("/hamsters?status=unchanged");
+        if (!hamster) throw new HamsterActiveStatusResultError("invalid");
+        if (hamster.isActive === result.data.isActive) throw new HamsterActiveStatusResultError("unchanged");
         const updated = await tx.hamster.updateMany({
           where: { id: result.data.id, householdId: context.household.id, isActive: hamster.isActive },
           data: { isActive: result.data.isActive }
         });
-        if (updated.count !== 1) redirect("/hamsters?status=invalid");
+        if (updated.count !== 1) throw new HamsterActiveStatusResultError("invalid");
         return {
           id: hamster.id,
           name: hamster.name,
@@ -307,9 +319,19 @@ export async function updateHamsterActiveStatus(formData: FormData) {
       "hamsters.activeStatus.revalidate",
       { householdId: context.household.id, hamsterId: result.data.id }
     );
-    redirect("/hamsters?status=updated");
+    return { success: true, status: "updated" };
   } catch (error) {
-    handleServerActionError(error, { operation: "hamsters.activeStatus", pathname: "/hamsters" });
+    if (error instanceof HamsterActiveStatusResultError) {
+      return { success: false, status: error.status };
+    }
+    unstable_rethrow(error);
+    const errorId = logUnexpectedError(error, {
+      operation: "hamsters.activeStatus",
+      context: {
+        hamsterId: typeof formData.get("id") === "string" ? String(formData.get("id")) : undefined
+      }
+    });
+    return { success: false, status: "systemError", errorId };
   }
 }
 

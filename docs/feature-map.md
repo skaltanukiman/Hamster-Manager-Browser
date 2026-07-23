@@ -61,13 +61,13 @@
 ## ハムスター一覧・登録・編集・削除
 
 - **画面または URL:** `/hamsters`。
-- **主なコンポーネント:** `HamsterList`、`HamsterImageField`、`HamsterThumbnail`、`SelectionActionBar`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。
+- **主なコンポーネント:** `HamsterList`、`HamsterActiveStatusForm`、`HamsterImageField`、`HamsterThumbnail`、`SelectionActionBar`、`DirtySubmitButton`、`UnsavedChangesGuard`、`StatusMessage`。
 - **Server Action または API:** `createHamster`、`updateHamster`、`updateHamsterActiveStatus`、`deleteHamster`、`deleteHamsters`（`src/app/actions/hamsters.ts`）、認証付き画像配信 `/api/hamsters/[id]/image`。
 - **データアクセス・Prismaモデル:** `getHamsterManagementData`、`Hamster`。削除は関連 `CleaningRecord` / `WeightRecord` / `DashboardHamster` / `HamsterRecord` と種類別詳細が schema の Cascade により連動し、思い出画像ファイルはActionが削除後に整理する。
 - **バリデーション:** `createHamsterSchema`、`updateHamsterSchema`、削除・状態変更 schema（`src/lib/schemas.ts`）。日付は未来日不可。DB の `@@unique([householdId, name])` も重複防止となる。
-- **関連テスト:** 画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
+- **関連テスト:** 管理状態変更の非遷移更新・スクロール・両方向・ロック・二重送信・サーバー側保護は `tests/hamster-active-status.test.ts`。画像変換・保存・削除・Household分離・プレースホルダーは `tests/hamster-image.test.tsx`。Household所属判定は `tests/authorization.test.ts`、想定外 / 一意制約エラーの共通処理は `tests/error-handling.test.ts`。
 - **関連設定:** `src/lib/search.ts`（名前検索の正規化）、`src/lib/hamster-image.ts`、`HAMSTER_IMAGE_DIR`、`prisma/schema.prisma`、`docker-compose.yml`。
-- **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。プロフィール画像の実変更と管理状態の切り替えは業務更新・操作履歴・revisionを同一transactionで確定し、画像の旧ファイル削除はcommit後の後処理とする。
+- **依存関係:** 全更新はVIEWER共通拒否後に realtime mutation を通す。VIEWER画面は登録フォーム、削除選択、状態変更、画像変更、保存操作を描画せず、プロフィール入力を読み取り専用にする。`isActive=false` は体重・掃除・プロフィール画像の選択と削除の編集ロック条件だが、登録済み画像の拡大表示は利用できる。プロフィール画像の実変更と管理状態の切り替えは業務更新・操作履歴・revisionを同一transactionで確定し、画像の旧ファイル削除はcommit後の後処理とする。管理状態の切り替えだけはAction結果をクライアントへ返し、URL遷移を行わない`router.refresh()`で一覧データを更新する。操作前のスクロール座標はクライアントメモリへ一時保持してrefresh反映直後に復元し、検索、並び順、現在ページ、削除選択も維持する。
 - **レスポンシブ表示:** 新規登録・編集フォームはスマートフォンで画像選択欄を登録・保存ボタンの直前に置き、送信ボタンをカード幅に広げる。`lg` 以上では既存プロフィール項目と送信ボタンを同じ横列、画像欄を次の行に表示し、管理状態変更ボタンはカード上部の状態バッジ横へ置く。スマートフォンの管理状態変更ボタンはカード下部に維持する。
 
 ## 健康・通院・思い出記録
