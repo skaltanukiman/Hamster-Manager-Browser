@@ -77,7 +77,10 @@ export default async function HouseholdActivityPage({
         </div>
       </div>
 
-      <nav aria-label="操作履歴のカテゴリー" className="flex flex-wrap gap-2">
+      <nav
+        aria-label="操作履歴のカテゴリー"
+        className="grid grid-cols-4 rounded-xl bg-slate-100 p-1 sm:flex sm:flex-wrap sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
+      >
         {FILTERS.map((filter) => {
           const selected = filter.value === category;
           return (
@@ -85,7 +88,11 @@ export default async function HouseholdActivityPage({
               key={filter.label}
               href={activityHref(filter.value)}
               aria-current={selected ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center rounded-md border px-4 py-2 text-sm font-semibold ${selected ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              className={`flex min-h-11 min-w-0 items-center justify-center whitespace-nowrap rounded-lg px-0.5 text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-1 sm:min-h-10 sm:rounded-md sm:border sm:px-4 sm:py-2 sm:text-sm sm:font-semibold ${
+                selected
+                  ? "bg-moss/10 text-moss ring-1 ring-inset ring-moss/20 sm:border-moss sm:bg-moss sm:text-white sm:ring-0"
+                  : "text-slate-600 hover:bg-white/70 hover:text-ink sm:border-slate-200 sm:bg-white sm:text-slate-700 sm:hover:bg-slate-50"
+              }`}
             >
               {filter.label}
             </Link>
