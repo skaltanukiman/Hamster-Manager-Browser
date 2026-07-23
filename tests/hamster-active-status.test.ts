@@ -39,13 +39,25 @@ test("管理中・管理外の両方向を最新propsから送信し、処理中
   assert.match(source, /nextIsActive \? "管理中に戻す" : "管理外にする"/);
 });
 
-test("成功メッセージと更新後のロック状態をPC・モバイル共通フローで反映する", async () => {
-  const [formSource, listSource] = await Promise.all([
+test("成功時はメッセージを表示せず、失敗時だけ既存メッセージを表示する", async () => {
+  const [formSource, statusMessageSource, pageSource] = await Promise.all([
     readSource("src/components/hamster-active-status-form.tsx"),
-    readSource("src/components/hamster-list.tsx")
+    readSource("src/components/status-message.tsx"),
+    readSource("src/app/hamsters/page.tsx")
   ]);
 
-  assert.match(formSource, /<StatusMessage status=\{result\.status\} errorId=\{result\.errorId\} \/>/);
+  assert.match(
+    formSource,
+    /\{result && !result\.success \? <StatusMessage status=\{result\.status\} errorId=\{result\.errorId\} \/> : null\}/
+  );
+  assert.doesNotMatch(formSource, /\{result \? <StatusMessage/);
+  assert.match(statusMessageSource, /updated: "更新しました。"/);
+  assert.match(pageSource, /<StatusMessage status=\{status\} errorId=\{getParam\(params\.errorId\)\} \/>/);
+});
+
+test("成功後の状態とロックをPC・モバイル共通フローで反映する", async () => {
+  const listSource = await readSource("src/components/hamster-list.tsx");
+
   assert.equal(listSource.match(/<HamsterActiveStatusForm/g)?.length, 2);
   assert.match(listSource, /hidden lg:block[\s\S]*?<HamsterActiveStatusForm[^>]+compact/);
   assert.match(listSource, /lg:hidden[\s\S]*?<HamsterActiveStatusForm/);

@@ -84,7 +84,7 @@ export function HamsterActiveStatusForm({
           {isPending ? "更新中..." : nextIsActive ? "管理中に戻す" : "管理外にする"}
         </button>
       </form>
-      {result ? <StatusMessage status={result.status} errorId={result.errorId} /> : null}
+      {result && !result.success ? <StatusMessage status={result.status} errorId={result.errorId} /> : null}
     </div>
   );
 }
