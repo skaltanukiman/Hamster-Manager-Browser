@@ -98,7 +98,7 @@ export default async function RecordsPage({
             <div className="grid gap-2 border-b border-slate-200 pb-4">
               <p className="text-sm font-semibold text-slate-700">タイムラインの表示範囲</p>
               <nav
-                className="grid grid-cols-2 gap-0.5 rounded-lg bg-slate-100 p-1 ring-1 ring-inset ring-slate-200 sm:inline-grid sm:w-fit"
+                className="grid grid-cols-2 gap-2 sm:inline-grid sm:w-fit sm:gap-0.5 sm:rounded-lg sm:bg-slate-100 sm:p-1 sm:ring-1 sm:ring-inset sm:ring-slate-200"
                 aria-label="タイムラインの表示範囲"
               >
                 {([
@@ -110,10 +110,10 @@ export default async function RecordsPage({
                     href={recordsUrl({ ...currentFilters, scope: option.scope, page: 1 })}
                     scroll={false}
                     aria-current={filters.scope === option.scope ? "page" : undefined}
-                    className={`min-w-0 whitespace-nowrap rounded-md px-3 py-2 text-center text-sm font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss ${
+                    className={`min-w-0 whitespace-nowrap rounded-full border px-1.5 py-2 text-center text-xs font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss sm:rounded-md sm:border-0 sm:px-3 sm:text-sm ${
                       filters.scope === option.scope
-                        ? "bg-moss text-white shadow-sm"
-                        : "bg-transparent text-slate-600 hover:bg-white hover:text-moss"
+                        ? "border-moss bg-moss text-white sm:shadow-sm"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss sm:bg-transparent sm:text-slate-600 sm:hover:bg-white"
                     }`}
                   >
                     {option.label}
