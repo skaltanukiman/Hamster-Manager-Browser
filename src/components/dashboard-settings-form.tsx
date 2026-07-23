@@ -15,6 +15,7 @@ import {
   MIN_DASHBOARD_BOARD_COUNT,
   type HamsterSelectorMode
 } from "@/lib/dashboard-settings";
+import type { RecordScope } from "@/lib/records";
 import { normalizeSearchText } from "@/lib/search";
 
 type HamsterOption = {
@@ -29,6 +30,7 @@ type DashboardSettingsFormProps = {
   email?: string | null;
   boardCount: number;
   hamsterSelectorMode: HamsterSelectorMode;
+  recordTimelineDefaultScope: RecordScope;
   hamsters: HamsterOption[];
   selectedHamsterIds: string[];
 };
@@ -51,6 +53,7 @@ export function DashboardSettingsForm({
   email,
   boardCount,
   hamsterSelectorMode,
+  recordTimelineDefaultScope,
   hamsters,
   selectedHamsterIds
 }: DashboardSettingsFormProps) {
@@ -177,6 +180,42 @@ export function DashboardSettingsForm({
             <span>
               <span className="block font-semibold text-ink">プルダウン式</span>
               <span className="mt-1 block text-xs text-slate-500">一覧から選択する形式で表示します。</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-base font-bold text-ink">記録画面の初期表示</h3>
+        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="recordTimelineDefaultScope"
+              value="hamster"
+              defaultChecked={recordTimelineDefaultScope === "hamster"}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block font-semibold text-ink">選択中のハムスター</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">
+                記録画面を開いたとき、選択した1匹の記録を表示します。
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="recordTimelineDefaultScope"
+              value="household"
+              defaultChecked={recordTimelineDefaultScope === "household"}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block font-semibold text-ink">グループ全体</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">
+                記録画面を開いたとき、現在の共有グループに所属する全ハムスターの記録を表示します。
+              </span>
             </span>
           </label>
         </div>

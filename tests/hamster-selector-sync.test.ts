@@ -75,14 +75,20 @@ test("記録カードのハムスターリンク後はURL・選択UI・登録先
   const queries = source("src/lib/record-queries.ts");
   const records = source("src/lib/records.ts");
 
-  assert.match(timeline, /recordsUrl\(\{ hamsterId: record\.hamster\.id \}\)/);
+  assert.match(
+    timeline,
+    /recordsUrl\(\{ scope: "hamster", includeScope: true, hamsterId: record\.hamster\.id \}\)/
+  );
   assert.match(timeline, /\{record\.hamster\.name\}<\/Link>/);
-  assert.match(records, /if \(options\.scope === "household"\) params\.set\("scope", "household"\)/);
+  assert.match(
+    records,
+    /options\.scope === "household" \|\| \(options\.includeScope && options\.scope === "hamster"\)/
+  );
   assert.match(page, /selectedHamsterId: filters\.hamsterId/);
   assert.match(queries, /hamsters\.find\(\(hamster\) => hamster\.id === filters\.selectedHamsterId\)/);
   assert.match(page, /selectedId=\{selectedHamsterId\}/);
   assert.match(page, /<RecordCreateForms hamsterId=\{selectedHamsterId\}/);
-  assert.match(page, /<RecordTimeline records=\{data\.records\} scope=\{filters\.scope\} returnHamsterId=\{selectedHamsterId\}/);
+  assert.match(page, /<RecordTimeline records=\{data\.records\} scope=\{scope\} returnHamsterId=\{selectedHamsterId\}/);
 });
 
 test("共通選択コンポーネントを使う記録・清掃・体重・CSV出力の既存利用形態を維持する", () => {

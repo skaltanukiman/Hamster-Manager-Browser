@@ -13,7 +13,9 @@ import { normalizeSearchText } from "@/lib/search";
 import { normalizeTagStorageValue } from "@/lib/tags";
 
 export const RECORD_PAGE_SIZE = 20;
-export type RecordScope = "hamster" | "household";
+export const RECORD_SCOPES = ["hamster", "household"] as const;
+export type RecordScope = (typeof RECORD_SCOPES)[number];
+export const DEFAULT_RECORD_SCOPE: RecordScope = "hamster";
 
 export const RECORD_TYPE_LABELS: Record<HamsterRecordType, string> = {
   HEALTH: "健康・体調",
@@ -71,6 +73,7 @@ export type RecordTypeFilter = "all" | "health" | "medical" | "memory";
 
 export type RecordsUrlOptions = {
   scope?: RecordScope;
+  includeScope?: boolean;
   hamsterId?: string | null;
   type?: RecordTypeFilter;
   from?: string;
@@ -81,13 +84,27 @@ export type RecordsUrlOptions = {
   status?: string;
 };
 
-export function normalizeRecordScope(value?: string): RecordScope {
-  return value === "household" ? "household" : "hamster";
+export function normalizeRecordScope(value?: string | null): RecordScope {
+  return value === "hamster" || value === "household" ? value : DEFAULT_RECORD_SCOPE;
+}
+
+export function resolveRecordScope({
+  hasScopeParam,
+  scopeParam,
+  defaultScope
+}: {
+  hasScopeParam: boolean;
+  scopeParam?: string;
+  defaultScope?: string | null;
+}): RecordScope {
+  return normalizeRecordScope(hasScopeParam ? scopeParam : defaultScope);
 }
 
 export function recordsUrl(options: RecordsUrlOptions = {}) {
   const params = new URLSearchParams();
-  if (options.scope === "household") params.set("scope", "household");
+  if (options.scope === "household" || (options.includeScope && options.scope === "hamster")) {
+    params.set("scope", options.scope);
+  }
   if (options.hamsterId) params.set("hamsterId", options.hamsterId);
   if (options.type && options.type !== "all") params.set("type", options.type);
   if (options.from) params.set("from", options.from);

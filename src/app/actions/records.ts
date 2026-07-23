@@ -106,7 +106,7 @@ function recordUrl(hamsterId: string | null | undefined, status: string, formDat
     typeof returnHamsterIdValue === "string" && returnHamsterIdValue.trim()
       ? returnHamsterIdValue.trim()
       : hamsterId;
-  return recordsUrl({ scope, hamsterId: returnHamsterId, status });
+  return recordsUrl({ scope, includeScope: true, hamsterId: returnHamsterId, status });
 }
 
 function recordReturnSearchParams(hamsterId: string | null | undefined, formData: FormData) {

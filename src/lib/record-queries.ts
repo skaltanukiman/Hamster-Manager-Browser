@@ -8,13 +8,14 @@ import {
   buildRecordScopeWhere,
   collectRecordTagSuggestions,
   RECORD_PAGE_SIZE,
-  type RecordScope,
+  resolveRecordScope,
   type RecordTypeFilter
 } from "@/lib/records";
 
 export type RecordPageFilters = {
   selectedHamsterId?: string;
-  scope: RecordScope;
+  hasScopeParam: boolean;
+  scopeParam?: string;
   recordType: RecordTypeFilter;
   from: string;
   to: string;
@@ -33,7 +34,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     }),
     prisma.appSetting.findUnique({
       where: { userId_householdId: { userId: context.user.id, householdId: context.household.id } },
-      select: { hamsterSelectorMode: true }
+      select: { hamsterSelectorMode: true, recordTimelineDefaultScope: true }
     }),
     prisma.savedMemoryTag.findMany({
       where: { householdId: context.household.id },
@@ -41,6 +42,11 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       select: { name: true }
     })
   ]);
+  const scope = resolveRecordScope({
+    hasScopeParam: filters.hasScopeParam,
+    scopeParam: filters.scopeParam,
+    defaultScope: setting?.recordTimelineDefaultScope
+  });
   const savedMemoryTags = savedMemoryTagRows.map((tag) => tag.name);
   const selectedHamster =
     hamsters.find((hamster) => hamster.id === filters.selectedHamsterId) ?? hamsters.find((hamster) => hamster.isActive) ?? hamsters[0] ?? null;
@@ -51,6 +57,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       hamsters,
       selectedHamster: null,
       selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+      scope,
       savedMemoryTags,
       tagSuggestions: [],
       records: [],
@@ -59,7 +66,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
   }
 
   const where = buildRecordListWhere({
-    scope: filters.scope,
+    scope,
     householdId: context.household.id,
     selectedHamsterId: selectedHamster.id,
     recordType: filters.recordType,
@@ -73,7 +80,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     prisma.hamsterRecord.count({ where }),
     prisma.memoryRecordDetail.findMany({
       where: {
-        hamsterRecord: buildRecordScopeWhere(filters.scope, context.household.id, selectedHamster.id)
+        hamsterRecord: buildRecordScopeWhere(scope, context.household.id, selectedHamster.id)
       },
       select: { tags: true }
     })
@@ -104,6 +111,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     hamsters,
     selectedHamster,
     selectorMode: normalizeHamsterSelectorMode(setting?.hamsterSelectorMode),
+    scope,
     savedMemoryTags,
     tagSuggestions: collectRecordTagSuggestions(tagRows),
     records: rows.map((record) => ({

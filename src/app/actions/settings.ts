@@ -9,6 +9,7 @@ import {
   pickDashboardHamsters
 } from "@/lib/dashboard-settings";
 import { prisma } from "@/lib/prisma";
+import { normalizeRecordScope } from "@/lib/records";
 import {
   getRealtimeActorId,
   publishHouseholdChangesSafely,
@@ -32,11 +33,12 @@ export async function saveSettings(formData: FormData) {
     const dashboardResult = dashboardSettingsSchema.safeParse({
       dashboardBoardCount: formData.get("dashboardBoardCount"),
       hamsterSelectorMode: formData.get("hamsterSelectorMode"),
+      recordTimelineDefaultScope: formData.get("recordTimelineDefaultScope"),
       hamsterIds: formData.getAll("hamsterIds")
     });
     if (!dashboardResult.success) redirect("/settings?status=invalid");
 
-    const { dashboardBoardCount, hamsterSelectorMode } = dashboardResult.data;
+    const { dashboardBoardCount, hamsterSelectorMode, recordTimelineDefaultScope } = dashboardResult.data;
     const selectedHamsterIds = [...new Set(dashboardResult.data.hamsterIds)];
     const [user, hamsters, setting] = await Promise.all([
       prisma.user.findUnique({
@@ -63,27 +65,32 @@ export async function saveSettings(formData: FormData) {
 
     const currentBoardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
     const currentSelectorMode = normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
+    const currentRecordTimelineDefaultScope = normalizeRecordScope(setting?.recordTimelineDefaultScope);
     const currentSelectedHamsterIds = pickDashboardHamsters(
       hamsters,
       currentBoardCount,
       setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? []
     ).map((hamster) => hamster.id);
-    const { profileChanged, dashboardChanged } = getSettingsChanges(
+    const { profileChanged, dashboardChanged, recordTimelineDefaultScopeChanged } = getSettingsChanges(
       {
         name: user.name ?? "",
         dashboardBoardCount: currentBoardCount,
         hamsterSelectorMode: currentSelectorMode,
+        recordTimelineDefaultScope: currentRecordTimelineDefaultScope,
         hamsterIds: currentSelectedHamsterIds
       },
       {
         name: profileResult.data.name,
         dashboardBoardCount,
         hamsterSelectorMode,
+        recordTimelineDefaultScope,
         hamsterIds: selectedHamsterIds
       }
     );
 
-    if (!profileChanged && !dashboardChanged) redirect("/settings?status=unchanged");
+    if (!profileChanged && !dashboardChanged && !recordTimelineDefaultScopeChanged) {
+      redirect("/settings?status=unchanged");
+    }
 
     const actorClientId = getRealtimeActorId(formData);
     const changes = await prisma.$transaction(async (tx) => {
@@ -91,20 +98,23 @@ export async function saveSettings(formData: FormData) {
         await tx.user.update({ where: { id: context.user.id }, data: { name: profileResult.data.name } });
       }
 
-      if (dashboardChanged) {
+      if (dashboardChanged || recordTimelineDefaultScopeChanged) {
         const setting = await tx.appSetting.upsert({
           where: { userId_householdId: { userId: context.user.id, householdId: context.household.id } },
-          update: { dashboardBoardCount, hamsterSelectorMode },
+          update: { dashboardBoardCount, hamsterSelectorMode, recordTimelineDefaultScope },
           create: {
             userId: context.user.id,
             householdId: context.household.id,
             dashboardBoardCount,
-            hamsterSelectorMode
+            hamsterSelectorMode,
+            recordTimelineDefaultScope
           }
         });
-        await tx.dashboardHamster.deleteMany({ where: { settingId: setting.id } });
-        for (const [index, hamsterId] of selectedHamsterIds.entries()) {
-          await tx.dashboardHamster.create({ data: { settingId: setting.id, hamsterId, sortOrder: index } });
+        if (dashboardChanged) {
+          await tx.dashboardHamster.deleteMany({ where: { settingId: setting.id } });
+          for (const [index, hamsterId] of selectedHamsterIds.entries()) {
+            await tx.dashboardHamster.create({ data: { settingId: setting.id, hamsterId, sortOrder: index } });
+          }
         }
       }
       // 表示名は全所属Householdに現れるため、個人用ダッシュボード設定と異なり全所属先へ通知する。
@@ -131,6 +141,7 @@ export async function saveSettings(formData: FormData) {
       [
         { path: "/", type: "layout" },
         { path: "/cleaning" },
+        { path: "/records" },
         { path: "/settings" },
         { path: "/settings/members" },
         { path: "/weights" },

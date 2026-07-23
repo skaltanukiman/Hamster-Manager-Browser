@@ -15,10 +15,8 @@ import {
   normalizeRecordDateFilter,
   normalizeRecordKeyword,
   normalizeRecordPage,
-  normalizeRecordScope,
   normalizeRecordTypeFilter,
   recordsUrl,
-  type RecordScope,
   type RecordTypeFilter
 } from "@/lib/records";
 
@@ -30,7 +28,6 @@ function getParam(value: string | string[] | undefined) {
 
 type Filters = {
   hamsterId: string;
-  scope: RecordScope;
   type: RecordTypeFilter;
   from: string;
   to: string;
@@ -53,9 +50,10 @@ export default async function RecordsPage({
 }) {
   const params = await searchParams;
   const requestedHamsterId = getParam(params.hamsterId) ?? "";
+  const hasScopeParam = Object.prototype.hasOwnProperty.call(params, "scope");
+  const scopeParam = getParam(params.scope);
   const filters: Filters = {
     hamsterId: requestedHamsterId,
-    scope: normalizeRecordScope(getParam(params.scope)),
     type: normalizeRecordTypeFilter(getParam(params.type)),
     from: normalizeRecordDateFilter(getParam(params.from)),
     to: normalizeRecordDateFilter(getParam(params.to)),
@@ -65,7 +63,8 @@ export default async function RecordsPage({
   };
   const data = await getRecordsPageData({
     selectedHamsterId: filters.hamsterId,
-    scope: filters.scope,
+    hasScopeParam,
+    scopeParam,
     recordType: filters.type,
     from: filters.from,
     to: filters.to,
@@ -74,11 +73,12 @@ export default async function RecordsPage({
     page: filters.page
   });
   const selectedHamsterId = data.selectedHamster?.id ?? "";
-  const currentFilters = { ...filters, hamsterId: selectedHamsterId, page: data.pagination.currentPage };
+  const scope = data.scope;
+  const currentFilters = { ...filters, scope, hamsterId: selectedHamsterId, page: data.pagination.currentPage };
   const canEdit = canEditHouseholdSharedData(data.context.membership.role);
   const today = todayInputJst();
   const invalidRange = Boolean(filters.from && filters.to && filters.from > filters.to);
-  const buildRecordsPageHref = (page: number) => recordsUrl({ ...currentFilters, page });
+  const buildRecordsPageHref = (page: number) => recordsUrl({ ...currentFilters, includeScope: true, page });
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -107,11 +107,11 @@ export default async function RecordsPage({
                 ] as const).map((option) => (
                   <Link
                     key={option.scope}
-                    href={recordsUrl({ ...currentFilters, scope: option.scope, page: 1 })}
+                    href={recordsUrl({ ...currentFilters, scope: option.scope, includeScope: true, page: 1 })}
                     scroll={false}
-                    aria-current={filters.scope === option.scope ? "page" : undefined}
+                    aria-current={scope === option.scope ? "page" : undefined}
                     className={`min-w-0 whitespace-nowrap rounded-full border px-1.5 py-2 text-center text-xs font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss sm:rounded-md sm:border-0 sm:px-3 sm:text-sm ${
-                      filters.scope === option.scope
+                      scope === option.scope
                         ? "border-moss bg-moss text-white sm:shadow-sm"
                         : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss sm:bg-transparent sm:text-slate-600 sm:hover:bg-white"
                     }`}
@@ -120,15 +120,15 @@ export default async function RecordsPage({
                   </Link>
                 ))}
               </nav>
-              {filters.scope === "household" ? (
+              {scope === "household" ? (
                 <p className="text-xs leading-5 text-slate-500">タイムラインにはグループ内の全ハムスターの記録が表示されます。</p>
               ) : null}
             </div>
             <AutoSubmitFilterForm action="/records" ignoreFieldNames={["hamsterId"]} className="grid gap-4">
-              {filters.scope === "household" ? <input type="hidden" name="scope" value="household" /> : null}
+              <input type="hidden" name="scope" value={scope} />
               <input type="hidden" name="type" value={filters.type} />
               <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_180px]">
-                <label className="grid gap-1 text-sm font-medium text-slate-700">{filters.scope === "household" ? "記録を追加するハムスター" : "対象ハムスター"}<HamsterSelectorInput mode={data.selectorMode} name="hamsterId" selectedId={selectedHamsterId} options={data.hamsters} showEmptyOption={false} /></label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">{scope === "household" ? "記録を追加するハムスター" : "対象ハムスター"}<HamsterSelectorInput mode={data.selectorMode} name="hamsterId" selectedId={selectedHamsterId} options={data.hamsters} showEmptyOption={false} /></label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">開始日<input type="date" name="from" defaultValue={filters.from} max={today} /></label>
                 <label className="grid gap-1 text-sm font-medium text-slate-700">終了日<input type="date" name="to" defaultValue={filters.to} max={today} /></label>
               </div>
@@ -145,8 +145,8 @@ export default async function RecordsPage({
 
           <section className="grid gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <h2 className="text-xl font-bold text-ink">{filters.scope === "household" ? "グループ全体のタイムライン" : "共通タイムライン"}</h2>
-              <nav className="flex flex-wrap gap-2" aria-label="記録種類の切り替え">{typeTabs.map((tab) => <Link key={tab.value} href={recordsUrl({ ...currentFilters, type: tab.value, page: 1 })} scroll={false} aria-current={filters.type === tab.value ? "page" : undefined} className={`rounded-full border px-3 py-2 text-sm font-semibold ${filters.type === tab.value ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss"}`}>{tab.label}</Link>)}</nav>
+              <h2 className="text-xl font-bold text-ink">{scope === "household" ? "グループ全体のタイムライン" : "共通タイムライン"}</h2>
+              <nav className="flex flex-wrap gap-2" aria-label="記録種類の切り替え">{typeTabs.map((tab) => <Link key={tab.value} href={recordsUrl({ ...currentFilters, includeScope: true, type: tab.value, page: 1 })} scroll={false} aria-current={filters.type === tab.value ? "page" : undefined} className={`rounded-full border px-3 py-2 text-sm font-semibold ${filters.type === tab.value ? "border-moss bg-moss text-white" : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss"}`}>{tab.label}</Link>)}</nav>
             </div>
             <PaginationLayout
               ariaLabel="記録一覧のページ移動"
@@ -156,7 +156,7 @@ export default async function RecordsPage({
               scroll={false}
               preserveScroll
             />
-            <RecordTimeline records={data.records} scope={filters.scope} returnHamsterId={selectedHamsterId} canEdit={canEdit} today={today} />
+            <RecordTimeline records={data.records} scope={scope} returnHamsterId={selectedHamsterId} canEdit={canEdit} today={today} />
             <PaginationLayout
               ariaLabel="記録一覧のページ移動"
               pagination={data.pagination}

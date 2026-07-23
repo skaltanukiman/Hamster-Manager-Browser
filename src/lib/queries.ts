@@ -8,6 +8,7 @@ import {
 } from "@/lib/dashboard-settings";
 import { monthDateRange, parseDateInput, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+import { normalizeRecordScope } from "@/lib/records";
 import { getAppliedWeightChartRange } from "@/lib/weight-chart-filter";
 
 export const WEIGHT_HISTORY_PAGE_SIZE = 20;
@@ -386,6 +387,7 @@ export async function getDashboardSettingsPageData() {
   ]);
   const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
   const hamsterSelectorMode = normalizeHamsterSelectorMode(setting?.hamsterSelectorMode);
+  const recordTimelineDefaultScope = normalizeRecordScope(setting?.recordTimelineDefaultScope);
   const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
   // 設定画面の初期表示でも、ダッシュボードと同じ補完ルールで選択状態を作る。
   const selectedHamsterIds = pickDashboardHamsters(hamsters, boardCount, selectedIds).map((hamster) => hamster.id);
@@ -394,6 +396,7 @@ export async function getDashboardSettingsPageData() {
     user: context.user,
     boardCount,
     hamsterSelectorMode,
+    recordTimelineDefaultScope,
     hamsters,
     selectedHamsterIds
   };

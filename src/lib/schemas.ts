@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { HAMSTER_SELECTOR_MODES, MAX_DASHBOARD_BOARD_COUNT, MIN_DASHBOARD_BOARD_COUNT } from "@/lib/dashboard-settings";
 import { isValidDateInput, isValidYearMonthInput, parseDateInput, todayInputJst } from "@/lib/date";
+import { RECORD_SCOPES } from "@/lib/records";
 import { isWeightInTenths, MAX_WEIGHT_G } from "@/lib/weight-rules";
 
 export const idSchema = z.string().min(1);
@@ -92,6 +93,7 @@ export const cleaningMonthSchema = z.object({
 export const dashboardSettingsSchema = z.object({
   dashboardBoardCount: z.coerce.number().int().min(MIN_DASHBOARD_BOARD_COUNT).max(MAX_DASHBOARD_BOARD_COUNT),
   hamsterSelectorMode: z.enum(HAMSTER_SELECTOR_MODES),
+  recordTimelineDefaultScope: z.enum(RECORD_SCOPES),
   hamsterIds: z.array(idSchema)
 });
 

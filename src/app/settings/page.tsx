@@ -15,13 +15,20 @@ export default async function SettingsPage({
   searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const { user, boardCount, hamsterSelectorMode, hamsters, selectedHamsterIds } = await getDashboardSettingsPageData();
+  const {
+    user,
+    boardCount,
+    hamsterSelectorMode,
+    recordTimelineDefaultScope,
+    hamsters,
+    selectedHamsterIds
+  } = await getDashboardSettingsPageData();
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-ink">設定</h2>
-        <p className="mt-1 text-sm text-slate-600">プロフィール、ダッシュボードの表示数と表示対象を管理します。</p>
+        <p className="mt-1 text-sm text-slate-600">プロフィール、ダッシュボード、記録画面の表示設定を管理します。</p>
       </div>
 
       <StatusMessage status={getParam(params.status)} errorId={getParam(params.errorId)} />
@@ -31,6 +38,7 @@ export default async function SettingsPage({
         email={user.email}
         boardCount={boardCount}
         hamsterSelectorMode={hamsterSelectorMode}
+        recordTimelineDefaultScope={recordTimelineDefaultScope}
         hamsters={hamsters}
         selectedHamsterIds={selectedHamsterIds}
       />
