@@ -97,7 +97,10 @@ export default async function RecordsPage({
           <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="grid gap-2 border-b border-slate-200 pb-4">
               <p className="text-sm font-semibold text-slate-700">タイムラインの表示範囲</p>
-              <nav className="grid grid-cols-2 gap-2 sm:inline-grid sm:w-fit sm:grid-cols-2" aria-label="タイムラインの表示範囲">
+              <nav
+                className="grid grid-cols-2 gap-0.5 rounded-lg bg-slate-100 p-1 ring-1 ring-inset ring-slate-200 sm:inline-grid sm:w-fit"
+                aria-label="タイムラインの表示範囲"
+              >
                 {([
                   { scope: "hamster", label: "このハムスター" },
                   { scope: "household", label: "グループ全体" }
@@ -107,10 +110,10 @@ export default async function RecordsPage({
                     href={recordsUrl({ ...currentFilters, scope: option.scope, page: 1 })}
                     scroll={false}
                     aria-current={filters.scope === option.scope ? "page" : undefined}
-                    className={`min-w-0 rounded-md border px-3 py-2 text-center text-sm font-semibold ${
+                    className={`min-w-0 whitespace-nowrap rounded-md px-3 py-2 text-center text-sm font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss ${
                       filters.scope === option.scope
-                        ? "border-moss bg-moss text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-moss hover:text-moss"
+                        ? "bg-moss text-white shadow-sm"
+                        : "bg-transparent text-slate-600 hover:bg-white hover:text-moss"
                     }`}
                   >
                     {option.label}
