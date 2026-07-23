@@ -33,7 +33,9 @@ import {
   buildMedicalRecordTitle,
   buildMedicalSearchText,
   buildMemorySearchText,
-  buildMemoryTagSearchValues
+  buildMemoryTagSearchValues,
+  normalizeRecordScope,
+  recordsUrl
 } from "@/lib/records";
 import { commitHouseholdMutation, getRealtimeActorId, publishHouseholdChangeSafely } from "@/lib/realtime";
 import { revalidatePathsSafely } from "@/lib/safe-side-effects";
@@ -96,14 +98,23 @@ function unexpectedRecordCreateError(
   return { success: false, errorMessage: "処理に失敗しました。時間を空けて再度お試しください。", errorId };
 }
 
-function recordUrl(hamsterId: string | null | undefined, status: string) {
-  const params = new URLSearchParams({ status });
-  if (hamsterId) params.set("hamsterId", hamsterId);
-  return `/records?${params.toString()}`;
+function recordUrl(hamsterId: string | null | undefined, status: string, formData?: FormData) {
+  const viewScopeValue = formData?.get("viewScope");
+  const returnHamsterIdValue = formData?.get("returnHamsterId");
+  const scope = normalizeRecordScope(typeof viewScopeValue === "string" ? viewScopeValue : undefined);
+  const returnHamsterId =
+    typeof returnHamsterIdValue === "string" && returnHamsterIdValue.trim()
+      ? returnHamsterIdValue.trim()
+      : hamsterId;
+  return recordsUrl({ scope, hamsterId: returnHamsterId, status });
 }
 
-function recordRedirect(hamsterId: string | null | undefined, status: string): never {
-  redirect(recordUrl(hamsterId, status));
+function recordReturnSearchParams(hamsterId: string | null | undefined, formData: FormData) {
+  return new URL(recordUrl(hamsterId, "", formData), "http://localhost").searchParams;
+}
+
+function recordRedirect(hamsterId: string | null | undefined, status: string, formData?: FormData): never {
+  redirect(recordUrl(hamsterId, status, formData));
 }
 
 function validationStatus(issues: ZodIssue[]): RecordCreateErrorStatus {
@@ -381,7 +392,7 @@ export async function deleteSavedMemoryTags(formData: FormData): Promise<SavedMe
   }
 }
 
-async function getEditableRecord(id: string, hamsterId: string, householdId: string) {
+async function getEditableRecord(id: string, hamsterId: string, householdId: string, formData: FormData) {
   const record = await prisma.hamsterRecord.findFirst({
     where: { id, hamsterId, hamster: { householdId } },
     include: {
@@ -391,7 +402,7 @@ async function getEditableRecord(id: string, hamsterId: string, householdId: str
       memoryDetail: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } }
     }
   });
-  if (!record) recordRedirect(hamsterId, "invalid");
+  if (!record) recordRedirect(hamsterId, "invalid", formData);
   return record;
 }
 
@@ -400,12 +411,12 @@ export async function updateHealthRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = updateHealthRecordSchema.safeParse(parseHealthForm(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
-    if (isFutureRecordTime(result.data.recordDate, result.data.recordTime)) recordRedirect(result.data.hamsterId, "futureTime");
-    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id);
-    if (record.recordType !== "HEALTH" || !record.healthDetail) recordRedirect(result.data.hamsterId, "invalid");
-    if (!record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked");
+    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues), formData);
+    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future", formData);
+    if (isFutureRecordTime(result.data.recordDate, result.data.recordTime)) recordRedirect(result.data.hamsterId, "futureTime", formData);
+    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id, formData);
+    if (record.recordType !== "HEALTH" || !record.healthDetail) recordRedirect(result.data.hamsterId, "invalid", formData);
+    if (!record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked", formData);
 
     const detail = record.healthDetail;
     if (
@@ -418,7 +429,7 @@ export async function updateHealthRecord(formData: FormData) {
       detail.stoolCondition === result.data.stoolCondition &&
       detail.urineCondition === result.data.urineCondition &&
       isSameStringArray(detail.symptoms, result.data.symptoms)
-    ) recordRedirect(result.data.hamsterId, "unchanged");
+    ) recordRedirect(result.data.hamsterId, "unchanged", formData);
 
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
@@ -437,7 +448,7 @@ export async function updateHealthRecord(formData: FormData) {
             searchText: buildHealthSearchText(result.data)
           }
         });
-        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
+        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid", formData);
         await tx.healthRecordDetail.update({
           where: { hamsterRecordId: record.id },
           data: {
@@ -464,11 +475,12 @@ export async function updateHealthRecord(formData: FormData) {
       })
     });
     publishAndRevalidate(change, context.household.id, "records.health.update");
-    recordRedirect(result.data.hamsterId, "recordUpdated");
+    recordRedirect(result.data.hamsterId, "recordUpdated", formData);
   } catch (error) {
     handleServerActionError(error, {
       operation: "records.health.update",
       pathname: "/records",
+      searchParams: recordReturnSearchParams(typeof hamsterId === "string" ? hamsterId : null, formData),
       context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
     });
   }
@@ -479,11 +491,11 @@ export async function updateMedicalRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = updateMedicalRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
-    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id);
-    if (record.recordType !== "MEDICAL" || !record.medicalDetail) recordRedirect(result.data.hamsterId, "invalid");
-    if (!record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked");
+    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues), formData);
+    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future", formData);
+    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id, formData);
+    if (record.recordType !== "MEDICAL" || !record.medicalDetail) recordRedirect(result.data.hamsterId, "invalid", formData);
+    if (!record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked", formData);
     const detail = record.medicalDetail;
     if (
       toDateInputValue(record.recordDate) === result.data.recordDate &&
@@ -494,7 +506,7 @@ export async function updateMedicalRecord(formData: FormData) {
       detail.medicationInstructions === result.data.medicationInstructions &&
       nullableDateValue(detail.nextVisitDate) === nullableDateValue(result.data.nextVisitDate) &&
       (detail.consultationFee?.toString() ?? null) === (result.data.consultationFee?.toString() ?? null)
-    ) recordRedirect(result.data.hamsterId, "unchanged");
+    ) recordRedirect(result.data.hamsterId, "unchanged", formData);
 
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
@@ -512,7 +524,7 @@ export async function updateMedicalRecord(formData: FormData) {
             searchText: buildMedicalSearchText(result.data)
           }
         });
-        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
+        if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid", formData);
         await tx.medicalVisitDetail.update({
           where: { hamsterRecordId: record.id },
           data: {
@@ -542,11 +554,12 @@ export async function updateMedicalRecord(formData: FormData) {
       })
     });
     publishAndRevalidate(change, context.household.id, "records.medical.update");
-    recordRedirect(result.data.hamsterId, "recordUpdated");
+    recordRedirect(result.data.hamsterId, "recordUpdated", formData);
   } catch (error) {
     handleServerActionError(error, {
       operation: "records.medical.update",
       pathname: "/records",
+      searchParams: recordReturnSearchParams(typeof hamsterId === "string" ? hamsterId : null, formData),
       context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
     });
   }
@@ -557,10 +570,10 @@ export async function updateMemoryRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = updateMemoryRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues));
-    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future");
-    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id);
-    if (record.recordType !== "MEMORY" || !record.memoryDetail) recordRedirect(result.data.hamsterId, "invalid");
+    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, validationStatus(result.error.issues), formData);
+    if (isFutureDateInput(result.data.recordDate)) recordRedirect(result.data.hamsterId, "future", formData);
+    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id, formData);
+    if (record.recordType !== "MEMORY" || !record.memoryDetail) recordRedirect(result.data.hamsterId, "invalid", formData);
     const imageFile = getOptionalRecordImageFile(formData.get("image"));
     const removeImage = formData.get("removeImage") === "true";
     const oldImage = record.memoryDetail.images[0]?.fileName ?? null;
@@ -568,7 +581,7 @@ export async function updateMemoryRecord(formData: FormData) {
       toDateInputValue(record.recordDate) === result.data.recordDate && record.title === result.data.title &&
       record.memo === result.data.content && record.memoryDetail.isFavorite === result.data.isFavorite &&
       isSameStringArray(record.memoryDetail.tags, result.data.tags) && !imageFile && !(removeImage && oldImage)
-    ) recordRedirect(result.data.hamsterId, "unchanged");
+    ) recordRedirect(result.data.hamsterId, "unchanged", formData);
 
     const preparedImage = imageFile ? await prepareRecordImage(imageFile) : null;
     const commit = (fileName?: string | null) =>
@@ -588,7 +601,7 @@ export async function updateMemoryRecord(formData: FormData) {
               searchText: buildMemorySearchText(result.data)
             }
           });
-          if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
+          if (updated.count !== 1) recordRedirect(result.data.hamsterId, "invalid", formData);
           await tx.memoryRecordDetail.update({
             where: { hamsterRecordId: record.id },
             data: {
@@ -626,14 +639,15 @@ export async function updateMemoryRecord(formData: FormData) {
     if ((preparedImage || removeImage) && oldImage) {
       await deleteImageAfterMutation(context.household.id, oldImage, "records.memory.update.deleteOldImage", record.id);
     }
-    recordRedirect(result.data.hamsterId, "recordUpdated");
+    recordRedirect(result.data.hamsterId, "recordUpdated", formData);
   } catch (error) {
     if (error instanceof RecordImageError) {
-      recordRedirect(typeof hamsterId === "string" ? hamsterId : null, imageValidationStatus(error));
+      recordRedirect(typeof hamsterId === "string" ? hamsterId : null, imageValidationStatus(error), formData);
     }
     handleServerActionError(error, {
       operation: "records.memory.update",
       pathname: "/records",
+      searchParams: recordReturnSearchParams(typeof hamsterId === "string" ? hamsterId : null, formData),
       context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
     });
   }
@@ -644,9 +658,9 @@ export async function deleteHamsterRecord(formData: FormData) {
   try {
     const context = await getRequiredHouseholdMutationContext("/records");
     const result = deleteHamsterRecordSchema.safeParse(Object.fromEntries(formData));
-    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, "invalid");
-    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id);
-    if (record.recordType !== "MEMORY" && !record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked");
+    if (!result.success) recordRedirect(typeof hamsterId === "string" ? hamsterId : null, "invalid", formData);
+    const record = await getEditableRecord(result.data.id, result.data.hamsterId, context.household.id, formData);
+    if (record.recordType !== "MEMORY" && !record.hamster.isActive) recordRedirect(result.data.hamsterId, "locked", formData);
     const imageFileName = record.memoryDetail?.images[0]?.fileName ?? null;
     const { change } = await commitHouseholdMutation({
       householdId: context.household.id,
@@ -659,11 +673,11 @@ export async function deleteHamsterRecord(formData: FormData) {
           where: { id: result.data.id, hamsterId: result.data.hamsterId, hamster: { householdId: context.household.id } },
           select: { id: true, recordType: true, recordDate: true, hamster: { select: { name: true } } }
         });
-        if (!target) recordRedirect(result.data.hamsterId, "invalid");
+        if (!target) recordRedirect(result.data.hamsterId, "invalid", formData);
         const deleted = await tx.hamsterRecord.deleteMany({
           where: { id: result.data.id, hamsterId: result.data.hamsterId, hamster: { householdId: context.household.id } }
         });
-        if (deleted.count !== 1) recordRedirect(result.data.hamsterId, "invalid");
+        if (deleted.count !== 1) recordRedirect(result.data.hamsterId, "invalid", formData);
         return target;
       },
       activity: (deletedRecord) => ({
@@ -687,11 +701,12 @@ export async function deleteHamsterRecord(formData: FormData) {
     if (imageFileName) {
       await deleteImageAfterMutation(context.household.id, imageFileName, "records.delete.deleteImage", record.id);
     }
-    recordRedirect(result.data.hamsterId, "recordDeleted");
+    recordRedirect(result.data.hamsterId, "recordDeleted", formData);
   } catch (error) {
     handleServerActionError(error, {
       operation: "records.delete",
       pathname: "/records",
+      searchParams: recordReturnSearchParams(typeof hamsterId === "string" ? hamsterId : null, formData),
       context: { hamsterId: typeof hamsterId === "string" ? hamsterId : undefined }
     });
   }

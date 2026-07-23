@@ -7,12 +7,13 @@ import type {
   Prisma
 } from "@prisma/client";
 
-import { isValidDateInput } from "@/lib/date";
+import { isValidDateInput, parseDateInput } from "@/lib/date";
 import type { HealthRecordInput, MedicalRecordInput, MemoryRecordInput } from "@/lib/record-schemas";
 import { normalizeSearchText } from "@/lib/search";
 import { normalizeTagStorageValue } from "@/lib/tags";
 
 export const RECORD_PAGE_SIZE = 20;
+export type RecordScope = "hamster" | "household";
 
 export const RECORD_TYPE_LABELS: Record<HamsterRecordType, string> = {
   HEALTH: "健康・体調",
@@ -67,6 +68,36 @@ export const MEMORY_TAG_SUGGESTIONS = [
 ] as const;
 
 export type RecordTypeFilter = "all" | "health" | "medical" | "memory";
+
+export type RecordsUrlOptions = {
+  scope?: RecordScope;
+  hamsterId?: string | null;
+  type?: RecordTypeFilter;
+  from?: string;
+  to?: string;
+  keyword?: string;
+  favoriteOnly?: boolean;
+  page?: number;
+  status?: string;
+};
+
+export function normalizeRecordScope(value?: string): RecordScope {
+  return value === "household" ? "household" : "hamster";
+}
+
+export function recordsUrl(options: RecordsUrlOptions = {}) {
+  const params = new URLSearchParams();
+  if (options.scope === "household") params.set("scope", "household");
+  if (options.hamsterId) params.set("hamsterId", options.hamsterId);
+  if (options.type && options.type !== "all") params.set("type", options.type);
+  if (options.from) params.set("from", options.from);
+  if (options.to) params.set("to", options.to);
+  if (options.keyword) params.set("keyword", options.keyword);
+  if (options.favoriteOnly) params.set("favorite", "1");
+  if (options.page && options.page > 1) params.set("page", String(options.page));
+  if (options.status) params.set("status", options.status);
+  return `/records${params.size ? `?${params.toString()}` : ""}`;
+}
 
 export function normalizeRecordTypeFilter(value?: string): RecordTypeFilter {
   return value === "health" || value === "medical" || value === "memory" ? value : "all";
@@ -146,6 +177,54 @@ export function buildRecordKeywordWhere(keyword: string): Prisma.HamsterRecordWh
 
   if (groups.length === 0) return undefined;
   return groups.length === 1 ? groups[0] : { AND: groups };
+}
+
+export function buildRecordScopeWhere(
+  scope: RecordScope,
+  householdId: string,
+  selectedHamsterId: string
+): Prisma.HamsterRecordWhereInput {
+  return {
+    hamster: { householdId },
+    ...(scope === "hamster" ? { hamsterId: selectedHamsterId } : {})
+  };
+}
+
+export function buildRecordListWhere({
+  scope,
+  householdId,
+  selectedHamsterId,
+  recordType,
+  from,
+  to,
+  keyword,
+  favoriteOnly
+}: {
+  scope: RecordScope;
+  householdId: string;
+  selectedHamsterId: string;
+  recordType: RecordTypeFilter;
+  from: string;
+  to: string;
+  keyword: string;
+  favoriteOnly: boolean;
+}): Prisma.HamsterRecordWhereInput {
+  const databaseRecordType = filterToRecordType(recordType);
+  const keywordWhere = buildRecordKeywordWhere(keyword);
+  return {
+    ...buildRecordScopeWhere(scope, householdId, selectedHamsterId),
+    ...(databaseRecordType ? { recordType: databaseRecordType } : {}),
+    ...(from || to
+      ? {
+          recordDate: {
+            ...(from ? { gte: parseDateInput(from) } : {}),
+            ...(to ? { lte: parseDateInput(to) } : {})
+          }
+        }
+      : {}),
+    ...(keywordWhere ?? {}),
+    ...(favoriteOnly ? { recordType: "MEMORY", memoryDetail: { is: { isFavorite: true } } } : {})
+  };
 }
 
 export function collectRecordTagSuggestions(rows: ReadonlyArray<{ tags: string[] }>) {

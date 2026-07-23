@@ -1,20 +1,20 @@
-import type { Prisma } from "@prisma/client";
-
 import { getRequiredHouseholdContext } from "@/lib/auth-context";
 import { normalizeHamsterSelectorMode } from "@/lib/dashboard-settings";
-import { parseDateInput, toDateInputValue } from "@/lib/date";
+import { toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { formatRecordTime } from "@/lib/record-time";
 import {
-  buildRecordKeywordWhere,
+  buildRecordListWhere,
+  buildRecordScopeWhere,
   collectRecordTagSuggestions,
-  filterToRecordType,
   RECORD_PAGE_SIZE,
+  type RecordScope,
   type RecordTypeFilter
 } from "@/lib/records";
 
 export type RecordPageFilters = {
   selectedHamsterId?: string;
+  scope: RecordScope;
   recordType: RecordTypeFilter;
   from: string;
   to: string;
@@ -58,31 +58,22 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     };
   }
 
-  const recordType = filterToRecordType(filters.recordType);
-  const keywordWhere = buildRecordKeywordWhere(filters.keyword);
-  const where: Prisma.HamsterRecordWhereInput = {
-    hamsterId: selectedHamster.id,
-    ...(recordType ? { recordType } : {}),
-    ...(filters.from || filters.to
-      ? {
-          recordDate: {
-            ...(filters.from ? { gte: parseDateInput(filters.from) } : {}),
-            ...(filters.to ? { lte: parseDateInput(filters.to) } : {})
-          }
-        }
-      : {}),
-    ...(keywordWhere ?? {}),
-    ...(filters.favoriteOnly ? { recordType: "MEMORY", memoryDetail: { is: { isFavorite: true } } } : {})
-  };
+  const where = buildRecordListWhere({
+    scope: filters.scope,
+    householdId: context.household.id,
+    selectedHamsterId: selectedHamster.id,
+    recordType: filters.recordType,
+    from: filters.from,
+    to: filters.to,
+    keyword: filters.keyword,
+    favoriteOnly: filters.favoriteOnly
+  });
 
   const [totalCount, tagRows] = await Promise.all([
     prisma.hamsterRecord.count({ where }),
     prisma.memoryRecordDetail.findMany({
       where: {
-        hamsterRecord: {
-          hamsterId: selectedHamster.id,
-          hamster: { householdId: context.household.id }
-        }
+        hamsterRecord: buildRecordScopeWhere(filters.scope, context.household.id, selectedHamster.id)
       },
       select: { tags: true }
     })
@@ -100,6 +91,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
     skip: (currentPage - 1) * RECORD_PAGE_SIZE,
     take: RECORD_PAGE_SIZE,
     include: {
+      hamster: { select: { id: true, name: true, isActive: true } },
       createdBy: { select: { name: true, email: true } },
       healthDetail: true,
       medicalDetail: true,
@@ -123,6 +115,7 @@ export async function getRecordsPageData(filters: RecordPageFilters) {
       memo: record.memo,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
+      hamster: record.hamster,
       createdByLabel: record.createdBy?.name || record.createdBy?.email || "退会済みユーザー",
       healthDetail: record.healthDetail,
       medicalDetail: record.medicalDetail
