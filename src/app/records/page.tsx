@@ -102,7 +102,7 @@ export default async function RecordsPage({
                 aria-label="タイムラインの表示範囲"
               >
                 {([
-                  { scope: "hamster", label: "このハムスター" },
+                  { scope: "hamster", label: "選択中のハムスター" },
                   { scope: "household", label: "グループ全体" }
                 ] as const).map((option) => (
                   <Link
