@@ -6,7 +6,6 @@ import { AdminInvitationPagination } from "@/components/admin-invitation-paginat
 import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
 import { AdminUserList } from "@/components/admin-user-list";
 import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
-import { ContactStatusBadge } from "@/components/contact-status-badge";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
 import {
@@ -131,43 +130,18 @@ export default async function AdminPage({
           </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-amber-200 bg-white p-4 shadow-sm">
+          <Link href="/admin/inquiries?status=unhandled" aria-label="未対応の問い合わせ一覧を表示" className="rounded-md border border-amber-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2">
             <p className="text-xs font-semibold text-slate-500">未対応</p>
             <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.openCount}</p>
-          </div>
-          <div className="rounded-md border border-sky-200 bg-white p-4 shadow-sm">
+          </Link>
+          <Link href="/admin/inquiries?status=inProgress" aria-label="確認中の問い合わせ一覧を表示" className="rounded-md border border-sky-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:bg-sky-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2">
             <p className="text-xs font-semibold text-slate-500">確認中</p>
             <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.inProgressCount}</p>
-          </div>
-          <div className="rounded-md border border-violet-200 bg-white p-4 shadow-sm">
+          </Link>
+          <Link href="/admin/inquiries?status=waiting" aria-label="回答待ちの問い合わせ一覧を表示" className="rounded-md border border-violet-200 bg-white p-4 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss focus-visible:ring-offset-2">
             <p className="text-xs font-semibold text-slate-500">利用者からの回答待ち</p>
             <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.waitingCount}</p>
-          </div>
-        </div>
-        <div className="grid gap-3">
-          {inquiryOverview.latest.length > 0 ? (
-            inquiryOverview.latest.map((inquiry) => (
-              <article key={inquiry.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <ContactStatusBadge status={inquiry.status} />
-                  <span className="text-xs text-slate-500">更新 {formatDateTimeJst(inquiry.updatedAt)}</span>
-                </div>
-                <Link
-                  href={`/admin/inquiries/${inquiry.publicId}`}
-                  className="mt-2 block break-words font-bold text-ink hover:text-moss hover:underline [overflow-wrap:anywhere]"
-                >
-                  {inquiry.subject}
-                </Link>
-                <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
-                  {inquiry.userNameSnapshot}・受付 {formatDateTimeJst(inquiry.createdAt)}
-                </p>
-              </article>
-            ))
-          ) : (
-            <p className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
-              問い合わせはまだありません。
-            </p>
-          )}
+          </Link>
         </div>
       </section>
 

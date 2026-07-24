@@ -142,17 +142,12 @@ export function getAssignableContactAdmins() {
 }
 
 export async function getAdminContactInquiryOverview() {
-  const [openCount, inProgressCount, waitingCount, latest] = await Promise.all([
+  const [openCount, inProgressCount, waitingCount] = await Promise.all([
     prisma.contactInquiry.count({ where: { status: "OPEN" } }),
     prisma.contactInquiry.count({ where: { status: "IN_PROGRESS" } }),
     prisma.contactInquiry.count({ where: { status: "WAITING_FOR_USER" } }),
-    prisma.contactInquiry.findMany({
-      select: inquiryListSelect,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: 5
-    })
   ]);
-  return { openCount, inProgressCount, waitingCount, latest };
+  return { openCount, inProgressCount, waitingCount };
 }
 
 export function assignedAdminDisplayName(inquiry: {

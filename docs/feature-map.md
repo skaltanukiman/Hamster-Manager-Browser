@@ -150,7 +150,7 @@
 
 ## サポート・お問い合わせ
 
-- **画面または URL:** 利用者の作成・履歴 `/contact`、利用者詳細 `/contact/[publicId]`、管理一覧 `/admin/inquiries`、管理詳細 `/admin/inquiries/[publicId]`。`/settings` は危険操作領域の前に導線を置き、予期しないエラーパネルは検証可能なerrorIdを `/contact?errorId=...` へ引き継ぐ。管理トップ `/admin` は未対応・確認中・回答待ち件数と最新5件を表示する。
+- **画面または URL:** 利用者の作成・履歴 `/contact`、利用者詳細 `/contact/[publicId]`、管理一覧 `/admin/inquiries`、管理詳細 `/admin/inquiries/[publicId]`。`/settings` は危険操作領域の前に導線を置き、予期しないエラーパネルは検証可能なerrorIdを `/contact?errorId=...` へ引き継ぐ。管理トップ `/admin` は未対応・確認中・回答待ち件数だけを表示し、問い合わせ内容の一覧・詳細は `/admin/inquiries` で確認する。
 - **主なコンポーネント:** `ContactInquiryForm`、`ContactInquiryList` / `AdminContactInquiryList`、`ContactStatusBadge` / `ContactCategoryBadge`、`ContactMessageThread`、`UserContactReplyForm` / `AdminContactReplyForm`、`ContactSupportEntry`、既存 `PaginationLayout`、`AutoSubmitFilterForm`、`StatusMessage`。一覧は`lg`以上でテーブル、未満でカードへ切り替え、長い番号・件名・メール・errorIdは折り返す。
 - **Server Action:** `submitContactInquiry`、`replyToContactInquiry`、`updateContactInquiryAdmin`（`src/app/actions/contact.ts`）。フォームのUser IDは受け取らず、セッションから操作者を確定する。バリデーション結果はフォーム付近へ返し、想定外例外だけ既存errorId方式へ変換する。
 - **データアクセス・Prismaモデル:** `ContactInquiry` と `ContactInquiryMessage`、`ContactInquiryCategory` / `ContactInquiryStatus` / `ContactSenderType`。`src/lib/contact-inquiry-queries.ts` が利用者のUser条件、管理者の状態・種類・正規化済み検索条件をDBへ含め、`updatedAt desc, id desc`、20件でページングする。公開番号はJST日付と暗号学的ランダム値の `HMB-YYYYMMDD-XXXXXXXXXX` で、内部IDを公開しない。
