@@ -1,4 +1,5 @@
 import { AccountDeleteEntryForm } from "@/components/account-delete-entry-form";
+import { ContactSupportEntry } from "@/components/contact-support-entry";
 import { DashboardSettingsForm } from "@/components/dashboard-settings-form";
 import { StatusMessage } from "@/components/status-message";
 import { getDashboardSettingsPageData } from "@/lib/queries";
@@ -42,6 +43,8 @@ export default async function SettingsPage({
         hamsters={hamsters}
         selectedHamsterIds={selectedHamsterIds}
       />
+
+      <ContactSupportEntry />
 
       <AccountDeleteEntryForm />
     </div>

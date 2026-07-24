@@ -75,6 +75,26 @@ export function UnexpectedErrorPanel({ errorId, onRetry }: UnexpectedErrorPanelP
         >
           ダッシュボードへ戻る
         </Link>
+        <Link
+          href={`/contact?errorId=${encodeURIComponent(errorId)}`}
+          style={{
+            minHeight: "2.5rem",
+            flex: "1 1 100%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+            border: "1px solid #3f725f",
+            borderRadius: "0.375rem",
+            background: "white",
+            padding: "0.625rem 1rem",
+            color: "#3f725f",
+            fontWeight: 700,
+            textDecoration: "none"
+          }}
+        >
+          このエラーについて問い合わせる
+        </Link>
       </div>
     </section>
   );

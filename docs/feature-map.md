@@ -12,6 +12,7 @@
 | PWA メタデータ | `src/app/manifest.ts`, `src/app/layout.tsx`, `src/app/favicon.ico`, `src/app/apple-icon.png`, `public/icons/pwa-192.png`, `public/icons/pwa-512.png`, `public/icons/pwa-maskable-512.png` | App Router のファイル規約でブラウザー用faviconとApple用アイコンを、標準 Metadata API でインストール情報、テーマ色、通常・maskableアイコンを配信する。Service Worker、オフライン機能、プッシュ通知は持たない。`tests/manifest.test.ts` でManifestの主要項目を検証する。 |
 | 日付・検索・フォーム状態 | `src/lib/date.ts`, `src/lib/search.ts`, `src/components/form-dirty-state.ts`, `src/components/unsaved-changes-guard.tsx`, `src/components/dirty-submit-button.tsx` | 測定日・掃除日などの日付のみの値は暦日を維持し、`createdAt`・`expiresAt`など時刻を持つUTC timestampは画面表示時にJSTへ変換する。形式だけでなく実在する暦日・年月とJST日付境界を `tests/date-validation.test.ts` で検証する。未保存ガードと保存ボタン活性は一覧・掃除・体重で共有する。 |
 | エラー・ログ | `src/lib/server-errors.ts`, `src/lib/logger.ts`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/components/status-message.tsx`, `src/components/unexpected-error-panel.tsx` | 利用者には内部例外を出さず errorId を表示する。`tests/error-handling.test.ts`、`tests/logger.test.ts` を併せて更新する。 |
+| サポート・お問い合わせ | `src/app/contact`, `src/app/admin/inquiries`, `src/app/actions/contact.ts`, `src/lib/contact-inquiry-*.ts`, `src/components/contact-*.tsx` | User単位のチケットとメッセージ履歴をDBへ保存する。利用者は自分の問い合わせだけ、ADMIN / SUPER_ADMINは全件を閲覧・返信・管理できる。 |
 
 ## ログイン・認証
 
@@ -146,6 +147,20 @@
 - **バリデーション:** 単独削除はメンバー1・対象OWNER・OWNER1の完全一致だけ。共有で別OWNERがいれば退出し、唯一OWNERなら同じグループの自分以外を明示選択してOWNER昇格後に退出する。画面後の状態変更、移譲先退出、二重削除、最後の`SUPER_ADMIN`を拒否してtransaction全体をロールバックする。招待受諾もユーザーlock→Household lock順に統一する。
 - **ファイル・ログアウト・監査:** DB commit後に、削除結果へ含まれる単独Household IDだけ `deleteHouseholdImageDirectoriesSafely` へ渡す。パス安全性は既存画像処理を再利用し、失敗はwarning。`hamster_current_household` とAuth.js Session cookieを消し、DB SessionのCascade削除後に `/login?status=accountDeleted` へ遷移する。成功監査イベントは `account_deleted` で、削除User IDとグループ件数だけをファイルログへ残す。
 - **関連テスト:** `tests/account-delete.test.ts`（単独Cascade、共有保持、所有権移譲、複数グループ、確認文字列、状態変更、移譲先消失、SUPER_ADMIN、二重送信、画像、SetNull、排他順序、UI）、`tests/audit-log.test.ts`（`account_deleted`）。
+
+## サポート・お問い合わせ
+
+- **画面または URL:** 利用者の作成・履歴 `/contact`、利用者詳細 `/contact/[publicId]`、管理一覧 `/admin/inquiries`、管理詳細 `/admin/inquiries/[publicId]`。`/settings` は危険操作領域の前に導線を置き、予期しないエラーパネルは検証可能なerrorIdを `/contact?errorId=...` へ引き継ぐ。管理トップ `/admin` は未対応・確認中・回答待ち件数と最新5件を表示する。
+- **主なコンポーネント:** `ContactInquiryForm`、`ContactInquiryList` / `AdminContactInquiryList`、`ContactStatusBadge` / `ContactCategoryBadge`、`ContactMessageThread`、`UserContactReplyForm` / `AdminContactReplyForm`、`ContactSupportEntry`、既存 `PaginationLayout`、`AutoSubmitFilterForm`、`StatusMessage`。一覧は`lg`以上でテーブル、未満でカードへ切り替え、長い番号・件名・メール・errorIdは折り返す。
+- **Server Action:** `submitContactInquiry`、`replyToContactInquiry`、`updateContactInquiryAdmin`（`src/app/actions/contact.ts`）。フォームのUser IDは受け取らず、セッションから操作者を確定する。バリデーション結果はフォーム付近へ返し、想定外例外だけ既存errorId方式へ変換する。
+- **データアクセス・Prismaモデル:** `ContactInquiry` と `ContactInquiryMessage`、`ContactInquiryCategory` / `ContactInquiryStatus` / `ContactSenderType`。`src/lib/contact-inquiry-queries.ts` が利用者のUser条件、管理者の状態・種類・正規化済み検索条件をDBへ含め、`updatedAt desc, id desc`、20件でページングする。公開番号はJST日付と暗号学的ランダム値の `HMB-YYYYMMDD-XXXXXXXXXX` で、内部IDを公開しない。
+- **認可・状態遷移:** 利用者詳細・返信は `publicId + session userId` で所有者を再確認し、他人の番号はnot found相当とする。管理画面・Actionは `getRequiredAppAdminUser` を使い、transaction内でも最新の `ADMIN` / `SUPER_ADMIN` と利用状態を再確認する。状態遷移は `contact-inquiry-core.ts` に集約し、`CLOSED`への返信、`RESOLVED`から`WAITING_FOR_USER`などの不正遷移を拒否する。利用者が`WAITING_FOR_USER` / `RESOLVED`へ返信すると`IN_PROGRESS`へ戻す。
+- **バリデーション・レート制限:** 件名trim後1〜100文字、初回本文10〜2,000文字、返信1〜2,000文字、errorId最大128文字、発生画面最大300文字。発生画面は単一`/`で始まり外部origin・`//`・バックスラッシュ・制御文字を含まないアプリ内パスだけを許可する。作成は同一Userで30秒間隔、1時間5件、未終了10件、利用者返信は同一問い合わせで10秒間隔とし、PostgreSQL advisory transaction lockで同時送信を直列化する。
+- **transaction:** 作成は最新User確認・レート再確認・問い合わせ・初回メッセージ・snapshotを同一transactionで保存する。利用者返信と管理者更新は問い合わせ単位lock内で所有者または管理者権限、最新状態、担当者権限を再確認し、条件付き状態更新とメッセージ作成を同一transactionで確定する。管理者返信時に担当者未設定なら返信者を自動設定する。
+- **アカウント削除:** 問い合わせ作成者・担当管理者・メッセージ送信者のUser参照は`SetNull`、利用者ID・名前・メールと送信者ID・名前のsnapshotは保持する。User削除で問い合わせ・本文・返信は削除せず、問い合わせを削除した場合だけメッセージをCascadeする。担当者が後から降格・削除されてもsnapshotで表示を維持する。
+- **機密情報・ログ:** 本文はReactの通常エスケープと`whitespace-pre-wrap`で表示し、`dangerouslySetInnerHTML`を使わない。問い合わせ本文とメールを通常ログまたは想定外例外のcontextへ渡さない。利用者画面には管理者向け利用者ID・担当者操作を返さない。
+- **関連テスト:** `tests/contact-inquiries.test.ts`（入力、内部パス、公開番号、snapshot、作成制限と同時送信、所有者分離、返信、状態遷移、担当者権限、transaction境界、DBページング・検索・安定順、SetNull / Cascade migration、認可・レスポンシブUI・二重送信・ログ非出力）。
+- **今回対象外:** 添付、メール・プッシュ通知、FAQ、AI回答、評価、SLA、匿名・ログイン前受付、優先度、CSV、一括・物理削除、Household共有、メッセージ単位既読。未読バッジは初回の認可・transaction実装を小さく保つため対象外とし、将来は問い合わせ単位の最終閲覧日時で追加する。
 
 ## アプリ全体管理
 

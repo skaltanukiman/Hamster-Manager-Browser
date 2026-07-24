@@ -125,6 +125,9 @@ model User {
   suspendedUsers              User[]                 @relation("UserCurrentSuspensionActor")
   performedUserAccessActions  UserAccessAction[]     @relation("UserAccessActionActor")
   receivedUserAccessActions   UserAccessAction[]     @relation("UserAccessActionTarget")
+  contactInquiries            ContactInquiry[]       @relation("ContactInquiryUser")
+  assignedContactInquiries    ContactInquiry[]       @relation("ContactInquiryAssignedAdmin")
+  contactInquiryMessages      ContactInquiryMessage[] @relation("ContactInquiryMessageSender")
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
@@ -321,6 +324,75 @@ enum HouseholdActivityEvent {
   MEMORY_RECORD_DELETED
   HAMSTER_PROFILE_IMAGE_UPDATED
   HAMSTER_ACTIVE_STATUS_UPDATED
+}
+
+model ContactInquiry {
+  id                        String                    @id @default(cuid())
+  publicId                  String                    @unique @map("public_id")
+  userId                    String?                   @map("user_id")
+  userIdSnapshot            String                    @map("user_id_snapshot")
+  userNameSnapshot          String                    @map("user_name_snapshot")
+  userEmailSnapshot         String?                   @map("user_email_snapshot")
+  category                  ContactInquiryCategory
+  subject                   String                    @db.VarChar(100)
+  searchText                String                    @map("search_text") @db.Text
+  status                    ContactInquiryStatus      @default(OPEN)
+  sourcePath                String?                   @map("source_path") @db.VarChar(300)
+  errorId                   String?                   @map("error_id") @db.VarChar(128)
+  assignedAdminUserId       String?                   @map("assigned_admin_user_id")
+  assignedAdminNameSnapshot String?                   @map("assigned_admin_name_snapshot")
+  createdAt                 DateTime                  @default(now()) @map("created_at")
+  updatedAt                 DateTime                  @updatedAt @map("updated_at")
+  resolvedAt                DateTime?                 @map("resolved_at")
+  closedAt                  DateTime?                 @map("closed_at")
+  user                      User?                     @relation("ContactInquiryUser", fields: [userId], references: [id], onDelete: SetNull)
+  assignedAdmin             User?                     @relation("ContactInquiryAssignedAdmin", fields: [assignedAdminUserId], references: [id], onDelete: SetNull)
+  messages                  ContactInquiryMessage[]
+
+  @@index([status, updatedAt, id])
+  @@index([userId, updatedAt, id])
+  @@index([category, updatedAt, id])
+  @@index([assignedAdminUserId, updatedAt, id])
+  @@index([updatedAt, id])
+  @@map("contact_inquiries")
+}
+
+model ContactInquiryMessage {
+  id                   String            @id @default(cuid())
+  inquiryId            String            @map("inquiry_id")
+  senderType           ContactSenderType @map("sender_type")
+  senderUserId         String?           @map("sender_user_id")
+  senderUserIdSnapshot String            @map("sender_user_id_snapshot")
+  senderNameSnapshot   String            @map("sender_name_snapshot")
+  body                 String            @db.Text
+  createdAt            DateTime          @default(now()) @map("created_at")
+  inquiry              ContactInquiry    @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  senderUser           User?             @relation("ContactInquiryMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([inquiryId, createdAt, id])
+  @@index([senderUserId])
+  @@map("contact_inquiry_messages")
+}
+
+enum ContactInquiryCategory {
+  BUG
+  HOW_TO
+  FEATURE_REQUEST
+  ACCOUNT
+  OTHER
+}
+
+enum ContactInquiryStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+}
+
+enum ContactSenderType {
+  USER
+  ADMIN
 }
 
 model HamsterRecord {

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ShieldCheck, Users } from "lucide-react";
+import { MessageCircleQuestion, ShieldCheck, Users } from "lucide-react";
 
 import { AdminHouseholdList } from "@/components/admin-household-list";
 import { AdminInvitationPagination } from "@/components/admin-invitation-pagination";
 import { AdminInvitationHouseholdCombobox } from "@/components/admin-invitation-household-combobox";
 import { AdminUserList } from "@/components/admin-user-list";
 import { AutoSubmitFilterForm } from "@/components/auto-submit-filter-form";
+import { ContactStatusBadge } from "@/components/contact-status-badge";
 import { InvitationStatusBadge } from "@/components/invitation-status-badge";
 import { StatusMessage } from "@/components/status-message";
 import {
@@ -17,6 +18,7 @@ import {
   type AdminInvitationQuery
 } from "@/lib/admin-invitations";
 import { getAdminHouseholdPreview } from "@/lib/admin-households";
+import { getAdminContactInquiryOverview } from "@/lib/contact-inquiry-queries";
 import { getAdminUserPreview } from "@/lib/admin-users";
 import { getRequiredAppAdminUser } from "@/lib/auth-context";
 import { formatDateTimeJst } from "@/lib/date";
@@ -31,7 +33,7 @@ function getParam(value: string | string[] | undefined) {
 
 async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
   const now = new Date();
-  const [users, households, userCount, householdCount, invitationHouseholds, activeInvitationCount, invitationCount] =
+  const [users, households, userCount, householdCount, invitationHouseholds, activeInvitationCount, invitationCount, inquiryOverview] =
     await Promise.all([
       getAdminUserPreview(),
       getAdminHouseholdPreview(),
@@ -42,7 +44,8 @@ async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
         select: { id: true, name: true }
       }),
       getActiveInvitationCount(now),
-      prisma.householdInvitation.count()
+      prisma.householdInvitation.count(),
+      getAdminContactInquiryOverview()
   ]);
   const matchingHouseholdIds = findMatchingAdminInvitationHouseholdIds(
     invitationQuery.search,
@@ -59,6 +62,7 @@ async function getAdminPageData(invitationQuery: AdminInvitationQuery) {
     invitationPage,
     activeInvitationCount,
     hasAnyInvitations: invitationCount > 0,
+    inquiryOverview,
     now
   };
 }
@@ -87,6 +91,7 @@ export default async function AdminPage({
     invitationPage,
     activeInvitationCount,
     hasAnyInvitations,
+    inquiryOverview,
     now
   } = await getAdminPageData(invitationQuery);
   const { invitations, pagination } = invitationPage;
@@ -112,6 +117,57 @@ export default async function AdminPage({
         <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">Active invites</p>
           <p className="mt-2 text-2xl font-bold text-ink">{activeInvitationCount}</p>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <MessageCircleQuestion className="h-5 w-5 text-moss" aria-hidden />
+            <h3 className="text-base font-bold text-ink">問い合わせ概要</h3>
+          </div>
+          <Link href="/admin/inquiries" className="inline-flex min-h-10 items-center text-sm font-semibold text-moss hover:underline">
+            すべての問い合わせを表示
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-md border border-amber-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-slate-500">未対応</p>
+            <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.openCount}</p>
+          </div>
+          <div className="rounded-md border border-sky-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-slate-500">確認中</p>
+            <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.inProgressCount}</p>
+          </div>
+          <div className="rounded-md border border-violet-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-slate-500">利用者からの回答待ち</p>
+            <p className="mt-2 text-2xl font-bold text-ink">{inquiryOverview.waitingCount}</p>
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {inquiryOverview.latest.length > 0 ? (
+            inquiryOverview.latest.map((inquiry) => (
+              <article key={inquiry.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ContactStatusBadge status={inquiry.status} />
+                  <span className="text-xs text-slate-500">更新 {formatDateTimeJst(inquiry.updatedAt)}</span>
+                </div>
+                <Link
+                  href={`/admin/inquiries/${inquiry.publicId}`}
+                  className="mt-2 block break-words font-bold text-ink hover:text-moss hover:underline [overflow-wrap:anywhere]"
+                >
+                  {inquiry.subject}
+                </Link>
+                <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
+                  {inquiry.userNameSnapshot}・受付 {formatDateTimeJst(inquiry.createdAt)}
+                </p>
+              </article>
+            ))
+          ) : (
+            <p className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+              問い合わせはまだありません。
+            </p>
+          )}
         </div>
       </section>
 
