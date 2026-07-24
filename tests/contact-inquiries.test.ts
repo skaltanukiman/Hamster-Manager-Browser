@@ -572,3 +572,16 @@ test("問い合わせ本文・メールをServer Actionのログcontextへ渡さ
   assert.doesNotMatch(source, /context:\s*\{[^}]*email/);
   assert.doesNotMatch(source, /console\.(?:log|error)\([^)]*(?:body|email)/);
 });
+
+test("問い合わせ補助入力は同じ高さ・補足文・上揃えで表示する", async () => {
+  const form = await readFile("src/components/contact-inquiry-form.tsx", "utf8");
+  assert.match(form, /className="grid items-start gap-4 md:grid-cols-2"/);
+  assert.match(form, /name="errorId"[\s\S]*?className="h-11 min-w-0"/);
+  assert.match(form, /name="sourcePath"[\s\S]*?className="h-11 min-w-0"/);
+  assert.match(form, /エラー画面に表示されたIDがある場合に入力してください。/);
+  assert.match(form, /<label className="grid min-w-0 content-start gap-1\.5 text-sm font-semibold text-slate-700">[\s\S]*?name="errorId"/);
+  assert.match(form, /<label className="grid min-w-0 content-start gap-1\.5 text-sm font-semibold text-slate-700">[\s\S]*?name="sourcePath"/);
+  assert.match(form, /defaultValue=\{initialErrorId\}/);
+  assert.match(form, /defaultValue=\{initialSourcePath\}/);
+  assert.match(form, /placeholder="\/settings"/);
+});

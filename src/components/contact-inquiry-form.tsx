@@ -162,27 +162,28 @@ export function ContactInquiryForm({
           <FieldError id="contact-body-error" message={state.fieldErrors.body} />
         </label>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-slate-700">
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          <label className="grid min-w-0 content-start gap-1.5 text-sm font-semibold text-slate-700">
             エラーID（任意）
             <input
               name="errorId"
               defaultValue={initialErrorId}
               maxLength={CONTACT_ERROR_ID_MAX_LENGTH}
-              className="min-w-0"
+              className="h-11 min-w-0"
               aria-invalid={Boolean(state.fieldErrors.errorId)}
               aria-describedby={state.fieldErrors.errorId ? "contact-error-id-error" : undefined}
             />
+            <span className="text-xs font-normal text-slate-500">エラー画面に表示されたIDがある場合に入力してください。</span>
             <FieldError id="contact-error-id-error" message={state.fieldErrors.errorId} />
           </label>
-          <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-slate-700">
+          <label className="grid min-w-0 content-start gap-1.5 text-sm font-semibold text-slate-700">
             発生した画面（任意）
             <input
               name="sourcePath"
               defaultValue={initialSourcePath}
               maxLength={CONTACT_SOURCE_PATH_MAX_LENGTH}
               placeholder="/settings"
-              className="min-w-0"
+              className="h-11 min-w-0"
               aria-invalid={Boolean(state.fieldErrors.sourcePath)}
               aria-describedby={state.fieldErrors.sourcePath ? "contact-source-path-error" : undefined}
             />
