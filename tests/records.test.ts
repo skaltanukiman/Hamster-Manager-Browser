@@ -772,7 +772,9 @@ test("閲覧者権限はグループ表示でもタイムラインの編集・�
   assert.match(page, /const canEdit = canEditHouseholdSharedData\(data\.context\.membership\.role\)/);
   assert.match(page, /<RecordTimeline[\s\S]*canEdit=\{canEdit\}/);
   assert.match(timeline, /const editable = canEdit &&/);
-  assert.match(timeline, /\{editable \? <form action=\{deleteHamsterRecord\}/);
+  assert.match(timeline, /\{editable \? record.recordType === "MEDICAL" \? \(/);
+  assert.match(timeline, /<MedicalRecordDeleteControl[^>]*action=\{deleteHamsterRecord\} onSubmit=\{confirmDelete\}/);
+  assert.match(timeline, /\) : <form action=\{deleteHamsterRecord\} onSubmit=\{confirmDelete\}/);
   assert.match(timeline, /\{editable \? <details/);
 });
 

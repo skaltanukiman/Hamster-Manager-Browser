@@ -6,6 +6,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 
 import { deleteHamsterRecord, updateHealthRecord, updateMedicalRecord, updateMemoryRecord } from "@/app/actions/records";
 import { DirtySubmitButton } from "@/components/dirty-submit-button";
+import { MedicalRecordDeleteControl } from "@/components/medical-record-delete-control";
 import { MedicalRecordDetails } from "@/components/medical-record-details";
 import { MemoryHamsterSelector } from "@/components/memory-hamster-selector";
 import { RecordImageField } from "@/components/record-image-field";
@@ -264,13 +265,20 @@ export function RecordTimeline({
           return (
             <article key={record.id} className={`relative ml-9 rounded-lg border p-4 shadow-sm sm:ml-12 sm:p-5 ${typeStyle.card} ${record.recordType === "MEDICAL" ? "min-w-0" : ""}`}>
               <span className={`absolute -left-[2.25rem] top-5 grid h-8 w-8 place-items-center rounded-full border-2 border-white text-white shadow sm:-left-[3.1rem] sm:h-10 sm:w-10 ${typeStyle.marker}`}><TypeIcon type={record.recordType} /></span>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
+              <div className={`flex gap-3 ${record.recordType === "MEDICAL" ? "items-start justify-between" : "flex-col sm:flex-row sm:items-start sm:justify-between"}`}>
+                <div className={record.recordType === "MEDICAL" ? "min-w-0 flex-1" : "min-w-0"}>
                   <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle.badge}`}><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{recordHamsters.map((hamster) => <Link key={hamster.id} href={recordsUrl({ basePath, scope: "hamster", includeScope: true, hamsterId: hamster.id })} scroll={false} className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800 ring-1 ring-inset ring-violet-200 hover:bg-violet-100"><PawPrint className="h-3.5 w-3.5" aria-hidden />{hamster.name}</Link>)}{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
                   <h3 className={`mt-2 text-lg font-bold text-ink ${record.recordType === "MEDICAL" ? "whitespace-pre-wrap [overflow-wrap:anywhere]" : ""}`}>{record.title}</h3>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span>{record.recordDate.replaceAll("-", "/")}</span>{record.recordTime ? <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden />{record.recordTime}</span> : null}<span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
                 </div>
-                {editable ? <form action={deleteHamsterRecord} onSubmit={confirmDelete}><input type="hidden" name="id" value={record.id} /><input type="hidden" name="hamsterId" value={record.hamster.id} /><input type="hidden" name="viewScope" value={scope} /><input type="hidden" name="returnHamsterId" value={returnHamsterId} /><button type="submit" className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden />削除</button></form> : null}
+                {editable ? record.recordType === "MEDICAL" ? (
+                  <MedicalRecordDeleteControl title={record.title} action={deleteHamsterRecord} onSubmit={confirmDelete}>
+                    <input type="hidden" name="id" value={record.id} />
+                    <input type="hidden" name="hamsterId" value={record.hamster.id} />
+                    <input type="hidden" name="viewScope" value={scope} />
+                    <input type="hidden" name="returnHamsterId" value={returnHamsterId} />
+                  </MedicalRecordDeleteControl>
+                ) : <form action={deleteHamsterRecord} onSubmit={confirmDelete}><input type="hidden" name="id" value={record.id} /><input type="hidden" name="hamsterId" value={record.hamster.id} /><input type="hidden" name="viewScope" value={scope} /><input type="hidden" name="returnHamsterId" value={returnHamsterId} /><button type="submit" className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden />削除</button></form> : null}
               </div>
 
               {record.recordType === "HEALTH" && record.healthDetail ? <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3"><p><span className="font-semibold">総合:</span> {HEALTH_OVERALL_LABELS[record.healthDetail.overallCondition]}</p><p><span className="font-semibold">食欲:</span> {HEALTH_AMOUNT_LABELS[record.healthDetail.appetite]}</p><p><span className="font-semibold">活動:</span> {HEALTH_AMOUNT_LABELS[record.healthDetail.activityLevel]}</p><p><span className="font-semibold">便:</span> {HEALTH_EXCRETION_LABELS[record.healthDetail.stoolCondition]}</p><p><span className="font-semibold">尿:</span> {HEALTH_EXCRETION_LABELS[record.healthDetail.urineCondition]}</p>{record.healthDetail.symptoms.length ? <p className="sm:col-span-2 lg:col-span-3"><span className="font-semibold">症状:</span> {record.healthDetail.symptoms.map((value) => HEALTH_SYMPTOM_LABELS[value]).join("、")}</p> : null}</div> : null}

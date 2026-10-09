@@ -46,8 +46,8 @@ test("null・undefined・空文字・空白だけの値では表示領域を作�
     };
     assert.equal(render(props), "");
     const partial = render({ ...props, detail: { ...props.detail, reason: "受診理由のみ" } });
-    assert.match(partial, /理由・症状:[\s\S]*受診理由のみ/);
-    assert.doesNotMatch(partial, /動物病院名|診断:|検査内容|処置・治療内容|処方薬|投薬方法|メモ:|次回通院予定|診察費/);
+    assert.match(partial, /通院理由・症状[\s\S]*受診理由のみ/);
+    assert.doesNotMatch(partial, /動物病院名|診断内容|検査内容|処置・治療内容|処方薬|投薬方法|メモ|次回通院予定|診察費/);
   }
 });
 
@@ -62,7 +62,7 @@ test("数値文字列と数値の診察費を整形し、0円も表示する", (
 });
 
 test("タイトルに病院名がない保存済み記録は本文で病院名を補完する", () => {
-  assert.match(render({ ...full, title: "通院記録" }), /動物病院名:[\s\S]*はむ病院/);
+  assert.match(render({ ...full, title: "通院記録" }), /動物病院名[\s\S]*はむ病院/);
 });
 
 test("長文と改行を省略せず保持し、HTMLをエスケープする", () => {
@@ -97,4 +97,27 @@ test("タイムラインの通院本文は編集権限・開閉から独立し�
   assert.match(source, /action=\{updateMedicalRecord\}/);
   assert.match(source, /record.recordType === "HEALTH" && record.healthDetail/);
   assert.match(source, /record.recordType === "MEMORY" && record.memoryDetail/);
+});
+
+test("検査・治療とお薬・投薬を見出し付きセクションへ分ける", () => {
+  const markup = render(full);
+  assert.equal((markup.match(/<section /g) ?? []).length, 2);
+  assert.match(markup, /<h4[^>]*>[\s\S]*検査・治療<\/h4>[\s\S]*検査内容[\s\S]*処置・治療内容/);
+  assert.match(markup, /<h4[^>]*>[\s\S]*お薬・投薬<\/h4>[\s\S]*処方薬[\s\S]*投薬方法/);
+  assert.match(markup, /bg-sky-50\/60/);
+});
+
+test("片方の項目だけでもセクションを表示し、空のセクションは作らない", () => {
+  for (const detail of [{ examination: "検査のみ" }, { treatment: "治療のみ" }]) {
+    const markup = render({ title: "通院記録", memo: null, detail });
+    assert.match(markup, /検査・治療/);
+    assert.doesNotMatch(markup, /お薬・投薬/);
+    assert.equal((markup.match(/<section /g) ?? []).length, 1);
+    assert.doesNotMatch(markup, /grid-cols-2/);
+  }
+  for (const detail of [{ medication: "薬のみ" }, { medicationInstructions: "方法のみ" }]) {
+    const markup = render({ title: "通院記録", memo: null, detail });
+    assert.match(markup, /お薬・投薬/);
+    assert.doesNotMatch(markup, /検査・治療/);
+  }
 });
