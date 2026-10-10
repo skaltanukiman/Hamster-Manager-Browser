@@ -71,7 +71,7 @@ export function MedicalRecordDeleteControl({
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
       }}
-      className="relative shrink-0"
+      className="relative col-start-2 row-start-1 shrink-0"
     >
       {children}
       <button type="submit" data-desktop-delete className="hidden h-9 items-center gap-1 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss sm:inline-flex">
@@ -91,9 +91,9 @@ export function MedicalRecordDeleteControl({
             openMenu();
           }
         }}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss sm:hidden"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-transparent text-slate-500 hover:bg-slate-50 active:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss sm:hidden"
       >
-        <Ellipsis className="h-5 w-5" aria-hidden />
+        <Ellipsis className="h-4 w-4" aria-hidden />
       </button>
       {isOpen ? (
         <div
