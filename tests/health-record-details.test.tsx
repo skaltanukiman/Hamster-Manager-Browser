@@ -100,6 +100,6 @@ test("タイムラインは保存タイトルを変えず、体調タイトル�
   assert.match(timeline, /<HealthStatusBadge condition=\{record.healthDetail.overallCondition\}/);
   assert.match(timeline, /<HealthRecordDetails detail=\{record.healthDetail\} memo=\{record.memo\}/);
   assert.match(timeline, /record.recordType === "MEMORY" && record.memo \? <p/);
-  assert.match(timeline, /const hasSummaryHeader = record.recordType === "MEDICAL" \|\| record.recordType === "HEALTH"/);
+  assert.ok(timeline.includes("grid grid-cols-[minmax(0,1fr)_auto]"));
   assert.doesNotMatch(timeline, /総合:<\/span>/);
 });

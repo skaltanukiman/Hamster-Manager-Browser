@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, HeartPulse, ImageIcon, PawPrint, Pencil, Star, Stethoscope, Trash2, UserRound, X } from "lucide-react";
+import { Clock3, HeartPulse, ImageIcon, PawPrint, Pencil, Star, Stethoscope, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useState, type FormEvent } from "react";
 
@@ -258,29 +258,28 @@ export function RecordTimeline({
         {records.map((record) => {
           const editable = canEdit && (record.recordType === "MEMORY" || record.hamster.isActive);
           const typeStyle = recordTypeStyles[record.recordType];
-          const hasSummaryHeader = record.recordType === "MEDICAL" || record.recordType === "HEALTH";
           const recordHamsters = record.recordType === "MEMORY"
             ? record.memoryDetail?.hamsters ?? [record.hamster]
             : scope === "household"
               ? [record.hamster]
               : [];
           return (
-            <article key={record.id} className={`relative ml-9 rounded-lg border p-4 shadow-sm sm:ml-12 sm:p-5 ${typeStyle.card} ${hasSummaryHeader ? "min-w-0" : ""}`}>
+            <article key={record.id} className={`relative ml-9 rounded-lg border p-4 shadow-sm sm:ml-12 sm:p-5 ${typeStyle.card} min-w-0`}>
               <span className={`absolute -left-[2.25rem] top-5 grid h-8 w-8 place-items-center rounded-full border-2 border-white text-white shadow sm:-left-[3.1rem] sm:h-10 sm:w-10 ${typeStyle.marker}`}><TypeIcon type={record.recordType} /></span>
-              <div className={hasSummaryHeader ? "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:flex sm:items-start sm:justify-between sm:gap-3" : "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"}>
-                <div className={hasSummaryHeader ? "contents sm:block sm:min-w-0 sm:flex-1" : "min-w-0"}>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle.badge}`}><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{recordHamsters.map((hamster) => <Link key={hamster.id} href={recordsUrl({ basePath, scope: "hamster", includeScope: true, hamsterId: hamster.id })} scroll={false} className={`inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800 ring-1 ring-inset ring-violet-200 hover:bg-violet-100 ${record.recordType === "HEALTH" ? "min-w-0 max-w-full" : ""}`}><PawPrint className="h-3.5 w-3.5" aria-hidden />{record.recordType === "HEALTH" ? <span className="min-w-0 [overflow-wrap:anywhere]">{hamster.name}</span> : hamster.name}</Link>)}{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
-                  <h3 className={`text-lg font-bold text-ink ${hasSummaryHeader ? "col-span-2 row-start-2 min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] sm:mt-2" : "mt-2"}`}>{record.recordType === "HEALTH" ? <span className="flex flex-wrap items-center gap-2">体調記録{record.healthDetail ? <HealthStatusBadge condition={record.healthDetail.overallCondition} /> : null}</span> : record.title}</h3>
-                  <div className={`mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 ${hasSummaryHeader ? "col-span-2 row-start-3 min-w-0" : ""}`}><span>{record.recordDate.replaceAll("-", "/")}</span>{record.recordTime ? <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden />{record.recordTime}</span> : null}<span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
+              <div className={"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:flex sm:items-start sm:justify-between sm:gap-3 " + (record.recordType === "MEMORY" ? "[&>form]:self-start" : "")}>
+                <div className="contents sm:block sm:min-w-0 sm:flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle.badge}`}><TypeIcon type={record.recordType} />{RECORD_TYPE_LABELS[record.recordType]}</span>{recordHamsters.map((hamster) => <Link key={hamster.id} href={recordsUrl({ basePath, scope: "hamster", includeScope: true, hamsterId: hamster.id })} scroll={false} className={`inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800 ring-1 ring-inset ring-violet-200 hover:bg-violet-100 ${record.recordType !== "MEDICAL" ? "min-w-0 max-w-full" : ""}`}><PawPrint className="h-3.5 w-3.5" aria-hidden />{record.recordType !== "MEDICAL" ? <span className="min-w-0 [overflow-wrap:anywhere]">{hamster.name}</span> : hamster.name}</Link>)}{record.memoryDetail?.isFavorite ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />お気に入り</span> : null}</div>
+                  <h3 className="text-lg font-bold text-ink col-span-2 row-start-2 min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] sm:mt-2">{record.recordType === "HEALTH" ? <span className="flex flex-wrap items-center gap-2">体調記録{record.healthDetail ? <HealthStatusBadge condition={record.healthDetail.overallCondition} /> : null}</span> : record.title}</h3>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 col-span-2 row-start-3 min-w-0"><span>{record.recordDate.replaceAll("-", "/")}</span>{record.recordTime ? <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden />{record.recordTime}</span> : null}<span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" aria-hidden />{record.createdByLabel}</span></div>
                 </div>
-                {editable ? hasSummaryHeader ? (
+                {editable ? (
                   <RecordDeleteControl title={record.recordType === "HEALTH" ? "体調記録" : record.title} action={deleteHamsterRecord} onSubmit={confirmDelete}>
                     <input type="hidden" name="id" value={record.id} />
                     <input type="hidden" name="hamsterId" value={record.hamster.id} />
                     <input type="hidden" name="viewScope" value={scope} />
                     <input type="hidden" name="returnHamsterId" value={returnHamsterId} />
                   </RecordDeleteControl>
-                ) : <form action={deleteHamsterRecord} onSubmit={confirmDelete}><input type="hidden" name="id" value={record.id} /><input type="hidden" name="hamsterId" value={record.hamster.id} /><input type="hidden" name="viewScope" value={scope} /><input type="hidden" name="returnHamsterId" value={returnHamsterId} /><button type="submit" className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" aria-hidden />削除</button></form> : null}
+                ) : null}
               </div>
 
               {record.recordType === "HEALTH" ? <HealthRecordDetails detail={record.healthDetail} memo={record.memo} /> : null}
