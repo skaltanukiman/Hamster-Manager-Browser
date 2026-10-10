@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import type { CareHistoryPeriod } from "@/lib/care-history";
-import { getCareHistory, getLatestCareTimes } from "@/lib/care-history-queries";
+import { getCareHistory } from "@/lib/care-history-queries";
 import { monthDateRange, parseDateInput, toDateInputValue } from "@/lib/date";
 import { getTodayFeedingRecordDate, todayFeedingRecordsByHamster } from "@/lib/feeding";
 import { prisma } from "@/lib/prisma";
@@ -82,7 +82,6 @@ export async function getPublicDemoDashboardData() {
   const hamsterIds = hamsters.map((hamster) => hamster.id);
   const now = new Date();
   const [
-    latestCareTimes,
     feedingRecords,
     waterReplacementRecords,
     toiletRecords,
@@ -90,7 +89,6 @@ export async function getPublicDemoDashboardData() {
     flooringAllRecords,
     houseRecords
   ] = await Promise.all([
-    getLatestCareTimes(prisma, { householdId: household.id, publicDemo: true }, hamsterIds),
     prisma.feedingRecord.findMany({
       where: { hamsterId: { in: hamsterIds }, recordDate: getTodayFeedingRecordDate(now) },
       select: { id: true, hamsterId: true, recordDate: true, fedAt: true }
@@ -125,15 +123,12 @@ export async function getPublicDemoDashboardData() {
 
   return {
     household,
-    referenceTime: now.toISOString(),
     historyVersion: `demo:${getTodayFeedingRecordDate(now).toISOString()}`,
     boardCount: hamsters.length,
     totalHamsters: hamsters.length,
     hamsters: hamsters.map((hamster) => ({
       ...hamster,
       staticImagePath: getPublicDemoHamsterImagePath(hamster.id),
-      latestFedAt: latestCareTimes.get(hamster.id)?.fedAt ?? null,
-      latestReplacedAt: latestCareTimes.get(hamster.id)?.replacedAt ?? null,
       todayFeeding: feedings.get(hamster.id) ?? null,
       todayWaterReplacement: waterReplacements.get(hamster.id) ?? null,
       latestToiletCleaning: toilets.get(hamster.id) ?? null,

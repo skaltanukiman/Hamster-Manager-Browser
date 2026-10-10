@@ -1,5 +1,5 @@
 import { getCareDayRecordDate } from "@/lib/care-day";
-import { formatDateJst, formatTimeJst, parseDateInput, toDateInputValue, todayInputJst } from "@/lib/date";
+import { formatDateJst, parseDateInput, toDateInputValue } from "@/lib/date";
 
 export const CARE_HISTORY_PERIODS = [7, 14, 30] as const;
 export type CareHistoryPeriod = (typeof CARE_HISTORY_PERIODS)[number];
@@ -30,18 +30,6 @@ export function buildCareHistoryDays(
   const food = new Map(feedings.map((row) => [toDateInputValue(row.recordDate), row.fedAt.toISOString()]));
   const water = new Map(replacements.map((row) => [toDateInputValue(row.recordDate), row.replacedAt.toISOString()]));
   return dates.map((recordDate) => ({ recordDate, fedAt: food.get(recordDate) ?? null, replacedAt: water.get(recordDate) ?? null }));
-}
-
-/** 前回日時の「今日・昨日」は実施timestampのJST暦日を基準にする。 */
-export function formatLatestCareTime(timestamp: string | null, now: Date) {
-  if (!timestamp) return "記録なし";
-  const date = new Date(timestamp);
-  const calendar = formatDateJst(date).replaceAll("/", "-");
-  const today = todayInputJst(now);
-  const yesterday = parseDateInput(today);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const label = calendar === today ? "今日" : calendar === toDateInputValue(yesterday) ? "昨日" : formatCareDate(calendar, today);
-  return `${label} ${formatTimeJst(date)}`;
 }
 
 export function formatCareDate(recordDate: string, referenceDate: string) {

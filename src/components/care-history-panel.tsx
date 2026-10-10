@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronRight, History, LoaderCircle, X } from "lucide-react";
+import { Check, History, LoaderCircle, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
-  CARE_HISTORY_PERIODS, careTimeDateNote, formatCareDate, formatLatestCareTime,
+  CARE_HISTORY_PERIODS, careTimeDateNote, formatCareDate,
   type CareHistoryData, type CareHistoryPeriod
 } from "@/lib/care-history";
 import { formatDateTimeJst, formatTimeJst } from "@/lib/date";
@@ -17,9 +17,6 @@ type CareHistoryPanelProps = {
   hamsterId: string;
   hamsterName: string;
   householdId: string;
-  latestFedAt: string | null;
-  latestReplacedAt: string | null;
-  referenceTime: string;
   historyVersion: string;
   demo?: boolean;
 };
@@ -27,37 +24,25 @@ type CareHistoryPanelProps = {
 export function CareHistoryPanel(props: CareHistoryPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const now = new Date(props.referenceTime);
 
   return (
-    <div className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-x-2">
-        <dt className="flex items-center gap-2 text-sm font-medium text-slate-600">
-          <History className="h-4 w-4 text-moss" aria-hidden />
-          お世話履歴
-        </dt>
-        <dd>
-          <button
-            ref={triggerRef}
-            type="button"
-            aria-haspopup="dialog"
-            aria-label={`${props.hamsterName}のお世話履歴を見る`}
-            onClick={() => setIsOpen(true)}
-            className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-semibold text-moss hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-moss"
-          >
-            履歴を見る <ChevronRight className="h-4 w-4" aria-hidden />
-          </button>
-        </dd>
-      </div>
-      <dd className="grid gap-1 break-words text-xs leading-5 text-slate-500">
-        <span>前回 食事: {formatLatestCareTime(props.latestFedAt, now)}</span>
-        <span>前回 水替え: {formatLatestCareTime(props.latestReplacedAt, now)}</span>
-        {isOpen ? createPortal(
-          <CareHistoryModal {...props} onClose={() => setIsOpen(false)} returnFocus={() => triggerRef.current?.focus()} />,
-          document.body
-        ) : null}
-      </dd>
-    </div>
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`${props.hamsterName}のお世話履歴を見る`}
+        onClick={() => setIsOpen(true)}
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-sm font-semibold text-moss hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss"
+      >
+        <History className="h-4 w-4" aria-hidden />
+        履歴
+      </button>
+      {isOpen ? createPortal(
+        <CareHistoryModal {...props} onClose={() => setIsOpen(false)} returnFocus={() => triggerRef.current?.focus()} />,
+        document.body
+      ) : null}
+    </>
   );
 }
 

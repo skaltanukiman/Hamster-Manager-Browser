@@ -6,10 +6,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { CareHistoryPanel } from "../src/components/care-history-panel";
 import {
-  buildCareHistoryDays, careTimeDateNote, formatCareDate, formatLatestCareTime,
+  buildCareHistoryDays, careTimeDateNote, formatCareDate,
   getCareHistoryRange, isCareHistoryPeriod
 } from "../src/lib/care-history";
-import { getCareHistory, getLatestCareTimes } from "../src/lib/care-history-queries";
+import { getCareHistory } from "../src/lib/care-history-queries";
 import { parseDateInput, toDateInputValue } from "../src/lib/date";
 
 const source = (path: string) => readFileSync(path, "utf8");
@@ -52,14 +52,6 @@ function fakeDatabase() {
       async findMany(args: { where: Where; take: number }) {
         calls.push({ kind: field + ".findMany", args });
         return filter(rows, args.where).sort((a, b) => b.recordDate.getTime() - a.recordDate.getTime()).slice(0, args.take);
-      },
-      async groupBy(args: { where: Where }) {
-        calls.push({ kind: field + ".groupBy", args });
-        const groups = new Map<string, Date>();
-        for (const row of filter(rows, args.where)) {
-          if (!groups.has(row.hamsterId) || row[field]! > groups.get(row.hamsterId)!) groups.set(row.hamsterId, row[field]!);
-        }
-        return [...groups].map(([hamsterId, date]) => ({ hamsterId, _max: { [field]: date } }));
       }
     };
   }
@@ -105,14 +97,9 @@ test("8時境界の前後をJSTで算出し、timestampの暦日で既存recordD
   assert.equal(careTimeDateNote("2025-12-31T15:00:00Z", "2025-12-31"), "翌日");
 });
 
-test("前回日時はJSTの今日/昨日/年月日を表示し、UTCで日付がずれない", () => {
-  assert.equal(formatLatestCareTime(null, now), "記録なし");
-  assert.equal(formatLatestCareTime(now.toISOString(), now), "今日 20:30");
-  assert.equal(formatLatestCareTime("2026-10-09T12:15:00Z", now), "昨日 21:15");
-  assert.equal(formatLatestCareTime("2026-10-08T10:40:00Z", now), "10/8 19:40");
-  assert.equal(formatLatestCareTime("2025-12-31T10:40:00Z", now), "2025/12/31 19:40");
-  assert.equal(formatLatestCareTime("2026-10-09T15:00:00Z", now), "今日 00:00");
+test("お世話日は年を跨いでも暦日を維持して表示する", () => {
   assert.equal(formatCareDate("2025-12-31", "2026-01-01"), "2025/12/31");
+  assert.equal(formatCareDate("2026-01-01", "2026-01-01"), "1/1");
 });
 
 test("DBで対象期間・対象個体を制限し、食事と水替えの過去記録と欠落日を返す", async () => {
@@ -156,41 +143,42 @@ test("匿名デモは固定slug・isDemoのサンプルだけを返し、通常�
   assert.doesNotMatch(route, /getRequiredHouseholdContext|auth\(|cookies\(|params.get\("householdId"\)/);
 });
 
-test("最新timestampを二つの集約queryで取得し、取消後は以前の記録へ戻る", async () => {
+test("取消で削除された当日記録を履歴に含めず、過去日の記録を保持する", async () => {
   const db = fakeDatabase();
-  const scope = { householdId: "home", userId: "viewer" };
-  let latest = await getLatestCareTimes(db.reader, scope, ["h1", "h2"]);
-  assert.equal(latest.get("h1")?.fedAt?.toISOString(), now.toISOString());
-  assert.equal(latest.get("h2")?.fedAt?.toISOString(), "2026-10-08T10:40:00.000Z");
-  assert.equal(latest.get("h2")?.replacedAt, null);
-  assert.equal(db.calls.length, 2);
   db.feedings.splice(db.feedings.findIndex((row) => row.hamsterId === "h1" && toDateInputValue(row.recordDate) === "2026-10-10"), 1);
-  latest = await getLatestCareTimes(db.reader, scope, ["h1", "h2"]);
-  assert.equal(latest.get("h1")?.fedAt?.toISOString(), "2026-10-09T12:30:00.000Z");
-  const count = db.calls.length;
-  assert.equal((await getLatestCareTimes(db.reader, scope, [])).size, 0);
-  assert.equal(db.calls.length, count);
+  const data = await getCareHistory(db.reader, { householdId: "home", userId: "viewer" }, "h1", 7, now);
+  assert.equal(data?.days[0].fedAt, null);
+  assert.equal(data?.days[1].fedAt, "2026-10-09T12:30:00.000Z");
 });
 
-test("最新はrecordDateの大小より実施timestampを優先し、履歴は期間外の水替えも除外", async () => {
-  const db = fakeDatabase();
-  db.feedings.push({ hamsterId: "h1", recordDate: parseDateInput("2026-10-08"), fedAt: new Date("2026-10-10T13:00:00Z") });
-  const latest = await getLatestCareTimes(db.reader, { householdId: "home", userId: "viewer" }, ["h1"]);
-  assert.equal(latest.get("h1")?.fedAt?.toISOString(), "2026-10-10T13:00:00.000Z");
-  const rows = buildCareHistoryDays(["2026-10-10"], [], [{ recordDate: parseDateInput("2026-10-09"), replacedAt: now }]);
-  assert.equal(rows[0].replacedAt, null);
-});
-
-test("ダッシュボードは食事/水替え/共通履歴/体重の順、記録なしでも履歴ボタンを維持", () => {
+test("履歴ボタンはカード上部に1つ置き、状態一覧は食事/水替え/体重の順を維持", () => {
   for (const path of ["src/app/(app)/page.tsx", "src/app/demo/page.tsx"]) {
     const page = source(path);
-    assert.match(page, /<FeedingToggle[\s\S]*<WaterReplacementToggle[\s\S]*<CareHistoryPanel[\s\S]*最新体重/);
+    const header = page.slice(page.indexOf("<article key={hamster.id}"), page.indexOf("<HamsterThumbnail"));
+    const states = page.slice(page.indexOf("<dl"));
+    assert.match(header, /<CareHistoryPanel[\s\S]*管理中[\s\S]*管理外/);
     assert.equal((page.match(/<CareHistoryPanel/g) ?? []).length, 1);
+    assert.match(states, /<FeedingToggle[\s\S]*<WaterReplacementToggle[\s\S]*最新体重/);
+    assert.doesNotMatch(states, /<CareHistoryPanel|前回/);
+    assert.match(header, /min-w-0 flex-1/);
+    assert.match(header, /break-words text-lg/);
+    assert.match(header, /flex shrink-0 items-center gap-1/);
   }
-  const html = renderToStaticMarkup(<CareHistoryPanel hamsterId="h1" hamsterName="きなこ" householdId="home" latestFedAt={null} latestReplacedAt={null} referenceTime={now.toISOString()} historyVersion="home:1" />);
-  assert.match(html, /お世話履歴を見る/);
-  assert.equal((html.match(/記録なし/g) ?? []).length, 2);
-  assert.doesNotMatch(html, /disabled|<form|<dialog/);
+  const html = renderToStaticMarkup(<CareHistoryPanel hamsterId="h1" hamsterName="とても長い名前のきなこ" householdId="home" historyVersion="home:1" />);
+  assert.match(html, /とても長い名前のきなこのお世話履歴を見る/);
+  assert.match(html, />履歴<|>\s*履歴\s*</);
+  assert.match(html, /lucide-history/);
+  assert.match(html, /min-h-11 min-w-11 shrink-0/);
+  assert.doesNotMatch(html, /前回|記録なし|<dt|<dd|<form|<dialog|disabled/);
+});
+
+test("前回日時だけのDB取得を撤去し、履歴APIとrevision更新を維持する", () => {
+  for (const path of ["src/lib/queries.ts", "src/lib/public-demo-queries.ts"]) {
+    assert.doesNotMatch(source(path), /getLatestCareTimes|latestFedAt|latestReplacedAt|referenceTime/);
+    assert.match(source(path), /historyVersion:/);
+  }
+  assert.match(source("src/lib/queries.ts"), /select: \{ realtimeRevision: true \}/);
+  assert.match(source("src/lib/public-demo-queries.ts"), /export async function getPublicDemoCareHistory/);
 });
 
 test("履歴は読取専用、開いた時だけ取得し、終了・revision更新時は以前の応答を破棄", () => {
