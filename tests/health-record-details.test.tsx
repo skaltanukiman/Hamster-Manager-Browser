@@ -14,20 +14,50 @@ test("総合状態は登録された状態名と控えめな状態色で表示�
     const markup = renderToStaticMarkup(<HealthStatusBadge condition={condition} />);
     assert.ok(markup.includes(HEALTH_OVERALL_LABELS[condition]));
     assert.ok(markup.includes("bg-" + color + "-50"));
+    assert.ok(markup.includes("rounded-md"));
+    assert.doesNotMatch(markup, /rounded-full/);
   }
 });
 
-test("食欲と活動量、便と尿は全ての既存ラベルを中立色のブロックで表示する", () => {
-  for (const condition of Object.keys(HEALTH_AMOUNT_LABELS) as Array<keyof typeof HEALTH_AMOUNT_LABELS>) {
+function fieldStyle(markup: string, label: string) {
+  const block = markup.match(new RegExp('<div class="([^"]+)"><dt[^>]*>' + label + '</dt>'));
+  assert.ok(block, label + "のブロックが存在する");
+  return block[1];
+}
+
+test("食欲・活動量は内部値に応じて既存ラベルと背景・文字色を表示する", () => {
+  for (const [condition, color] of [["NORMAL", "slate"], ["LOW", "amber"], ["NONE", "red"], ["UNKNOWN", "slate"]] as const) {
     const markup = render({ ...detail, symptoms: [], appetite: condition, activityLevel: condition });
     assert.equal(markup.split(HEALTH_AMOUNT_LABELS[condition]).length - 1, 2);
-    assert.ok(markup.includes("活動量"));
-    assert.ok(markup.includes("bg-slate-50"));
+    for (const label of ["食欲", "活動量"]) {
+      assert.ok(fieldStyle(markup, label).includes("bg-" + color + "-50"));
+      assert.ok(fieldStyle(markup, label).includes("text-" + color + (color === "slate" ? "-700" : "-800")));
+    }
     assert.doesNotMatch(markup, /text-emerald|bg-emerald/);
   }
-  for (const condition of Object.keys(HEALTH_EXCRETION_LABELS) as Array<keyof typeof HEALTH_EXCRETION_LABELS>) {
+});
+
+test("便・尿は内部値に応じて既存ラベルと背景・文字色を表示する", () => {
+  for (const [condition, color] of [["NORMAL", "slate"], ["LOW", "amber"], ["ABNORMAL", "red"], ["UNKNOWN", "slate"]] as const) {
     const markup = render({ ...detail, symptoms: [], stoolCondition: condition, urineCondition: condition });
     assert.equal(markup.split(HEALTH_EXCRETION_LABELS[condition]).length - 1, 2);
+    for (const label of ["便", "尿"]) {
+      assert.ok(fieldStyle(markup, label).includes("bg-" + color + "-50"));
+      assert.ok(fieldStyle(markup, label).includes("text-" + color + (color === "slate" ? "-700" : "-800")));
+    }
+    assert.doesNotMatch(markup, /text-emerald|bg-emerald/);
+  }
+});
+
+test("総合状態に関係なく各項目の登録値で独立して色分けし、症状タグはピル型を維持する", () => {
+  for (const condition of ["GOOD", "CONCERN", "WARNING"] as const) {
+    const markup = renderToStaticMarkup(<><HealthStatusBadge condition={condition} /><HealthRecordDetails detail={{ ...detail, appetite: "NORMAL", activityLevel: "LOW", stoolCondition: "ABNORMAL", urineCondition: "UNKNOWN", symptoms: ["DIARRHEA"] }} /></>);
+    assert.ok(markup.includes(HEALTH_OVERALL_LABELS[condition]));
+    assert.ok(fieldStyle(markup, "食欲").includes("bg-slate-50"));
+    assert.ok(fieldStyle(markup, "活動量").includes("bg-amber-50"));
+    assert.ok(fieldStyle(markup, "便").includes("bg-red-50"));
+    assert.ok(fieldStyle(markup, "尿").includes("bg-slate-50"));
+    assert.match(markup, /<li class="[^"]*rounded-full/);
   }
 });
 
@@ -57,6 +87,8 @@ test("再描画は更新済みの値を表示し、総合状態と症状は別�
   const after = render({ ...detail, appetite: "NONE", symptoms: ["ABNORMAL_BREATHING"] }, "更新後");
   assert.ok(before.includes("更新前"));
   assert.ok(after.includes("なし・ほとんどない"));
+  assert.ok(fieldStyle(before, "食欲").includes("bg-slate-50"));
+  assert.ok(fieldStyle(after, "食欲").includes("bg-red-50"));
   assert.ok(after.includes("呼吸の異常"));
   assert.ok(after.includes("更新後"));
   assert.doesNotMatch(after, /更新前|要注意|総合:/);

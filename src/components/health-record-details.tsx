@@ -10,16 +10,24 @@ const statusStyles = {
   WARNING: "bg-red-50 text-red-800 ring-red-200"
 };
 
+const detailStyles = {
+  NORMAL: "bg-slate-50 text-slate-700",
+  LOW: "bg-amber-50 text-amber-800",
+  NONE: "bg-red-50 text-red-800",
+  ABNORMAL: "bg-red-50 text-red-800",
+  UNKNOWN: "bg-slate-50 text-slate-700"
+} satisfies Record<HealthDetail["appetite"] | HealthDetail["stoolCondition"], string>;
+
 export function HealthStatusBadge({ condition }: { condition: HealthDetail["overallCondition"] }) {
-  return <span className={"inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset " + statusStyles[condition]}>{HEALTH_OVERALL_LABELS[condition]}</span>;
+  return <span className={"inline-flex rounded-md px-2.5 py-1 text-xs font-bold ring-1 ring-inset " + statusStyles[condition]}>{HEALTH_OVERALL_LABELS[condition]}</span>;
 }
 
 export function HealthRecordDetails({ detail, memo }: { detail: DisplayDetail | null; memo?: string | null }) {
   const fields = detail ? [
-    ["食欲", HEALTH_AMOUNT_LABELS[detail.appetite]],
-    ["活動量", HEALTH_AMOUNT_LABELS[detail.activityLevel]],
-    ["便", HEALTH_EXCRETION_LABELS[detail.stoolCondition]],
-    ["尿", HEALTH_EXCRETION_LABELS[detail.urineCondition]]
+    ["食欲", HEALTH_AMOUNT_LABELS[detail.appetite], detailStyles[detail.appetite]],
+    ["活動量", HEALTH_AMOUNT_LABELS[detail.activityLevel], detailStyles[detail.activityLevel]],
+    ["便", HEALTH_EXCRETION_LABELS[detail.stoolCondition], detailStyles[detail.stoolCondition]],
+    ["尿", HEALTH_EXCRETION_LABELS[detail.urineCondition], detailStyles[detail.urineCondition]]
   ] : [];
   return (
     <div className="mt-4 grid min-w-0 gap-4 text-sm leading-6 text-slate-700 [container-type:inline-size]">
@@ -27,8 +35,8 @@ export function HealthRecordDetails({ detail, memo }: { detail: DisplayDetail | 
         <section>
           <h4 className="mb-2 text-sm font-semibold text-ink">体調の詳細</h4>
           <dl className="grid min-w-0 gap-2 [@container(min-width:14rem)]:grid-cols-2 [@container(min-width:32rem)]:grid-cols-4">
-            {fields.map(([label, value]) => (
-              <div key={label} className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
+            {fields.map(([label, value, style]) => (
+              <div key={label} className={"min-w-0 rounded-md px-3 py-2 " + style}>
                 <dt className="text-xs font-medium text-slate-500">{label}</dt>
                 <dd className="mt-0.5 font-semibold [overflow-wrap:anywhere]">{value}</dd>
               </div>
