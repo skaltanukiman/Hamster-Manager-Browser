@@ -1,5 +1,6 @@
 import { ClipboardCheck, Scale } from "lucide-react";
 
+import { CareHistoryPanel } from "@/components/care-history-panel";
 import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { DashboardMemo } from "@/components/dashboard-memo";
 import { DemoUnavailable } from "@/components/demo-unavailable";
@@ -41,18 +42,27 @@ export default async function DemoDashboardPage() {
 
           return (
             <article key={hamster.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3 md:min-h-[3.75rem]">
+              <div className="flex items-start justify-between gap-2 md:min-h-[3.75rem]">
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-lg font-bold text-ink">{hamster.name}</h3>
                   {hamster.memo ? <DashboardMemo hamsterName={hamster.name} memo={hamster.memo} /> : null}
                 </div>
-                <span
-                  className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
-                    hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
-                  }`}
-                >
-                  {hamster.isActive ? "管理中" : "管理外"}
-                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <CareHistoryPanel
+                    hamsterId={hamster.id}
+                    hamsterName={hamster.name}
+                    householdId={data.household.id}
+                    historyVersion={data.historyVersion}
+                    demo
+                  />
+                  <span
+                    className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
+                      hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
+                    {hamster.isActive ? "管理中" : "管理外"}
+                  </span>
+                </div>
               </div>
               <div className="mt-4 flex min-h-24 justify-center md:min-h-28">
                 <HamsterThumbnail

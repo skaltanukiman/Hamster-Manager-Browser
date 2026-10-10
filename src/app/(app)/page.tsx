@@ -3,6 +3,7 @@ import { ClipboardCheck, Plus, Scale, Settings } from "lucide-react";
 
 import { setTodayFeeding } from "@/app/actions/feeding";
 import { setTodayWaterReplacement } from "@/app/actions/water-replacement";
+import { CareHistoryPanel } from "@/components/care-history-panel";
 import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { DashboardMemo } from "@/components/dashboard-memo";
 import { EmptyState } from "@/components/empty-state";
@@ -30,7 +31,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const { hamsters, canEdit, boardCount, totalHamsters } = await getDashboardData();
+  const { hamsters, canEdit, canManageCareDaySettings, boardCount, totalHamsters, householdId, historyVersion } = await getDashboardData();
   // 表示数制限で非表示になったハムスターがいる場合だけ、設定画面への誘導文を出す。
   const hiddenHamsterCount = Math.max(totalHamsters - hamsters.length, 0);
 
@@ -85,18 +86,27 @@ export default async function DashboardPage({
 
               return (
                 <article key={hamster.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-3 md:min-h-[3.75rem]">
+                  <div className="flex items-start justify-between gap-2 md:min-h-[3.75rem]">
                     <div className="min-w-0 flex-1">
                       <h3 className="break-words text-lg font-bold text-ink">{hamster.name}</h3>
                       {hamster.memo ? <DashboardMemo hamsterName={hamster.name} memo={hamster.memo} /> : null}
                     </div>
-                    <span
-                      className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
-                        hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
-                      }`}
-                    >
-                      {hamster.isActive ? "管理中" : "管理外"}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <CareHistoryPanel
+                        hamsterId={hamster.id}
+                        hamsterName={hamster.name}
+                        householdId={householdId}
+                        historyVersion={historyVersion}
+                        canManageCareDaySettings={canManageCareDaySettings}
+                      />
+                      <span
+                        className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
+                          hamster.isActive ? "bg-straw/40 text-slate-700" : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {hamster.isActive ? "管理中" : "管理外"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mt-4 flex min-h-24 justify-center md:min-h-28">

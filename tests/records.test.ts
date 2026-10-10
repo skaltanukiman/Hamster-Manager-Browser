@@ -745,7 +745,7 @@ test("タイムラインは思い出の全対象ハムスターを表示し、�
   assert.match(timeline, /record\.recordType === "MEMORY"[\s\S]*record\.memoryDetail\?\.hamsters/);
   assert.match(timeline, /recordHamsters\.map\(\(hamster\) => <Link key=\{hamster\.id\}/);
   assert.match(timeline, /hamsterId: hamster\.id/);
-  assert.match(timeline, /\{hamster\.name\}<\/Link>/);
+  assert.match(timeline, /\{hamster\.name\}<\/span> : hamster.name\}<\/Link>/);
   assert.ok((timeline.match(/name="hamsterId" value=\{record\.hamster\.id\}/g)?.length ?? 0) >= 4);
   assert.ok((timeline.match(/name="viewScope"/g)?.length ?? 0) >= 4);
   assert.ok((timeline.match(/name="returnHamsterId"/g)?.length ?? 0) >= 4);
@@ -772,7 +772,9 @@ test("閲覧者権限はグループ表示でもタイムラインの編集・�
   assert.match(page, /const canEdit = canEditHouseholdSharedData\(data\.context\.membership\.role\)/);
   assert.match(page, /<RecordTimeline[\s\S]*canEdit=\{canEdit\}/);
   assert.match(timeline, /const editable = canEdit &&/);
-  assert.match(timeline, /\{editable \? <form action=\{deleteHamsterRecord\}/);
+  assert.match(timeline, /\{editable \? \(/);
+  assert.match(timeline, /<RecordDeleteControl[^>]*action=\{deleteHamsterRecord\} onSubmit=\{confirmDelete\}/);
+  assert.doesNotMatch(timeline, /<form action=\{deleteHamsterRecord\}/);
   assert.match(timeline, /\{editable \? <details/);
 });
 

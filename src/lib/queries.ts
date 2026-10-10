@@ -35,7 +35,7 @@ function latestRecordByHamster<T extends { hamsterId: string }>(records: T[]) {
 
 export async function getDashboardData() {
   const context = await getRequiredHouseholdContext();
-  const [hamsters, setting] = await Promise.all([
+  const [hamsters, setting, householdRevision] = await Promise.all([
     // 一覧カードで使う最新体重だけを取得し、不要な体重履歴全体は読み込まない。
     prisma.hamster.findMany({
       where: { householdId: context.household.id },
@@ -59,7 +59,8 @@ export async function getDashboardData() {
           orderBy: { sortOrder: "asc" }
         }
       }
-    })
+    }),
+    prisma.household.findUnique({ where: { id: context.household.id }, select: { realtimeRevision: true } })
   ]);
   const boardCount = normalizeDashboardBoardCount(setting?.dashboardBoardCount);
   const selectedIds = setting?.dashboardHamsters.map((entry) => entry.hamsterId) ?? [];
@@ -144,7 +145,10 @@ export async function getDashboardData() {
       latestFlooringAllCleaning: flooringAllCleaningByHamster.get(hamster.id) ?? null,
       latestHouseCleaning: houseCleaningByHamster.get(hamster.id) ?? null
     })),
+    householdId: context.household.id,
+    historyVersion: `${context.household.id}:${householdRevision?.realtimeRevision ?? 0}:${careDayRecordDate.toISOString()}`,
     canEdit: canEditHouseholdSharedData(context.membership.role),
+    canManageCareDaySettings: canManageCareDaySettings(context.membership.role),
     boardCount,
     totalHamsters: hamsters.length
   };

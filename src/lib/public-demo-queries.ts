@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
+import type { CareHistoryPeriod } from "@/lib/care-history";
+import { getCareHistory } from "@/lib/care-history-queries";
 import { monthDateRange, parseDateInput, toDateInputValue } from "@/lib/date";
 import { getTodayFeedingRecordDate, todayFeedingRecordsByHamster } from "@/lib/feeding";
 import { prisma } from "@/lib/prisma";
@@ -55,6 +57,12 @@ function latestRecordByHamster<T extends { hamsterId: string }>(records: T[]) {
     if (!recordsByHamster.has(record.hamsterId)) recordsByHamster.set(record.hamsterId, record);
   }
   return recordsByHamster;
+}
+
+export async function getPublicDemoCareHistory(hamsterId: string, period: CareHistoryPeriod) {
+  const household = await getPublicDemoHousehold();
+  if (!household) return null;
+  return getCareHistory(prisma, { householdId: household.id, publicDemo: true }, hamsterId, period);
 }
 
 export async function getPublicDemoDashboardData() {
@@ -115,6 +123,7 @@ export async function getPublicDemoDashboardData() {
 
   return {
     household,
+    historyVersion: `demo:${getTodayFeedingRecordDate(now).toISOString()}`,
     boardCount: hamsters.length,
     totalHamsters: hamsters.length,
     hamsters: hamsters.map((hamster) => ({
