@@ -176,7 +176,7 @@ function CareHistoryModal({
           ) : null}
           {data ? (
             <>
-              {noRecords ? <p role="status" className="mb-3 text-slate-500">この期間のお世話記録はありません。</p> : null}
+              {noRecords ? <p role="status" className="mb-3 text-center font-semibold text-slate-600">この期間のお世話記録はありません。</p> : null}
               <table className="w-full table-fixed border-collapse text-center text-sm">
                 <caption className="sr-only">{hamsterName}の直近{period}日のお世話履歴</caption>
                 <thead className="border-b border-slate-200 text-slate-600"><tr><th scope="col" className="w-[36%] py-2">お世話日</th><th scope="col">食事</th><th scope="col">水替え</th></tr></thead>
