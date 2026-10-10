@@ -19,6 +19,7 @@ type CareHistoryPanelProps = {
   householdId: string;
   historyVersion: string;
   demo?: boolean;
+  canManageCareDaySettings?: boolean;
 };
 
 export function CareHistoryPanel(props: CareHistoryPanelProps) {
@@ -62,7 +63,7 @@ function CareTime({ timestamp, recordDate }: { timestamp: string | null; recordD
 
 /** native dialogで背景をinertにしてフォーカスを閉じ込め、取得は開いている間だけ行う。 */
 function CareHistoryModal({
-  hamsterId, hamsterName, householdId, historyVersion, demo = false, onClose, returnFocus
+  hamsterId, hamsterName, householdId, historyVersion, demo = false, canManageCareDaySettings = false, onClose, returnFocus
 }: CareHistoryPanelProps & { onClose: () => void; returnFocus: () => void }) {
   const titleId = useId();
   const descriptionId = useId();
@@ -165,7 +166,7 @@ function CareHistoryModal({
           <p id={descriptionId} className="mb-3 text-xs leading-5 text-slate-500">
             <span className="block">記録なしは未実施を意味するものではありません。</span>
             {data ? <span className="block">お世話日は{formatMinutesAsTime(data.careDayStartMinutes)}に切り替わります。</span> : null}
-            <span className="block">切り替え時刻は設定画面の「お世話日の設定」から変更できます。</span>
+            {!demo && canManageCareDaySettings ? <span className="block">切り替え時刻は設定画面の「お世話日の設定」から変更できます。</span> : null}
           </p>
           {!currentResult ? <p role="status" className="flex items-center gap-2 py-6 text-slate-600"><LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />履歴を読み込み中...</p> : null}
           {error ? (

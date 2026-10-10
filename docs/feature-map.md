@@ -74,7 +74,7 @@
 
 - **お世話履歴:** 各カード上部の管理状態バッジの左に、履歴アイコン付きの「履歴」ボタンを置く。対象名を含むaria-labelと44px以上のタップ領域を持ち、名前は折り返し、ボタン・バッジは縮小しない。食事・水替え・最新体重の状態一覧には独立した履歴欄や前回日時を表示しない。前回日時専用のMAX集約queryは撤去し、既存記録・履歴API・revisionによるモーダル更新は維持する。
 - **履歴API・認可:** `GET /api/care-history?hamsterId=...&householdId=...&days=7|14|30`は`getRequiredHouseholdContext`で認証・現在所属を確定し、DB検索でも対象Household・最新所属・非デモを確認する。VIEWER・管理外も閲覧でき、更新処理を持たない。匿名版`GET /demo/care-history`は`getPublicDemoCareHistory`から固定slug/isDemo条件のデモHouseholdだけを解決し、通常データへフォールバックしない。応答はno-store。
-- **履歴UI・日付:** `CareHistoryPanel`は開いたときだけ最大30日を取得し、直近7日（初期）/14日/30日を追加取得なしで切り替える。`src/lib/care-history.ts`が現在のお世話日境界から日付専用の期間を作り、保存済みrecordDateを変更せず欠落日をnullで埋める。実施時刻はJST、日付が異なる場合は翌日等を添える。記録なしは未実施を意味しない旨を表示する。native dialogでフォーカス閉じ込め・Escape・背景操作抑止、bodyのスクロールロック・終了時フォーカス復帰を行い、閉じた後の応答は破棄する。既存のrevision refreshで開いている履歴も再取得し、既存の実施/取消・通知・操作履歴・デバイスAPIは変更しない。
+- **履歴UI・日付:** `CareHistoryPanel`は開いたときだけ最大30日を取得し、直近7日（初期）/14日/30日を追加取得なしで切り替える。`src/lib/care-history.ts`が現在のお世話日境界から日付専用の期間を作り、保存済みrecordDateを変更せず欠落日をnullで埋める。実施時刻はJST、日付が異なる場合は翌日等を添える。記録なしは未実施を意味しない旨と現在の切り替え時刻は全権限・公開デモで表示する。設定変更の案内だけは、選択中Householdの既存`canManageCareDaySettings`判定をサーバーから渡しOWNER・ADMINに表示する。MEMBER・VIEWER・公開デモでは案内を表示しない。native dialogでフォーカス閉じ込め・Escape・背景操作抑止、bodyのスクロールロック・終了時フォーカス復帰を行い、閉じた後の応答は破棄する。既存のrevision refreshで開いている履歴も再取得し、既存の実施/取消・通知・操作履歴・デバイスAPIは変更しない。
 - **履歴テスト:** `tests/care-history.test.tsx`（期間・欠落日・境界/JST・年跨ぎ・取消・不要query撤去・Household/デモ分離・VIEWER/管理外・UI配置・読み取り専用・modal取得/操作）。
 
 ## ハムスター一覧・登録・編集・削除

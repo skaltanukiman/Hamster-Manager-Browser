@@ -148,6 +148,7 @@ export async function getDashboardData() {
     householdId: context.household.id,
     historyVersion: `${context.household.id}:${householdRevision?.realtimeRevision ?? 0}:${careDayRecordDate.toISOString()}`,
     canEdit: canEditHouseholdSharedData(context.membership.role),
+    canManageCareDaySettings: canManageCareDaySettings(context.membership.role),
     boardCount,
     totalHamsters: hamsters.length
   };

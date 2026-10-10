@@ -31,7 +31,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ status?: string | string[]; errorId?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const { hamsters, canEdit, boardCount, totalHamsters, householdId, historyVersion } = await getDashboardData();
+  const { hamsters, canEdit, canManageCareDaySettings, boardCount, totalHamsters, householdId, historyVersion } = await getDashboardData();
   // 表示数制限で非表示になったハムスターがいる場合だけ、設定画面への誘導文を出す。
   const hiddenHamsterCount = Math.max(totalHamsters - hamsters.length, 0);
 
@@ -97,6 +97,7 @@ export default async function DashboardPage({
                         hamsterName={hamster.name}
                         householdId={householdId}
                         historyVersion={historyVersion}
+                        canManageCareDaySettings={canManageCareDaySettings}
                       />
                       <span
                         className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${

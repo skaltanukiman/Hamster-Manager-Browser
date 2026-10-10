@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import * as React from "react";
+import ts from "typescript";
 import type { Prisma } from "@prisma/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { canManageCareDaySettings } from "../src/lib/authorization";
 import { CareHistoryPanel } from "../src/components/care-history-panel";
 import {
   buildCareHistoryDays, careTimeDateNote, formatCareDate,
@@ -200,4 +205,55 @@ test("履歴は読取専用、開いた時だけ取得し、終了・revision更
   assert.match(route, /userId: context.user.id/);
   assert.match(route, /private, no-store/);
   assert.doesNotMatch(route, /export async function (POST|PATCH|DELETE)/);
+});
+
+
+test("設定案内は選択中Householdの設定変更権限を追加queryなしでサーバーから渡す", () => {
+  const queries = source("src/lib/queries.ts");
+  const dashboard = queries.slice(queries.indexOf("export async function getDashboardData"), queries.indexOf("export async function getHamsterManagementData"));
+  assert.match(dashboard, /canManageCareDaySettings: canManageCareDaySettings\(context.membership.role\)/);
+  const page = source("src/app/(app)/page.tsx");
+  assert.match(page, /canManageCareDaySettings[^\n]*await getDashboardData\(\)/);
+  assert.match(page, /canManageCareDaySettings=\{canManageCareDaySettings\}/);
+});
+
+test("各権限・公開デモで案内のみを制御し、共通説明・動的時刻・余白を維持する", () => {
+  // 内部モーダルをメモリ内で公開し、取得済みデータだけをuseStateの初期値へ注入する。
+  // 本番のexportや取得処理を変えず、実際のJSXを各権限で描画して確認する。
+  const compiled = ts.transpileModule(source("src/components/care-history-panel.tsx") + "\nexport { CareHistoryModal };", {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }
+  }).outputText;
+  const require = createRequire(import.meta.url);
+  for (const start of [15, 480]) {
+    for (const role of ["OWNER", "ADMIN", "MEMBER", "VIEWER"] as const) {
+      for (const demo of [false, true]) {
+        const exports: { CareHistoryModal?: React.ComponentType<Record<string, unknown>> } = {};
+        runInNewContext(compiled, {
+          exports,
+          require: (id: string) => id === "react" ? {
+            ...React,
+            useState: (initial: unknown) => React.useState(initial === null ? {
+              version: "home:1", retry: 0, data: {
+                careDayStartMinutes: start,
+                days: [{ recordDate: "2026-10-10", fedAt: "2026-10-10T11:30:00Z", replacedAt: null }]
+              }
+            } : initial)
+          } : require(id)
+        });
+        const html = renderToStaticMarkup(React.createElement(exports.CareHistoryModal!, {
+          hamsterId: "h1", hamsterName: "きなこ", householdId: "home", historyVersion: "home:1",
+          canManageCareDaySettings: canManageCareDaySettings(role), demo,
+          onClose: () => {}, returnFocus: () => {}
+        }));
+        const explanation = html.match(/<p id="[^"]*" class="mb-3 text-xs leading-5 text-slate-500">(.*?)<\/p>/)![1];
+        const canManage = !demo && (role === "OWNER" || role === "ADMIN");
+        assert.equal(explanation.includes("切り替え時刻は設定画面の「お世話日の設定」から変更できます。"), canManage, `${role} demo=${demo}`);
+        assert.match(explanation, /記録なしは未実施を意味するものではありません。/);
+        assert.ok(explanation.includes(`お世話日は${start === 15 ? "00:15" : "08:00"}に切り替わります。`));
+        assert.equal((explanation.match(/<span class="block">/g) ?? []).length, canManage ? 3 : 2);
+        assert.doesNotMatch(html, /この期間のお世話記録はありません。/);
+        assert.match(html, /記録あり/);
+      }
+    }
+  }
 });
