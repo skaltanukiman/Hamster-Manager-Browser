@@ -1,5 +1,6 @@
 import { ClipboardCheck, Scale } from "lucide-react";
 
+import { CareHistoryPanel } from "@/components/care-history-panel";
 import { CleaningDateToggle } from "@/components/cleaning-date-toggle";
 import { DashboardMemo } from "@/components/dashboard-memo";
 import { DemoUnavailable } from "@/components/demo-unavailable";
@@ -76,6 +77,16 @@ export default async function DemoDashboardPage() {
                   replacedAt={hamster.todayWaterReplacement?.replacedAt.toISOString() ?? null}
                   isActive={hamster.isActive}
                   readOnly
+                />
+                <CareHistoryPanel
+                  hamsterId={hamster.id}
+                  hamsterName={hamster.name}
+                  householdId={data.household.id}
+                  latestFedAt={hamster.latestFedAt?.toISOString() ?? null}
+                  latestReplacedAt={hamster.latestReplacedAt?.toISOString() ?? null}
+                  referenceTime={data.referenceTime}
+                  historyVersion={data.historyVersion}
+                  demo
                 />
                 <div className="flex items-center justify-between gap-4 rounded-md bg-slate-50 px-3 py-3">
                   <dt className="flex items-center gap-2 text-sm font-medium text-slate-600">

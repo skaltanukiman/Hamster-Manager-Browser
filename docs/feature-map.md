@@ -64,13 +64,18 @@
 ## ダッシュボード
 
 - **画面または URL:** `/`。
-- **主なコンポーネント:** `DashboardMemo`、`FeedingToggle`、`WaterReplacementToggle`、`CleaningDateToggle`、`HamsterThumbnail`、`EmptyState`。`FeedingToggle`と`WaterReplacementToggle`は本日の状態とJST実施時刻を表示し、通常画面では押下で状態を切り替え、デモ・VIEWER・管理外では操作不可にする。画像登録済みの `HamsterThumbnail` はクリック・タップで拡大モーダルを表示し、未登録・読込失敗時は操作不可のプレースホルダーになる。
+- **主なコンポーネント:** `DashboardMemo`、`FeedingToggle`、`WaterReplacementToggle`、`CareHistoryPanel`、`CleaningDateToggle`、`HamsterThumbnail`、`EmptyState`。`FeedingToggle`と`WaterReplacementToggle`は本日の状態とJST実施時刻を表示し、通常画面では押下で状態を切り替え、デモ・VIEWER・管理外では操作不可にする。画像登録済みの `HamsterThumbnail` はクリック・タップで拡大モーダルを表示し、未登録・読込失敗時は操作不可のプレースホルダーになる。
 - **Server Action または API:** `setTodayFeeding`（`src/app/actions/feeding.ts`）と`setTodayWaterReplacement`（`src/app/actions/water-replacement.ts`）が意図する最終状態を受け取り、共通Household更新transactionで現在のお世話日の記録・操作履歴・revisionを確定する。`POST /api/device/care`は固定Householdの管理中ハムスターに対する食事・水替えの実施済み化だけを許可し、`src/lib/device-care.ts`から同じ共通処理を使う。操作時はtransaction内で最新の `Household.careDayStartMinutes` を再取得する。設定更新は `saveSettings` と `saveCareDaySettings`。
 - **データアクセス・Prismaモデル:** `getDashboardData`（`src/lib/queries.ts`）が `Hamster`、`AppSetting` / `DashboardHamster`、現在のお世話日の `FeedingRecord` / `WaterReplacementRecord`、最新 `WeightRecord`、各種 `CleaningRecord` を Household とユーザー設定で取得する。食事・水替え記録は同一の`now`と`Household.careDayStartMinutes`から算出した対象日、表示対象ハムスターIDを指定した一括queryで取得する。掃除・体重などの通常日付にはお世話日境界を適用しない。
 - **バリデーション:** 表示件数・対象選択は設定の `dashboardSettingsSchema` と `dashboard-settings.ts`。デバイスAPIは`DEVICE_CARE_API_TOKEN`と`DEVICE_CARE_HOUSEHOLD_ID`を必須とし、設定Household不在・デモは503、対象Household外は404、管理外ハムスターは409で拒否する。入力に取消状態は持たない。
 - **関連テスト:** `tests/settings.test.ts`（表示名・表示件数・選択方式・表示対象順序の差分判定）、`tests/care-day.test.ts`、`tests/feeding.test.tsx` / `tests/water-replacement.test.tsx`（Household別のお世話日境界、日単位一意性、同時・冪等更新、認可・履歴・revision、UI状態、デモ読み取り専用）、`tests/device-care-api.test.ts`（Bearer認証、固定Household、demo・所属・管理状態、実施済み専用、履歴・revision・レスポンス）。
 - **関連設定:** `src/lib/dashboard-settings.ts`（1〜30件、選択 UI の既定値）。
 - **依存関係:** 表示対象はユーザー・Household ごとの設定。食事・水替え更新後の他メンバー反映は既存Household revision / SSE / revision pollを使う。掃除種別を増減する場合は `getDashboardData` とカード表示を同時に変更する。
+
+- **お世話履歴:** 食事・水替えの直下、最新体重の上に共通の履歴欄を置き、当日を含む現在有効な最新実施timestampをJSTで表示する。`src/lib/care-history-queries.ts`の`getLatestCareTimes`は表示対象ID・Household条件で食事/水替えそれぞれのMAXをDB集約し、取消で削除された記録を含めず全期間の履歴転送を避ける。
+- **履歴API・認可:** `GET /api/care-history?hamsterId=...&householdId=...&days=7|14|30`は`getRequiredHouseholdContext`で認証・現在所属を確定し、DB検索でも対象Household・最新所属・非デモを確認する。VIEWER・管理外も閲覧でき、更新処理を持たない。匿名版`GET /demo/care-history`は`getPublicDemoCareHistory`から固定slug/isDemo条件のデモHouseholdだけを解決し、通常データへフォールバックしない。応答はno-store。
+- **履歴UI・日付:** `CareHistoryPanel`は開いたときだけ最大30日を取得し、直近7日（初期）/14日/30日を追加取得なしで切り替える。`src/lib/care-history.ts`が現在のお世話日境界から日付専用の期間を作り、保存済みrecordDateを変更せず欠落日をnullで埋める。実施時刻はJST、日付が異なる場合は翌日等を添える。記録なしは未実施を意味しない旨を表示する。native dialogでフォーカス閉じ込め・Escape・背景操作抑止、bodyのスクロールロック・終了時フォーカス復帰を行い、閉じた後の応答は破棄する。既存のrevision refreshで開いている履歴も再取得し、既存の実施/取消・通知・操作履歴・デバイスAPIは変更しない。
+- **履歴テスト:** `tests/care-history.test.tsx`（期間・欠落日・境界/JST・年跨ぎ・最新日時/取消・一括集約・Household/デモ分離・VIEWER/管理外・UI配置・読み取り専用・modal取得/操作）。
 
 ## ハムスター一覧・登録・編集・削除
 
