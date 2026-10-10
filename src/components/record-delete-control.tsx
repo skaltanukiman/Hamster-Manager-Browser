@@ -3,7 +3,7 @@
 import { Ellipsis, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 
-export function MedicalRecordDeleteControl({
+export function RecordDeleteControl({
   title,
   action,
   onSubmit,
@@ -99,7 +99,7 @@ export function MedicalRecordDeleteControl({
         <div
           id={menuId}
           role="menu"
-          aria-label="通院記録の操作"
+          aria-label={title + "の操作"}
           onKeyDown={(event) => {
             if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
               event.preventDefault();

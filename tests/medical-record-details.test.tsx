@@ -91,7 +91,7 @@ test("更新されたpropsで通常表示の各項目が更新される", () => 
 test("タイムラインの通院本文は編集権限・開閉から独立し、共通メモと重複しない", () => {
   const source = readFileSync("src/components/record-timeline.tsx", "utf8");
   assert.match(source, /record.recordType === "MEDICAL" && record.medicalDetail \? <MedicalRecordDetails detail=\{record.medicalDetail\} title=\{record.title\} memo=\{record.memo\}/);
-  assert.match(source, /record.recordType !== "MEDICAL" && record.memo \? <p/);
+  assert.match(source, /record.recordType === "MEMORY" && record.memo \? <p/);
   assert.match(source, /record.recordDate.replaceAll\("-", "\/"\)/);
   assert.match(source, /editable \? <details[\s\S]*<RecordEditForm/);
   assert.match(source, /action=\{updateMedicalRecord\}/);
