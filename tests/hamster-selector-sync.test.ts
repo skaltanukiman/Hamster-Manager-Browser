@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const projectRoot = process.cwd();
 
@@ -69,7 +70,7 @@ test("コンボボックスのprops同期は送信せず、ユーザーが候補
   assert.match(combobox, /onClick=\{\(\) => selectOption\(option\)\}/);
 });
 
-test("記録カードのハムスターリンク後はURL・選択UI・登録先・取得対象が同じIDになる", () => {
+test("記録カードのリンクは種別ごとの名前表示とURL・選択UI・登録先・取得対象のID接続をソース構造で維持する", () => {
   const page = source("src/app/(app)/records/page.tsx");
   const timeline = source("src/components/record-timeline.tsx");
   const queries = source("src/lib/record-queries.ts");
@@ -79,7 +80,63 @@ test("記録カードのハムスターリンク後はURL・選択UI・登録先
     timeline,
     /recordsUrl\(\{ basePath, scope: "hamster", includeScope: true, hamsterId: hamster\.id \}\)/
   );
-  assert.match(timeline, /\{hamster\.name\}<\/Link>/);
+  // JSXを解析して同じリンク内のhrefと名前を検査する。ブラウザー遷移の検証ではない。
+  const timelineAst = ts.createSourceFile("record-timeline.tsx", timeline, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const hamsterLinks: ts.JsxElement[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(timelineAst) === "Link") {
+      hamsterLinks.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(timelineAst);
+  assert.equal(hamsterLinks.length, 1, "記録カードのハムスターリンクが存在する");
+  const hamsterLink = hamsterLinks[0];
+  const href = hamsterLink.openingElement.attributes.properties.find(
+    (attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(timelineAst) === "href"
+  );
+  assert.ok(href && ts.isJsxAttribute(href) && href.initializer && ts.isJsxExpression(href.initializer));
+  assert.ok(href.initializer.expression && ts.isCallExpression(href.initializer.expression));
+  const urlCall = href.initializer.expression;
+  assert.ok(ts.isIdentifier(urlCall.expression));
+  assert.equal(urlCall.expression.text, "recordsUrl");
+  const urlOptions = urlCall.arguments[0];
+  assert.ok(urlOptions && ts.isObjectLiteralExpression(urlOptions));
+  const hamsterId = urlOptions.properties.find(
+    (property) => ts.isPropertyAssignment(property) && property.name.getText(timelineAst) === "hamsterId"
+  );
+  assert.ok(hamsterId && ts.isPropertyAssignment(hamsterId));
+
+  function assertPropertyAccess(node: ts.Node, objectName: string, propertyName: string) {
+    assert.ok(ts.isPropertyAccessExpression(node));
+    assert.ok(ts.isIdentifier(node.expression));
+    assert.equal(node.expression.text, objectName);
+    assert.equal(node.name.text, propertyName);
+  }
+  assertPropertyAccess(hamsterId.initializer, "hamster", "id");
+
+  const nameBranches = hamsterLink.children
+    .filter(ts.isJsxExpression)
+    .map((child) => child.expression)
+    .filter((expression): expression is ts.ConditionalExpression => Boolean(expression && ts.isConditionalExpression(expression)));
+  assert.equal(nameBranches.length, 1, "名前表示の種別分岐がリンクの子要素に存在する");
+  const nameBranch = nameBranches[0];
+  assert.ok(ts.isBinaryExpression(nameBranch.condition));
+  assertPropertyAccess(nameBranch.condition.left, "record", "recordType");
+  assert.equal(nameBranch.condition.operatorToken.kind, ts.SyntaxKind.ExclamationEqualsEqualsToken);
+  assert.ok(ts.isStringLiteral(nameBranch.condition.right));
+  assert.equal(nameBranch.condition.right.text, "MEDICAL");
+
+  assert.ok(ts.isJsxElement(nameBranch.whenTrue), "通院以外の名前はspan内に表示する");
+  assert.equal(nameBranch.whenTrue.openingElement.tagName.getText(timelineAst), "span");
+  const spanChildren = nameBranch.whenTrue.children.filter(
+    (child) => !(ts.isJsxText(child) && child.text.trim() === "")
+  );
+  assert.equal(spanChildren.length, 1);
+  const spanName = spanChildren[0];
+  assert.ok(ts.isJsxExpression(spanName) && spanName.expression);
+  assertPropertyAccess(spanName.expression, "hamster", "name");
+  assertPropertyAccess(nameBranch.whenFalse, "hamster", "name");
   assert.match(
     records,
     /options\.scope === "household" \|\| \(options\.includeScope && options\.scope === "hamster"\)/
